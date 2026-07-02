@@ -8,18 +8,10 @@ import logging
 
 import requests
 
+from brokers.adapters.upstox.config import CONTRACT_URLS
 from brokers.ports.instruments import InstrumentInfo
 
 logger = logging.getLogger(__name__)
-
-_SEGMENT_URLS = {
-    "NSE": "https://api.upstox.com/v2/contracts/MASTER/NSE",
-    "BSE": "https://api.upstox.com/v2/contracts/MASTER/BSE",
-    "NSE_FO": "https://api.upstox.com/v2/contracts/MASTER/NSE_FO",
-    "BSE_FO": "https://api.upstox.com/v2/contracts/MASTER/BSE_FO",
-    "MCX_FO": "https://api.upstox.com/v2/contracts/MASTER/MCX_FO",
-    "NCD_FO": "https://api.upstox.com/v2/contracts/MASTER/NCD_FO",
-}
 
 
 class UpstoxInstruments:
@@ -28,7 +20,7 @@ class UpstoxInstruments:
         self._by_symbol: dict[str, InstrumentInfo] = {}
 
     def load(self, segment: str = "NSE") -> None:
-        url = _SEGMENT_URLS.get(segment.upper(), _SEGMENT_URLS["NSE"])
+        url = CONTRACT_URLS.get(segment.upper(), CONTRACT_URLS["NSE"])
         try:
             resp = requests.get(url, timeout=30)
             resp.raise_for_status()
@@ -47,7 +39,7 @@ class UpstoxInstruments:
                     lot_size=lot_size,
                 )
                 self._instruments.append(info)
-                self._by_symbol[info.symbol.upper()] = info
+                self._by_symbol[(info.symbol.upper(), info.exchange.upper())] = info
             logger.info(
                 "upstox_instruments_loaded",
                 extra={"count": len(self._instruments), "segment": segment},
@@ -60,4 +52,4 @@ class UpstoxInstruments:
         return [i for i in self._instruments if query_upper in i.symbol.upper()][:limit]
 
     def resolve(self, symbol: str, exchange: str = "NSE") -> InstrumentInfo | None:
-        return self._by_symbol.get(symbol.upper())
+        return self._by_symbol.get((symbol.upper(), exchange.upper()))

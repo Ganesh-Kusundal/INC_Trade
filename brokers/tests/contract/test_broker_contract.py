@@ -92,6 +92,25 @@ class _FakeAuth:
         return True
 
 
+class _FakeHistorical:
+    def get_historical_candles(self, symbol, exchange, start_time, end_time, resolution):
+        return []
+
+
+class _FakeStreaming:
+    async def connect(self):
+        pass
+
+    async def disconnect(self):
+        pass
+
+    async def subscribe_quotes(self, symbols, exchange, callback):
+        pass
+
+    async def unsubscribe_quotes(self, symbols, exchange):
+        pass
+
+
 class _FakeBroker:
     def __init__(self):
         self._orders = _FakeOrders()
@@ -99,6 +118,8 @@ class _FakeBroker:
         self._portfolio = _FakePortfolio()
         self._instruments = _FakeInstruments()
         self._auth = _FakeAuth()
+        self._historical = _FakeHistorical()
+        self._streaming = _FakeStreaming()
 
     @property
     def orders(self):
@@ -119,6 +140,14 @@ class _FakeBroker:
     @property
     def auth(self):
         return self._auth
+
+    @property
+    def historical(self):
+        return self._historical
+
+    @property
+    def streaming(self):
+        return self._streaming
 
     def close(self):
         pass

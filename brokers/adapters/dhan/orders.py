@@ -18,6 +18,7 @@ from brokers.adapters.dhan.invariants import assert_valid_dhan_payload
 from brokers.adapters.dhan.mapper import map_order, map_order_response
 from brokers.domain import Order, OrderResponse
 from brokers.domain.enums import OrderType, ProductType, Side, Validity
+from brokers.utils.price import to_wire_float
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +50,8 @@ class DhanOrders:
             "orderType": ORDER_TYPE_MAP.get(order_type.value, 1),
             "productType": PRODUCT_TYPE_MAP.get(product_type.value, "INTRADAY"),
             "validity": VALIDITY_MAP.get(validity.value, "DAY"),
-            "price": float(price) if price > 0 else 0,
-            "triggerPrice": float(trigger_price) if trigger_price > 0 else 0,
+            "price": to_wire_float(price) if price > 0 else 0.0,
+            "triggerPrice": to_wire_float(trigger_price) if trigger_price > 0 else 0.0,
         }
         assert_valid_dhan_payload(payload, context="orders.place_order")
         data = self._client.post(ENDPOINTS["orders"], json=payload)

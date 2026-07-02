@@ -5,6 +5,8 @@ from __future__ import annotations
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from brokers.adapters.dhan.gateway import DhanGateway
 from brokers.adapters.dhan.identity import DhanInstrumentRef
 from brokers.domain import Side
@@ -209,4 +211,68 @@ class TestDhanAuth:
     def test_not_authenticated_without_token(self):
         gw = DhanGateway(access_token="", client_id="cid")
         assert not gw.auth.is_authenticated()
+        gw.close()
+
+    @patch("brokers.adapters.dhan.auth.requests.post")
+    @patch("pyotp.TOTP")
+    def test_totp_token_generation_success(self, mock_totp_cls, mock_post):
+        mock_totp = MagicMock()
+        mock_totp.now.return_value = "123456"
+        mock_totp_cls.return_value = mock_totp
+
+        mock_post.return_value = _mock_response(
+            {"data": {"accessToken": "generated-token-123"}}
+        )
+
+        gw = DhanGateway(
+            access_token=None,
+            client_id="cid",
+            pin="1122",
+            totp_secret="MYSUPERSECRET",
+        )
+        assert gw.auth.is_authenticated()
+        assert gw.auth.get_token() == "generated-token-123"
+        gw.close()
+
+    @patch("brokers.adapters.dhan.auth.requests.post")
+    @patch("pyotp.TOTP")
+    def test_totp_token_generation_failure(self, mock_totp_cls, mock_post):
+        mock_totp = MagicMock()
+        mock_totp.now.return_value = "123456"
+        mock_totp_cls.return_value = mock_totp
+
+        mock_post.return_value = _mock_response({}, status_code=400)
+
+        with pytest.raises(RuntimeError, match="Token generation failed"):
+            DhanGateway(
+                access_token=None,
+                client_id="cid",
+                pin="1122",
+                totp_secret="MYSUPERSECRET",
+            )
+
+    @patch("brokers.adapters.dhan.auth.requests.post")
+    @patch("pyotp.TOTP")
+    def test_refresh_token_regenerates(self, mock_totp_cls, mock_post):
+        mock_totp = MagicMock()
+        mock_totp.now.return_value = "123456"
+        mock_totp_cls.return_value = mock_totp
+
+        # First call on init, second on refresh
+        mock_post.side_effect = [
+            _mock_response({"data": {"accessToken": "generated-token-1"}}),
+            _mock_response({"data": {"accessToken": "generated-token-2"}}),
+        ]
+
+        gw = DhanGateway(
+            access_token=None,
+            client_id="cid",
+            pin="1122",
+            totp_secret="MYSUPERSECRET",
+        )
+        assert gw.auth.get_token() == "generated-token-1"
+
+        token = gw.auth.refresh_token()
+        assert token == "generated-token-2"
+        assert gw.auth.get_token() == "generated-token-2"
         gw.close()

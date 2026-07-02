@@ -19,8 +19,17 @@ ENDPOINTS = {
     "positions": f"{V2_BASE}/portfolio/short-term-positions",
     "holdings": f"{V2_BASE}/portfolio/long-term-holdings",
     "funds": f"{V2_BASE}/user/get-funds-and-margin",
-    "instruments": f"{V2_BASE}/contracts/MASTER/NSE",
+    "instruments": f"{V2_BASE}/contracts/MASTER",
     "profile": f"{V2_BASE}/user/profile",
+}
+
+CONTRACT_URLS = {
+    "NSE": f"{V2_BASE}/contracts/MASTER/NSE",
+    "BSE": f"{V2_BASE}/contracts/MASTER/BSE",
+    "NSE_FO": f"{V2_BASE}/contracts/MASTER/NSE_FO",
+    "BSE_FO": f"{V2_BASE}/contracts/MASTER/BSE_FO",
+    "MCX_FO": f"{V2_BASE}/contracts/MASTER/MCX_FO",
+    "NCD_FO": f"{V2_BASE}/contracts/MASTER/NCD_FO",
 }
 
 RATE_LIMITS = {

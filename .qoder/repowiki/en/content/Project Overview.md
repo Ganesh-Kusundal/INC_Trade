@@ -2,21 +2,12 @@
 
 <cite>
 **Referenced Files in This Document**
-- [README.md](file://README.md)
-- [brokers/common/__init__.py](file://brokers/common/__init__.py)
-- [brokers/common/core/domain.py](file://brokers/common/core/domain.py)
-- [brokers/common/core/models.py](file://brokers/common/core/models.py)
-- [brokers/common/intelligent_gateway.py](file://brokers/common/intelligent_gateway.py)
-- [brokers/common/oms/__init__.py](file://brokers/common/oms/__init__.py)
-- [brokers/common/oms/order_manager.py](file://brokers/common/oms/order_manager.py)
-- [brokers/common/oms/risk_manager.py](file://brokers/common/oms/risk_manager.py)
-- [brokers/common/event_bus/__init__.py](file://brokers/common/event_bus/__init__.py)
-- [brokers/common/lifecycle/__init__.py](file://brokers/common/lifecycle/__init__.py)
-- [brokers/common/observability/__init__.py](file://brokers/common/observability/__init__.py)
-- [brokers/dhan/__init__.py](file://brokers/dhan/__init__.py)
-- [brokers/upstox/__init__.py](file://brokers/upstox/__init__.py)
-- [cli/main.py](file://cli/main.py)
-- [cli/services/broker_service.py](file://cli/services/broker_service.py)
+- [brokers/common/__init__.py](file://INC_Trade/brokers/common/__init__.py)
+- [brokers/common/models.py](file://INC_Trade/brokers/common/models.py)
+- [brokers/common/oms/__init__.py](file://INC_Trade/brokers/common/oms/__init__.py)
+- [brokers/common/observability/__init__.py](file://INC_Trade/brokers/common/observability/__init__.py)
+- [brokers/dhan/__init__.py](file://INC_Trade/brokers/dhan/__init__.py)
+- [brokers/upstox/__init__.py](file://INC_Trade/brokers/upstox/__init__.py)
 </cite>
 
 ## Table of Contents

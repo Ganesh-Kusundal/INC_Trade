@@ -135,6 +135,10 @@ class TestPortfolioService:
         pnl = self.service.total_unrealized_pnl()
         assert pnl == Decimal("0")
 
+    def test_total_realized_pnl(self):
+        pnl = self.service.total_realized_pnl()
+        assert pnl == Decimal("0")
+
     def test_net_exposure(self):
         exposure = self.service.net_exposure()
         assert exposure == Decimal("0")

@@ -37,8 +37,11 @@ class PortfolioService:
             Decimal("0"),
         )
 
-    def total_realized_pnl(self) -> list[Trade]:
-        return self._portfolio.trades()
+    def total_realized_pnl(self) -> Decimal:
+        return sum(
+            (p.realized_pnl for p in self._portfolio.positions()),
+            Decimal("0"),
+        )
 
     def net_exposure(self) -> Decimal:
         total = Decimal("0")

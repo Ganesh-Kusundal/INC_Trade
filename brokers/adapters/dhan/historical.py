@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from brokers.adapters.dhan.config import ENDPOINTS
 from brokers.adapters.dhan.http import DhanHttpClient
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
 from brokers.adapters.dhan.invariants import assert_valid_dhan_payload
+from brokers.domain.entities import Candle
 
 logger = logging.getLogger(__name__)
 
@@ -38,16 +41,19 @@ class DhanHistorical:
         self._client = client
         self._resolver = resolver
 
-    def get_candles(
+    def get_historical_candles(
         self,
         symbol: str,
         exchange: str,
-        from_date: str,
-        to_date: str,
-        timeframe: str = "1D",
-    ) -> list[dict]:
+        start_time: datetime,
+        end_time: datetime,
+        resolution: str,
+    ) -> list[Candle]:
         ref = self._resolver.resolve(symbol, exchange)
-        interval = _TIMEFRAME_MAP.get(timeframe, timeframe)
+        interval = _TIMEFRAME_MAP.get(resolution, resolution)
+
+        from_date = start_time.strftime("%Y-%m-%d")
+        to_date = end_time.strftime("%Y-%m-%d")
 
         if interval == "1D":
             payload = {
@@ -70,35 +76,69 @@ class DhanHistorical:
                 "toDate": f"{to_date} 15:30:00",
             }
 
-        assert_valid_dhan_payload(payload, context="historical.get_candles")
+        assert_valid_dhan_payload(payload, context="historical.get_historical_candles")
         data = self._client.post(ENDPOINTS["historical"], json=payload)
-        return self._parse(data)
+        return self._parse(data, symbol)
 
     @staticmethod
-    def _parse(data: dict) -> list[dict]:
+    def _parse(data: dict, symbol: str) -> list[Candle]:
         raw = data.get("data", data) if isinstance(data, dict) else data
         if isinstance(raw, dict) and "data" in raw:
             raw = raw["data"]
         if not isinstance(raw, (list, dict)):
             return []
         if isinstance(raw, dict):
+            # Dhan sometimes returns column arrays instead of row dicts for chart data
+            if "start_Time" in raw and "open" in raw:
+                # Columnar format
+                times = raw.get("start_Time", [])
+                opens = raw.get("open", [])
+                highs = raw.get("high", [])
+                lows = raw.get("low", [])
+                closes = raw.get("close", [])
+                vols = raw.get("volume", [])
+                
+                candles = []
+                for i in range(len(times)):
+                    try:
+                        ts = datetime.fromtimestamp(times[i], tz=ZoneInfo("Asia/Kolkata"))
+                    except Exception:
+                        continue
+                    candles.append(
+                        Candle(
+                            symbol=symbol,
+                            timestamp=ts,
+                            open=Decimal(str(opens[i])),
+                            high=Decimal(str(highs[i])),
+                            low=Decimal(str(lows[i])),
+                            close=Decimal(str(closes[i])),
+                            volume=int(vols[i]) if i < len(vols) else 0,
+                        )
+                    )
+                return candles
             raw = [raw]
 
         candles = []
         for item in raw:
             if not isinstance(item, dict):
                 continue
-            ts = item.get("timestamp") or item.get("date", "")
-            if isinstance(ts, (int, float)):
-                ts = datetime.fromtimestamp(ts).isoformat()
+            ts_raw = item.get("timestamp") or item.get("date", "")
+            if isinstance(ts_raw, (int, float)):
+                ts = datetime.fromtimestamp(ts_raw, tz=ZoneInfo("Asia/Kolkata"))
+            else:
+                try:
+                    ts = datetime.fromisoformat(str(ts_raw))
+                except Exception:
+                    continue
             candles.append(
-                {
-                    "timestamp": str(ts),
-                    "open": float(item.get("open", 0)),
-                    "high": float(item.get("high", 0)),
-                    "low": float(item.get("low", 0)),
-                    "close": float(item.get("close", 0)),
-                    "volume": int(item.get("volume", 0)),
-                }
+                Candle(
+                    symbol=symbol,
+                    timestamp=ts,
+                    open=Decimal(str(item.get("open", 0))),
+                    high=Decimal(str(item.get("high", 0))),
+                    low=Decimal(str(item.get("low", 0))),
+                    close=Decimal(str(item.get("close", 0))),
+                    volume=int(item.get("volume", 0)),
+                )
             )
         return candles

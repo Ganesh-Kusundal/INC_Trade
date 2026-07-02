@@ -26,6 +26,7 @@ from brokers.domain.enums import (
 from brokers.domain.exceptions import (
     AuthenticationError,
     BrokerError,
+    BrokerServerError,
     CircuitOpenError,
     InstrumentNotFoundError,
     OrderRejectedError,
@@ -36,6 +37,7 @@ __all__ = [
     "AuthenticationError",
     "Balance",
     "BrokerError",
+    "BrokerServerError",
     "CircuitOpenError",
     "DepthLevel",
     "Holding",

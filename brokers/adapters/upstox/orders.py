@@ -16,6 +16,7 @@ from brokers.adapters.upstox.http import UpstoxHttpClient
 from brokers.adapters.upstox.mapper import map_order, map_order_response
 from brokers.domain import Order, OrderResponse
 from brokers.domain.enums import OrderType, ProductType, Side, Validity
+from brokers.utils.price import to_wire_float
 
 logger = logging.getLogger(__name__)
 
@@ -46,12 +47,12 @@ class UpstoxOrders:
             "quantity": quantity,
             "product": PRODUCT_TYPE_MAP.get(product_type.value, "I"),
             "validity": VALIDITY_MAP.get(validity.value, "DAY"),
-            "price": float(price) if price > 0 else 0,
+            "price": to_wire_float(price) if price > 0 else 0.0,
             "instrument_token": instrument_token,
             "order_type": ORDER_TYPE_MAP.get(order_type.value, "MARKET"),
             "transaction_type": side.value,
             "disclosed_quantity": 0,
-            "trigger_price": float(trigger_price) if trigger_price > 0 else 0,
+            "trigger_price": to_wire_float(trigger_price) if trigger_price > 0 else 0.0,
             "is_amo": False,
         }
         data = self._client.post(ENDPOINTS["place_order"], json=payload)

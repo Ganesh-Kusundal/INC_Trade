@@ -168,6 +168,25 @@ class _PaperAuth:
         return True
 
 
+class _PaperHistorical:
+    def get_historical_candles(self, symbol, exchange, start_time, end_time, resolution):
+        return []
+
+
+class _PaperStreaming:
+    async def connect(self):
+        pass
+
+    async def disconnect(self):
+        pass
+
+    async def subscribe_quotes(self, symbols, exchange, callback):
+        pass
+
+    async def unsubscribe_quotes(self, symbols, exchange):
+        pass
+
+
 class PaperGateway:
     """In-memory paper trading gateway for testing.
 
@@ -185,6 +204,8 @@ class PaperGateway:
         self._portfolio = _PaperPortfolio(initial_cash)
         self._instruments = _PaperInstruments()
         self._auth = _PaperAuth()
+        self._historical = _PaperHistorical()
+        self._streaming = _PaperStreaming()
 
     @property
     def orders(self) -> _PaperOrders:
@@ -205,6 +226,14 @@ class PaperGateway:
     @property
     def auth(self) -> _PaperAuth:
         return self._auth
+
+    @property
+    def historical(self) -> _PaperHistorical:
+        return self._historical
+
+    @property
+    def streaming(self) -> _PaperStreaming:
+        return self._streaming
 
     def set_quote(self, symbol: str, ltp: Decimal) -> None:
         with self._lock:

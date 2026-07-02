@@ -21,8 +21,34 @@ class DhanMarketData:
         self._resolver = resolver
 
     def ltp(self, symbol: str, exchange: str = "NSE") -> Decimal:
-        q = self.quote(symbol, exchange)
-        return q.ltp
+        ref = self._resolver.resolve(symbol, exchange)
+        sid = ref.security_id_int()
+        segment = ref.exchange_segment
+        payload = {segment: [sid]}
+        assert_valid_dhan_payload(payload, context="market_data.ltp")
+        data = self._client.post(ENDPOINTS["ltp"], json=payload)
+        feed = data.get("data", {})
+        
+        entry = {}
+        if isinstance(feed, dict):
+            segment_data = feed.get(segment)
+            if isinstance(segment_data, dict):
+                entry = segment_data.get(str(sid)) or {}
+            if not entry:
+                entry = (
+                    feed.get(str(sid))
+                    or feed.get(f"{segment}:{sid}")
+                    or feed.get(symbol)
+                    or {}
+                )
+                
+        price = entry.get("last_price") if "last_price" in entry else entry.get("lastPrice")
+        if price is None:
+            if isinstance(entry, (int, float, str, Decimal)):
+                price = entry
+            else:
+                price = 0
+        return Decimal(str(price))
 
     def quote(self, symbol: str, exchange: str = "NSE") -> Quote:
         ref = self._resolver.resolve(symbol, exchange)

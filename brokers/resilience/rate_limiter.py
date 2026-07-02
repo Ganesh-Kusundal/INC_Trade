@@ -21,11 +21,11 @@ class TokenBucketRateLimiter:
         self._capacity = float(capacity)
         self._tokens = float(capacity)
         self._last_refill = time.monotonic()
-        self._lock = threading.Lock()
+        self._condition = threading.Condition(threading.Lock())
 
     @property
     def available_tokens(self) -> float:
-        with self._lock:
+        with self._condition:
             self._refill()
             return self._tokens
 
@@ -35,20 +35,30 @@ class TokenBucketRateLimiter:
 
         deadline = (time.monotonic() + timeout) if timeout is not None else None
 
-        while True:
-            with self._lock:
+        with self._condition:
+            while True:
                 self._refill()
                 if self._tokens >= tokens:
                     self._tokens -= tokens
                     return True
 
-            if deadline is not None and time.monotonic() >= deadline:
-                return False
+                now = time.monotonic()
+                if deadline is not None and now >= deadline:
+                    return False
 
-            time.sleep(0.001)
+                # Calculate time to wait until enough tokens are available
+                needed = tokens - self._tokens
+                wait_time = needed / self._rate
+                
+                if deadline is not None:
+                    wait_time = min(wait_time, deadline - now)
+                
+                # Wait until condition is notified or wait_time elapses
+                self._condition.wait(timeout=wait_time)
 
     def _refill(self) -> None:
         now = time.monotonic()
         elapsed = now - self._last_refill
         self._tokens = min(self._capacity, self._tokens + elapsed * self._rate)
         self._last_refill = now
+

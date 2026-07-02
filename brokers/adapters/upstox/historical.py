@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
+from decimal import Decimal
 
 from brokers.adapters.upstox.config import EXCHANGE_TO_SEGMENT
 from brokers.adapters.upstox.http import UpstoxHttpClient
+from brokers.domain.entities import Candle
 
 logger = logging.getLogger(__name__)
 
@@ -37,26 +40,29 @@ class UpstoxHistorical:
     def __init__(self, client: UpstoxHttpClient):
         self._client = client
 
-    def get_candles(
+    def get_historical_candles(
         self,
         symbol: str,
         exchange: str,
-        from_date: str,
-        to_date: str,
-        timeframe: str = "1D",
-    ) -> list[dict]:
+        start_time: datetime,
+        end_time: datetime,
+        resolution: str,
+    ) -> list[Candle]:
         segment = EXCHANGE_TO_SEGMENT.get(exchange.upper(), exchange)
         instrument_key = f"{segment}|{symbol}"
-        interval = _INTERVAL_MAP.get(timeframe, timeframe)
+        interval = _INTERVAL_MAP.get(resolution, resolution)
+
+        from_date = start_time.strftime("%Y-%m-%d")
+        to_date = end_time.strftime("%Y-%m-%d")
 
         endpoint = (
             f"/v2/historical-candle/{instrument_key}/{interval}/{to_date}/{from_date}"
         )
         data = self._client.get(endpoint)
-        return self._parse(data)
+        return self._parse(data, symbol)
 
     @staticmethod
-    def _parse(data: dict) -> list[dict]:
+    def _parse(data: dict, symbol: str) -> list[Candle]:
         inner = data.get("data", data) if isinstance(data, dict) else data
         if isinstance(inner, dict):
             candles_raw = inner.get("candles", [])
@@ -66,25 +72,20 @@ class UpstoxHistorical:
         candles = []
         for item in candles_raw:
             if isinstance(item, list) and len(item) >= 5:
+                # item[0] is ISO timestamp string like '2023-11-20T00:00:00+05:30'
+                try:
+                    ts = datetime.fromisoformat(str(item[0]))
+                except ValueError:
+                    continue
                 candles.append(
-                    {
-                        "timestamp": str(item[0]),
-                        "open": float(item[1]),
-                        "high": float(item[2]),
-                        "low": float(item[3]),
-                        "close": float(item[4]),
-                        "volume": int(item[5]) if len(item) > 5 else 0,
-                    }
-                )
-            elif isinstance(item, dict):
-                candles.append(
-                    {
-                        "timestamp": str(item.get("timestamp", "")),
-                        "open": float(item.get("open", 0)),
-                        "high": float(item.get("high", 0)),
-                        "low": float(item.get("low", 0)),
-                        "close": float(item.get("close", 0)),
-                        "volume": int(item.get("volume", 0)),
-                    }
+                    Candle(
+                        symbol=symbol,
+                        timestamp=ts,
+                        open=Decimal(str(item[1])),
+                        high=Decimal(str(item[2])),
+                        low=Decimal(str(item[3])),
+                        close=Decimal(str(item[4])),
+                        volume=int(item[5]) if len(item) > 5 else 0,
+                    )
                 )
         return candles

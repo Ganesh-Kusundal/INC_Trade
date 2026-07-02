@@ -20,6 +20,7 @@ import requests
 
 from brokers.adapters.dhan.config import (
     DHAN_SEGMENTS,
+    ENDPOINTS,
     EXCHANGE_MAP,
     INSTRUMENT_TYPE_MAP,
 )
@@ -27,7 +28,7 @@ from brokers.domain.exceptions import InstrumentNotFoundError
 
 logger = logging.getLogger(__name__)
 
-_CSV_URL = "https://images.dhan.co/master/eqmaster.csv"
+_CSV_URL = ENDPOINTS["instruments"]
 
 
 @dataclass(frozen=True)

@@ -6,7 +6,7 @@ from __future__ import annotations
 REST_BASE = "https://api.dhan.co/v2"
 
 ENDPOINTS = {
-    "generate_token": f"{REST_BASE}/validate/auth/login",
+    "generate_token": "https://auth.dhan.co/app/generateAccessToken",
     "orders": f"{REST_BASE}/orders",
     "order_by_id": f"{REST_BASE}/orders/{{order_id}}",
     "modify_order": f"{REST_BASE}/orders",
@@ -21,7 +21,7 @@ ENDPOINTS = {
     "ohlc": f"{REST_BASE}/marketfeed/ohlc",
     "option_chain": f"{REST_BASE}/optionchain",
     "historical": f"{REST_BASE}/charts/historical",
-    "instruments": "https://images.dhan.co/master/eqmaster.csv",
+    "instruments": "https://images.dhan.co/api-data/api-scrip-master.csv",
     "slice_order": f"{REST_BASE}/orders/slice",
 }
 

@@ -132,3 +132,15 @@ class Balance:
     available_cash: Decimal
     utilized_margin: Decimal = Decimal("0")
     total_margin: Decimal = Decimal("0")
+
+
+@dataclass(frozen=True)
+class Candle:
+    symbol: str
+    timestamp: datetime
+    open: Decimal
+    high: Decimal
+    low: Decimal
+    close: Decimal
+    volume: int
+

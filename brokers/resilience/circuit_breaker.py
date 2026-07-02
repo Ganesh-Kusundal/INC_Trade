@@ -65,7 +65,7 @@ class CircuitBreaker:
             self._check_recovery()
             return self._state
 
-    def call(self, fn: Callable[[], Any]) -> Any:
+    def call(self, fn: Callable[[], Any], ignored_exceptions: tuple[type[Exception], ...] = ()) -> Any:
         with self._lock:
             self._check_recovery()
             if self._state is CircuitState.OPEN:
@@ -73,8 +73,13 @@ class CircuitBreaker:
 
         try:
             result = fn()
-        except Exception:
-            self.record_failure()
+        except Exception as exc:
+            from brokers.domain.exceptions import BrokerServerError
+            is_ignored = any(isinstance(exc, t) for t in ignored_exceptions)
+            if is_ignored and isinstance(exc, BrokerServerError):
+                is_ignored = False
+            if not is_ignored:
+                self.record_failure()
             raise
 
         self.record_success()

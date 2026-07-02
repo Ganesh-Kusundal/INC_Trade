@@ -34,6 +34,7 @@ from brokers.domain.enums import (
 from brokers.domain.exceptions import (
     AuthenticationError as AuthenticationError,
     BrokerError as BrokerError,
+    BrokerServerError as BrokerServerError,
     CircuitOpenError as CircuitOpenError,
     InstrumentNotFoundError as InstrumentNotFoundError,
     OrderRejectedError as OrderRejectedError,
@@ -71,8 +72,10 @@ def create_broker(name: str, **credentials: Any) -> BrokerGateway:
         from brokers.adapters.dhan.gateway import DhanGateway
 
         return DhanGateway(
-            access_token=credentials["access_token"],
-            client_id=credentials["client_id"],
+            access_token=credentials.get("access_token"),
+            client_id=credentials.get("client_id"),
+            pin=credentials.get("pin"),
+            totp_secret=credentials.get("totp_secret"),
         )
     if name == "upstox":
         from brokers.adapters.upstox.gateway import UpstoxGateway

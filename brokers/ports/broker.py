@@ -18,10 +18,12 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from brokers.ports.auth import AuthPort
+from brokers.ports.historical import HistoricalPort
 from brokers.ports.instruments import InstrumentPort
 from brokers.ports.market_data import MarketDataPort
 from brokers.ports.order_execution import OrderExecutionPort
 from brokers.ports.portfolio import PortfolioPort
+from brokers.ports.streaming import StreamingPort
 
 
 @runtime_checkable
@@ -40,5 +42,11 @@ class BrokerGateway(Protocol):
 
     @property
     def auth(self) -> AuthPort: ...
+
+    @property
+    def historical(self) -> HistoricalPort: ...
+
+    @property
+    def streaming(self) -> StreamingPort: ...
 
     def close(self) -> None: ...

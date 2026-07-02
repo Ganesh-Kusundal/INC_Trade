@@ -7,19 +7,23 @@ these interfaces. Services depend on these abstractions, not concretions.
 from brokers.ports.auth import AuthPort
 from brokers.ports.broker import BrokerGateway
 from brokers.ports.clock import ClockPort, SystemClock
+from brokers.ports.historical import HistoricalPort
 from brokers.ports.instruments import InstrumentInfo, InstrumentPort
 from brokers.ports.market_data import MarketDataPort
 from brokers.ports.order_execution import OrderExecutionPort
 from brokers.ports.portfolio import PortfolioPort
+from brokers.ports.streaming import StreamingPort
 
 __all__ = [
     "AuthPort",
     "BrokerGateway",
     "ClockPort",
+    "HistoricalPort",
     "InstrumentInfo",
     "InstrumentPort",
     "MarketDataPort",
     "OrderExecutionPort",
     "PortfolioPort",
+    "StreamingPort",
     "SystemClock",
 ]

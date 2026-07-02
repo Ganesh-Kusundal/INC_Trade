@@ -2,19 +2,9 @@
 
 <cite>
 **Referenced Files in This Document**
-- [README.md](file://README.md)
-- [CONTRIBUTING.md](file://CONTRIBUTING.md)
-- [pyproject.toml](file://pyproject.toml)
-- [requirements.txt](file://requirements.txt)
-- [tradex](file://tradex)
-- [cli/main.py](file://cli/main.py)
-- [cli/commands/broker.py](file://cli/commands/broker.py)
-- [cli/commands/market.py](file://cli/commands/market.py)
-- [cli/commands/order_placement.py](file://cli/commands/order_placement.py)
-- [config/dhan-local.properties.example](file://config/dhan-local.properties.example)
-- [config/dhan-sandbox.properties.example](file://config/dhan-sandbox.properties.example)
-- [config/upstox-live.properties.example](file://config/upstox-live.properties.example)
-- [config/upstox-sandbox.properties.example](file://config/upstox-sandbox.properties.example)
+- [requirements.txt](file://INC_Trade/requirements.txt)
+- [brokers/upstox/config/upstox-live.properties.example](file://INC_Trade/brokers/upstox/config/upstox-live.properties.example)
+- [brokers/upstox/config/upstox-sandbox.properties.example](file://INC_Trade/brokers/upstox/config/upstox-sandbox.properties.example)
 </cite>
 
 ## Table of Contents

@@ -13,6 +13,10 @@ class BrokerError(Exception):
         super().__init__(message)
 
 
+class BrokerServerError(BrokerError):
+    pass
+
+
 class OrderRejectedError(BrokerError):
     def __init__(self, message: str, order_id: str = "", code: str = "") -> None:
         self.order_id = order_id
