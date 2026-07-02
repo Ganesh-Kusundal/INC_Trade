@@ -32,6 +32,7 @@ class SuperOrder:
     stop_loss_price: Decimal = Decimal("0")
     trailing_jump: Decimal = Decimal("0")
     order_status: str = ""
+    created_time: str | None = None
     trading_symbol: str = ""
     leg_details: list[SuperOrderLeg] = field(default_factory=list)
 

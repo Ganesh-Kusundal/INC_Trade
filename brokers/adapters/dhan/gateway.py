@@ -32,6 +32,7 @@ class DhanGateway:
         client_id: str | None = None,
         pin: str | None = None,
         totp_secret: str | None = None,
+        allow_live_orders: bool = False,
     ):
         self._auth = DhanAuth(
             access_token=access_token,
@@ -42,7 +43,7 @@ class DhanGateway:
         token = self._auth.get_token()
         self._client = DhanHttpClient(access_token=token, client_id=client_id or "")
         self._resolver = DhanInstrumentResolver()
-        self._orders = DhanOrders(self._client, self._resolver)
+        self._orders = DhanOrders(self._client, self._resolver, allow_live_orders=allow_live_orders)
         self._market_data = DhanMarketData(self._client, self._resolver)
         self._portfolio = DhanPortfolio(self._client)
         self._instruments = DhanInstruments(self._resolver)

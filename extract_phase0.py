@@ -5,7 +5,7 @@ import sys
 sys.path.append(os.path.abspath("archive"))
 
 try:
-    from infrastructure.di import ServiceLocator
+    from brokers.core.di import ServiceLocator
     from config.schema import AppConfig
     
     print("=== Configuration Schema ===")

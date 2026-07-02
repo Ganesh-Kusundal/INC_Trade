@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from decimal import Decimal
 
 from brokers.adapters.dhan.config import ENDPOINTS
 from brokers.adapters.dhan.http import DhanHttpClient
@@ -40,7 +41,7 @@ class DhanPortfolio:
         items = data.get("data", [])
         if isinstance(items, list) and items:
             return map_balance(items[0])
-        return Balance(available_cash=__import__("decimal").Decimal("0"))
+        return Balance(available_cash=Decimal("0"))
 
     def trades(self) -> list[Trade]:
         data = self._client.get(ENDPOINTS["tradebook"])

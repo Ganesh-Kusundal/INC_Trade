@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.abspath("."))
 from brokers.dhan.adapter import DhanBrokerAdapter
-from domain.models import OrderCommand, OrderType, OrderSide
-from core.config import settings
+from brokers.domain.enums import OrderType, Side as OrderSide
+from brokers.config_app import settings
 
 async def main():
     load_dotenv(".env.local")

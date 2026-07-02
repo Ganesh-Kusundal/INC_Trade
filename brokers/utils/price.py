@@ -76,3 +76,18 @@ def to_wire_float(price: Decimal, *, max_decimals: int = 4) -> float:
     quantizer = Decimal(10) ** -max_decimals
     quantized = price.quantize(quantizer, rounding=ROUND_HALF_UP)
     return float(quantized)
+
+
+def to_decimal(val: object) -> Decimal:
+    """Convert any value to Decimal, returning 0 for None.
+
+    >>> to_decimal(None)
+    Decimal('0')
+    >>> to_decimal("123.45")
+    Decimal('123.45')
+    >>> to_decimal(100)
+    Decimal('100')
+    """
+    if val is None:
+        return _ZERO
+    return Decimal(str(val))

@@ -80,6 +80,17 @@ class DhanHistorical:
         data = self._client.post(ENDPOINTS["historical"], json=payload)
         return self._parse(data, symbol)
 
+    def get_candles(
+        self,
+        symbol: str,
+        exchange: str,
+        start_time: datetime,
+        end_time: datetime,
+        resolution: str,
+    ) -> list[Candle]:
+        """Alias for get_historical_candles for protocol compatibility."""
+        return self.get_historical_candles(symbol, exchange, start_time, end_time, resolution)
+
     @staticmethod
     def _parse(data: dict, symbol: str) -> list[Candle]:
         raw = data.get("data", data) if isinstance(data, dict) else data

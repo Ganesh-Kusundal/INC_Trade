@@ -22,6 +22,11 @@ from brokers.resilience.circuit_breaker import CircuitBreaker
 from brokers.resilience.rate_limiter import TokenBucketRateLimiter
 from brokers.resilience.retry import RetryPolicy
 
+try:
+    from brokers.infrastructure.ssl_hardening import create_pinned_session
+except ImportError:
+    create_pinned_session = None  # type: ignore[assignment]
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,7 +37,10 @@ class BaseResilientHttpClient(ABC):
         timeout: float = 10.0,
     ):
         self._timeout = timeout
-        self._session = requests.Session()
+        if create_pinned_session is not None:
+            self._session = create_pinned_session()
+        else:
+            self._session = requests.Session()
 
         self._rate_limiters: dict[str, TokenBucketRateLimiter] = {}
         for endpoint, rate in rate_limits.items():

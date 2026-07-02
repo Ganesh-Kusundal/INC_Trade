@@ -50,6 +50,27 @@ class OrderResponse:
     def fail(cls, message: str, error_code: str = "") -> OrderResponse:
         return cls(success=False, message=message, error_code=error_code)
 
+    @classmethod
+    def ok(cls, order_id: str, status: OrderStatus = OrderStatus.PENDING) -> OrderResponse:
+        return cls(order_id=order_id, success=True, status=status)
+
+    @classmethod
+    def live_orders_disabled(cls) -> OrderResponse:
+        return cls(
+            success=False,
+            message="Live order submission is disabled",
+            error_code="LIVE_ORDERS_DISABLED",
+        )
+
+    @classmethod
+    def already_executed(cls, order_id: str) -> OrderResponse:
+        return cls(
+            order_id=order_id,
+            success=False,
+            message="Order already executed (idempotency conflict)",
+            error_code="IDEMPOTENCY_CONFLICT",
+        )
+
 
 @dataclass(frozen=True)
 class Quote:

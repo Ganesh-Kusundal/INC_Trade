@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class UpstoxInstruments:
     def __init__(self) -> None:
         self._instruments: list[InstrumentInfo] = []
-        self._by_symbol: dict[str, InstrumentInfo] = {}
+        self._by_symbol: dict[tuple[str, str], InstrumentInfo] = {}
 
     def load(self, segment: str = "NSE") -> None:
         url = CONTRACT_URLS.get(segment.upper(), CONTRACT_URLS["NSE"])

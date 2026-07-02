@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-import abc
 from datetime import datetime
+from typing import Protocol, runtime_checkable
 
 from brokers.domain.entities import Candle
 
 
-class HistoricalPort(abc.ABC):
-    """Abstract port for historical market data retrieval."""
+@runtime_checkable
+class HistoricalPort(Protocol):
+    """Protocol for historical market data retrieval."""
 
-    @abc.abstractmethod
     def get_historical_candles(
         self,
         symbol: str,

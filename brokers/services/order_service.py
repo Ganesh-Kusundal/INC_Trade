@@ -1,25 +1,42 @@
 """Order service — application-level order operations with validation.
 
 Sits between the consumer and the broker adapter, adding validation,
-logging, and error translation. Depends on ports, not concretions.
+idempotency, logging, and error translation. Depends on ports, not concretions.
 """
 
 from __future__ import annotations
 
 import logging
 from decimal import Decimal
+from typing import Any
 
 from brokers.domain import Order, OrderResponse, Side
 from brokers.domain.enums import OrderType, ProductType, Validity
 from brokers.domain.exceptions import OrderRejectedError
 from brokers.ports.order_execution import OrderExecutionPort
+from brokers.services.order_validation import (
+    check_notional_warning,
+    validate_lot_size,
+    validate_order_fields,
+    validate_product_segment,
+    validate_tick_alignment,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class OrderService:
-    def __init__(self, executor: OrderExecutionPort):
+    def __init__(
+        self,
+        executor: OrderExecutionPort,
+        idempotency_cache: Any = None,
+        lot_size: int = 0,
+        tick_size: Decimal = Decimal("0"),
+    ):
         self._executor = executor
+        self._idempotency = idempotency_cache
+        self._lot_size = lot_size
+        self._tick_size = tick_size
 
     def place_order(
         self,
@@ -32,10 +49,23 @@ class OrderService:
         product_type: ProductType = ProductType.INTRADAY,
         validity: Validity = Validity.DAY,
         trigger_price: Decimal = Decimal("0"),
+        correlation_id: str = "",
     ) -> OrderResponse:
-        self._validate(
-            symbol, exchange, side, quantity, order_type, price, trigger_price
+        validate_order_fields(
+            symbol, exchange, quantity, order_type, price, trigger_price
         )
+        validate_product_segment(product_type, exchange)
+
+        if self._lot_size > 0:
+            validate_lot_size(quantity, self._lot_size)
+        if self._tick_size > 0 and price > 0:
+            validate_tick_alignment(price, self._tick_size)
+
+        check_notional_warning(quantity, price)
+
+        if self._idempotency and correlation_id:
+            if not self._idempotency.check_and_set(correlation_id):
+                return OrderResponse.already_executed(correlation_id)
 
         resp = self._executor.place_order(
             symbol=symbol,
@@ -70,24 +100,3 @@ class OrderService:
 
     def get_orderbook(self) -> list[Order]:
         return self._executor.get_orderbook()
-
-    @staticmethod
-    def _validate(
-        symbol: str,
-        exchange: str,
-        side: Side,
-        quantity: int,
-        order_type: OrderType,
-        price: Decimal,
-        trigger_price: Decimal,
-    ) -> None:
-        if not symbol:
-            raise OrderRejectedError("symbol is required")
-        if not exchange:
-            raise OrderRejectedError("exchange is required")
-        if quantity <= 0:
-            raise OrderRejectedError(f"quantity must be positive, got {quantity}")
-        if order_type == OrderType.LIMIT and price <= Decimal("0"):
-            raise OrderRejectedError("LIMIT orders require a positive price")
-        if order_type.is_stop and trigger_price <= Decimal("0"):
-            raise OrderRejectedError("STOP orders require a positive trigger_price")

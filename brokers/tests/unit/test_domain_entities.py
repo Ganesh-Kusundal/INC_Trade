@@ -237,3 +237,25 @@ class TestOrderResponse:
         resp = OrderResponse(order_id="ORD001", success=True)
         with pytest.raises(AttributeError):
             resp.success = False
+
+    def test_ok_classmethod(self):
+        resp = OrderResponse.ok("ORD002", OrderStatus.OPEN)
+        assert resp.success
+        assert resp.order_id == "ORD002"
+        assert resp.status == OrderStatus.OPEN
+
+    def test_ok_default_status(self):
+        resp = OrderResponse.ok("ORD003")
+        assert resp.success
+        assert resp.status == OrderStatus.PENDING
+
+    def test_live_orders_disabled(self):
+        resp = OrderResponse.live_orders_disabled()
+        assert not resp.success
+        assert resp.error_code == "LIVE_ORDERS_DISABLED"
+
+    def test_already_executed(self):
+        resp = OrderResponse.already_executed("ORD004")
+        assert not resp.success
+        assert resp.order_id == "ORD004"
+        assert resp.error_code == "IDEMPOTENCY_CONFLICT"

@@ -19,9 +19,9 @@ class UpstoxGateway:
         access_token: Upstox API access token (Bearer token from OAuth flow).
     """
 
-    def __init__(self, access_token: str):
+    def __init__(self, access_token: str, allow_live_orders: bool = True):
         self._client = UpstoxHttpClient(access_token=access_token)
-        self._orders = UpstoxOrders(self._client)
+        self._orders = UpstoxOrders(self._client, allow_live_orders=allow_live_orders)
         self._market_data = UpstoxMarketData(self._client)
         self._portfolio = UpstoxPortfolio(self._client)
         self._instruments = UpstoxInstruments()

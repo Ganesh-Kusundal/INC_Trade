@@ -27,8 +27,9 @@ def _instrument_key(symbol: str, exchange: str) -> str:
 
 
 class UpstoxOrders:
-    def __init__(self, client: UpstoxHttpClient):
+    def __init__(self, client: UpstoxHttpClient, allow_live_orders: bool = True):
         self._client = client
+        self._allow_live_orders = allow_live_orders
 
     def place_order(
         self,
@@ -42,6 +43,9 @@ class UpstoxOrders:
         validity: Validity = Validity.DAY,
         trigger_price: Decimal = Decimal("0"),
     ) -> OrderResponse:
+        if not self._allow_live_orders:
+            logger.warning("Live orders disabled — rejecting place_order for %s", symbol)
+            raise PermissionError("Live orders disabled. Set allow_live_orders=True to enable.")
         instrument_token = _instrument_key(symbol, exchange)
         payload = {
             "quantity": quantity,

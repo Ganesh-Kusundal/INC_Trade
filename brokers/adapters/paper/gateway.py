@@ -9,6 +9,7 @@ from __future__ import annotations
 import threading
 import uuid
 from decimal import Decimal
+from typing import Any, Callable
 
 from brokers.domain import (
     Balance,
@@ -174,16 +175,25 @@ class _PaperHistorical:
 
 
 class _PaperStreaming:
-    async def connect(self):
+    async def connect(self) -> None:
         pass
 
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         pass
 
-    async def subscribe_quotes(self, symbols, exchange, callback):
+    async def subscribe_quotes(
+        self,
+        symbols: list[str],
+        exchange: str,
+        callback: Callable[[Quote], Any],
+    ) -> None:
         pass
 
-    async def unsubscribe_quotes(self, symbols, exchange):
+    async def unsubscribe_quotes(
+        self,
+        symbols: list[str],
+        exchange: str,
+    ) -> None:
         pass
 
 

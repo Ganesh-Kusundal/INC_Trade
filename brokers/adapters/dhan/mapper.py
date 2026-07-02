@@ -26,6 +26,7 @@ from brokers.domain.enums import (
     Side,
     Validity,
 )
+from brokers.utils.price import to_decimal
 
 _STATUS_MAP = {
     "PENDING": OrderStatus.PENDING,
@@ -52,12 +53,6 @@ _PRODUCT_MAP = {
     "MARGIN": ProductType.DELIVERY,
     "CNC": ProductType.DELIVERY,
 }
-
-
-def to_decimal(val: Any) -> Decimal:
-    if val is None:
-        return Decimal("0")
-    return Decimal(str(val))
 
 
 def map_order(data: dict) -> Order:

@@ -47,7 +47,7 @@ class TestDhanGatewayProtocol:
 
 class TestDhanOrders:
     def setup_method(self):
-        self.gw = DhanGateway(access_token="test-token", client_id="test-client")
+        self.gw = DhanGateway(access_token="test-token", client_id="test-client", allow_live_orders=True)
         self.mock_resp = MagicMock()
 
     def teardown_method(self):
@@ -65,7 +65,7 @@ class TestDhanOrders:
         mock_session.headers = {}
         mock_session_cls.return_value = mock_session
 
-        gw = DhanGateway(access_token="tok", client_id="cid")
+        gw = DhanGateway(access_token="tok", client_id="cid", allow_live_orders=True)
         _patch_resolver(gw)
         resp = gw.orders.place_order("RELIANCE", "NSE", Side.BUY, 10)
         assert resp.success
@@ -85,7 +85,7 @@ class TestDhanOrders:
         mock_session.headers = {}
         mock_session_cls.return_value = mock_session
 
-        gw = DhanGateway(access_token="tok", client_id="cid")
+        gw = DhanGateway(access_token="tok", client_id="cid", allow_live_orders=True)
         resp = gw.orders.cancel_order("12345")
         assert resp.success
         gw.close()

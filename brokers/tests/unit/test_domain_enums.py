@@ -54,11 +54,15 @@ class TestOrderStatus:
         assert OrderStatus.OPEN.value == "OPEN"
         assert OrderStatus.FILLED.value == "FILLED"
         assert OrderStatus.CANCELLED.value == "CANCELLED"
+        assert OrderStatus.PARTIALLY_CANCELLED.value == "PARTIALLY_CANCELLED"
+        assert OrderStatus.EXPIRED.value == "EXPIRED"
         assert OrderStatus.REJECTED.value == "REJECTED"
 
     def test_is_terminal(self):
         assert OrderStatus.FILLED.is_terminal
         assert OrderStatus.CANCELLED.is_terminal
+        assert OrderStatus.PARTIALLY_CANCELLED.is_terminal
+        assert OrderStatus.EXPIRED.is_terminal
         assert OrderStatus.REJECTED.is_terminal
         assert not OrderStatus.PENDING.is_terminal
         assert not OrderStatus.OPEN.is_terminal
@@ -67,6 +71,8 @@ class TestOrderStatus:
         assert OrderStatus.PENDING.is_active
         assert OrderStatus.OPEN.is_active
         assert not OrderStatus.FILLED.is_active
+        assert not OrderStatus.PARTIALLY_CANCELLED.is_active
+        assert not OrderStatus.EXPIRED.is_active
 
 
 class TestProductType:

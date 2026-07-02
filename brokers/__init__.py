@@ -33,12 +33,21 @@ from brokers.domain.enums import (
 )
 from brokers.domain.exceptions import (
     AuthenticationError as AuthenticationError,
+    BrokerDegradedError as BrokerDegradedError,
     BrokerError as BrokerError,
     BrokerServerError as BrokerServerError,
     CircuitOpenError as CircuitOpenError,
+    ConfigError as ConfigError,
+    DataError as DataError,
     InstrumentNotFoundError as InstrumentNotFoundError,
+    NetworkError as NetworkError,
+    NonRetryableError as NonRetryableError,
+    NotSupportedError as NotSupportedError,
     OrderRejectedError as OrderRejectedError,
     RateLimitError as RateLimitError,
+    RetryableError as RetryableError,
+    TradeXV2Error as TradeXV2Error,
+    ValidationError as ValidationError,
 )
 from brokers.ports import (
     AuthPort as AuthPort,
@@ -51,11 +60,12 @@ from brokers.ports import (
 )
 
 
-def create_broker(name: str, **credentials: Any) -> BrokerGateway:
+def create_broker(name: str, allow_live_orders: bool = False, **credentials: Any) -> BrokerGateway:
     """Factory — create a broker gateway by name.
 
     Args:
         name: Broker name — "dhan", "upstox", or "paper".
+        allow_live_orders: Enable live order placement (kill switch). Defaults to False for safety.
         **credentials: Broker-specific credentials.
             - dhan: access_token, client_id
             - upstox: access_token
@@ -76,11 +86,15 @@ def create_broker(name: str, **credentials: Any) -> BrokerGateway:
             client_id=credentials.get("client_id"),
             pin=credentials.get("pin"),
             totp_secret=credentials.get("totp_secret"),
+            allow_live_orders=allow_live_orders,
         )
     if name == "upstox":
         from brokers.adapters.upstox.gateway import UpstoxGateway
 
-        return UpstoxGateway(access_token=credentials["access_token"])
+        return UpstoxGateway(
+            access_token=credentials["access_token"],
+            allow_live_orders=allow_live_orders,
+        )
     if name == "paper":
         from decimal import Decimal
         from brokers.adapters.paper.gateway import PaperGateway

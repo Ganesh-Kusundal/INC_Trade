@@ -1,0 +1,18 @@
+"""Canonical error code constants for broker and platform errors.
+
+Using string constants instead of bare literals ensures consistent
+error codes across all adapters and makes typo-related bugs impossible.
+"""
+
+RATE_LIMITED = "RATE_LIMITED"
+CIRCUIT_OPEN = "CIRCUIT_OPEN"
+AUTH_ERROR = "AUTH_ERROR"
+INSTRUMENT_NOT_FOUND = "INSTRUMENT_NOT_FOUND"
+NOT_SUPPORTED = "NOT_SUPPORTED"
+BROKER_DEGRADED = "BROKER_DEGRADED"
+BROKER_SERVER = "BROKER_SERVER"
+NETWORK_ERROR = "NETWORK_ERROR"
+ORDER_REJECTED = "ORDER_REJECTED"
+INVALID_INPUT = "INVALID_INPUT"
+IDEMPOTENCY_CONFLICT = "IDEMPOTENCY_CONFLICT"
+LIVE_ORDERS_DISABLED = "LIVE_ORDERS_DISABLED"

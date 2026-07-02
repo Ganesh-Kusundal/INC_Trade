@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, os.path.abspath("."))
 
 from brokers.dhan.adapter import DhanBrokerAdapter
-from core.config import settings
+from brokers.config_app import settings
 
 async def test_live_dhan():
     load_dotenv(".env.local")

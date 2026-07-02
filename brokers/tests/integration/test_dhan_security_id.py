@@ -30,7 +30,7 @@ def _mock_response(json_data, status_code=200):
 
 
 def _make_gateway_with_csv() -> DhanGateway:
-    gw = DhanGateway(access_token="tok", client_id="cid")
+    gw = DhanGateway(access_token="tok", client_id="cid", allow_live_orders=True)
     gw._resolver.load_from_csv_text(SAMPLE_CSV)
     return gw
 
