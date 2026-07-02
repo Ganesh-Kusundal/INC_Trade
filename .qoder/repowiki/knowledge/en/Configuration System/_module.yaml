@@ -1,0 +1,17 @@
+schema_version: 1
+module_path: configuration_system
+title: Configuration System
+scope: []
+source_files:
+    - brokers/common/settings.py
+    - brokers/common/env_loader.py
+    - brokers/dhan/settings.py
+    - brokers/upstox/auth/config.py
+    - config/endpoints.py
+    - config/scan-profiles.json
+    - cli/services/broker_registry.py
+    - cli/services/compose.py
+    - datalake/api/config.py
+    - pyproject.toml
+depends_on: []
+related_to: []

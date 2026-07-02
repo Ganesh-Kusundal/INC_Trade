@@ -1,0 +1,13 @@
+schema_version: 1
+module_path: logging_system
+title: Centralized Logging with Token Redaction and Observability Integration
+scope: []
+source_files:
+    - brokers/common/logging_config.py
+    - cli/main.py
+    - datalake/api/middleware.py
+    - datalake/api/main.py
+    - brokers/common/observability/event_metrics.py
+    - brokers/common/observability/http_server.py
+depends_on: []
+related_to: []

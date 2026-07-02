@@ -1,0 +1,1 @@
+A broker-agnostic, production-ready algorithmic trading framework for Indian exchanges featuring a centralized OMS, real-time analytics, and a unified data lake.

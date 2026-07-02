@@ -1,0 +1,18 @@
+schema_version: 1
+module_path: error_handling
+title: Hierarchical Exception Taxonomy and Resilience Patterns
+scope: []
+source_files:
+    - brokers/common/resilience/errors.py
+    - domain/result.py
+    - brokers/common/resilience/retry.py
+    - brokers/common/resilience/circuit_breaker.py
+    - brokers/common/resilience/error_codes.py
+    - brokers/dhan/exceptions.py
+    - cli/utils/error_formatter.py
+    - cli/utils/retry_handler.py
+    - brokers/common/core/state_machine.py
+    - brokers/common/gateway_errors.py
+    - tests/architecture/test_cross_cutting_concerns.py
+depends_on: []
+related_to: []

@@ -1,0 +1,15 @@
+schema_version: 1
+module_path: build_system
+title: Hybrid Python/Node.js Build & CI Pipeline
+scope: []
+source_files:
+    - pyproject.toml
+    - uv.lock
+    - .github/workflows/ci.yml
+    - .github/workflows/production_gate.yml
+    - .github/workflows/load-test.yml
+    - .github/workflows/mutation_nightly.yml
+    - .pre-commit-config.yaml
+    - frontend/package.json
+depends_on: []
+related_to: []

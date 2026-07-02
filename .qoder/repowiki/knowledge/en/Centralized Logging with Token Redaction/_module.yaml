@@ -1,0 +1,12 @@
+schema_version: 1
+module_path: logging_system
+title: Centralized Logging with Token Redaction
+scope: []
+source_files:
+    - brokers/common/logging_config.py
+    - cli/main.py
+    - brokers/common/tests/test_logging_redaction.py
+    - brokers/common/observability/event_metrics.py
+    - domain/constants/observability.py
+depends_on: []
+related_to: []

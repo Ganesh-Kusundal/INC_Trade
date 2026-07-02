@@ -1,0 +1,12 @@
+schema_version: 1
+module_path: frontend_style
+title: Bloomberg-Inspired Dark Theme with Tailwind CSS
+scope: []
+source_files:
+    - frontend/tailwind.config.js
+    - frontend/src/styles/globals.css
+    - frontend/src/lib/utils.ts
+    - frontend/src/components/TopBar.tsx
+    - frontend/package.json
+depends_on: []
+related_to: []

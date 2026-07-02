@@ -1,0 +1,3 @@
+- **Environment Setup**: Uses a pre-configured `venv/` or `uv.lock` for dependency management; requires `.env.local` for broker credentials.
+- **Testing Strategy**: Extensive pytest suite with custom markers (`integration`, `sandbox`, `chaos`) and a parity verification script (`scripts/verify_event_replay.py`).
+- **Quality Gates**: Pre-commit hooks enforce `ruff` linting, `mypy` type checking, and `import-linter` architectural contracts.

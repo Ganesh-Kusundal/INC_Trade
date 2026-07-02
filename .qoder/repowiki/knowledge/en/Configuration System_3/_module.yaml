@@ -1,0 +1,17 @@
+schema_version: 1
+module_path: configuration_system
+title: Configuration System
+scope: []
+source_files:
+    - config/secrets_manager.py
+    - config/endpoints.py
+    - config/CONFIG.md
+    - brokers/common/settings.py
+    - brokers/common/env_loader.py
+    - brokers/dhan/settings.py
+    - brokers/upstox/auth/config.py
+    - domain/constants/defaults.py
+    - config/indices.py
+    - cli/services/broker_registry.py
+depends_on: []
+related_to: []

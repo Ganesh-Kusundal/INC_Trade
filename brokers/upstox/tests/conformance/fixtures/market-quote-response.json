@@ -1,0 +1,14 @@
+{
+  "status": "success",
+  "data": {
+    "SBIN": {
+      "ltp": 850.50,
+      "open": 845.00,
+      "high": 856.00,
+      "low": 844.00,
+      "close": 848.00,
+      "volume": 1500000,
+      "open_interest": 0
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "status": "success",
+  "data": {
+    "authorized_redirect_uri": "wss://feeds.upstox.com/feed/market-data-feed/ws?token=test_auth_token_abc"
+  }
+}

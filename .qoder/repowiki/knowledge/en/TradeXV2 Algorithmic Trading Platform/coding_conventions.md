@@ -1,0 +1,4 @@
+- Use of `@dataclass(slots=True, frozen=True)` for immutable domain entities to ensure memory efficiency and thread safety.
+- Implementation of the `ManagedService` protocol within `LifecycleManager` to guarantee deterministic startup and shutdown of background threads (e.g., WebSocket feeds, token schedulers).
+- Adoption of the `GatewayResult` monad pattern in broker adapters to uniformly handle success, failure, and metadata without raising exceptions for expected API errors.
+- Strict separation of concerns where `brokers.common` contains only abstract interfaces and shared utilities, while broker-specific logic resides in isolated sub-packages (e.g., `brokers.dhan`).

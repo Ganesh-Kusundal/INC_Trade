@@ -1,0 +1,15 @@
+schema_version: 1
+module_path: build_system
+title: Hybrid Build System with UV, GitHub Actions, and Strict Quality Gates
+scope: []
+source_files:
+    - pyproject.toml
+    - uv.lock
+    - .github/workflows/ci.yml
+    - .github/workflows/production_gate.yml
+    - .pre-commit-config.yaml
+    - frontend/package.json
+    - scripts/production_certification.py
+    - .import-linter.ini
+depends_on: []
+related_to: []

@@ -1,0 +1,18 @@
+{
+  "status": "success",
+  "data": {
+    "order_id": "TEST_ORD_001",
+    "trading_symbol": "SBIN",
+    "exchange": "NSE",
+    "transaction_type": "BUY",
+    "product": "MIS",
+    "order_type": "MARKET",
+    "status": "CANCELLED",
+    "quantity": 10,
+    "filled_quantity": 0,
+    "price": 0,
+    "trigger_price": 0,
+    "exchange_timestamp": 1717000000000,
+    "status_message": "Order cancelled"
+  }
+}

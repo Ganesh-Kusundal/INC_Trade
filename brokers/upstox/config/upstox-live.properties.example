@@ -1,0 +1,18 @@
+# Sample Upstox config — Trade_J ``upstox-live.properties`` style.
+#
+# Mirror of /Users/apple/Downloads/Trade_J/config/upstox-live.properties.example
+# Adapted for the Python project (.properties syntax, keys read by
+# ``UpstoxSettingsLoader.from_properties``).
+#
+# Drop into ``config/upstox-live.properties`` (gitignored) and fill in.
+
+upstox.environment=LIVE
+upstox.live.clientId=
+upstox.live.clientSecret=
+upstox.live.redirectUri=http://127.0.0.1:18080/callback
+upstox.live.accessToken=
+upstox.live.refreshToken=
+upstox.live.analyticsToken=
+upstox.live.extendedToken=
+upstox.live.analyticsOnly=false
+upstox.live.restBaseUrl=

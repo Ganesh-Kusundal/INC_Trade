@@ -1,0 +1,24 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.coverage
+
+# Local environment overrides
+.env.local
+.env.local.sandbox
+.env.local.live_readonly
+.env.local.*
+
+# Upstox config secrets
+config/upstox-live.properties
+config/upstox-sandbox.properties
+
+# Upstox token state (local-only)
+.upstox-token*.json
+.runtime/upstox-token-state.json
+
+# Upstox instrument cache
+.cache/upstox/

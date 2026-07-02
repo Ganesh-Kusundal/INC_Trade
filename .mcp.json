@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "repo-graph": {
+      "type": "stdio",
+      "command": "repo-graph",
+      "args": [
+        "--repo",
+        "/Users/apple/Downloads/INC_Trade"
+      ]
+    }
+  }
+}

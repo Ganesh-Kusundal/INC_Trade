@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /Users/apple/Downloads/Trade_XV2 -type f -name \"*.py\" | head -80 && echo \"---\" && ls -la /Users/apple/Downloads/Trade_XV2/)"
+    ]
+  },
+  "cli": {
+    "enabled": true,
+    "agents_path": ".qoder/agents",
+    "skills_path": ".qoder/skills"
+  }
+}

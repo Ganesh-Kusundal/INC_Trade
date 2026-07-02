@@ -1,0 +1,109 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: en-US
+branch: dev
+nodes_managed: true
+exported_at: "2026-06-23T14:19:56Z"
+modules:
+    "":
+        dir_name: TradeXV2 Algorithmic Trading Platform
+        title: TradeXV2 Algorithmic Trading Platform
+        scope: []
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    build_system:
+        dir_name: Python Build System & CI_CD Pipeline
+        title: Python Build System & CI/CD Pipeline
+        scope: []
+        source_files:
+            - pyproject.toml
+            - uv.lock
+            - .github/workflows/ci.yml
+            - .github/workflows/production_gate.yml
+            - .github/workflows/load-test.yml
+            - .pre-commit-config.yaml
+            - requirements.txt
+            - frontend/package.json
+            - scripts/production_certification.py
+        children: []
+        depends_on: []
+        related_to: []
+    configuration_system:
+        dir_name: Configuration System_3
+        title: Configuration System
+        scope: []
+        source_files:
+            - config/secrets_manager.py
+            - config/endpoints.py
+            - config/CONFIG.md
+            - brokers/common/settings.py
+            - brokers/common/env_loader.py
+            - brokers/dhan/settings.py
+            - brokers/upstox/auth/config.py
+            - domain/constants/defaults.py
+            - config/indices.py
+            - cli/services/broker_registry.py
+        children: []
+        depends_on: []
+        related_to: []
+    dependency_management:
+        dir_name: Hybrid Dependency Management with UV and NPM_2
+        title: Hybrid Dependency Management with UV and NPM
+        scope: []
+        source_files:
+            - pyproject.toml
+            - uv.lock
+            - requirements.txt
+            - frontend/package.json
+            - frontend/package-lock.json
+            - .github/dependabot.yml
+            - .pre-commit-config.yaml
+        children: []
+        depends_on: []
+        related_to: []
+    error_handling:
+        dir_name: Error Handling and Resilience Architecture
+        title: Error Handling and Resilience Architecture
+        scope: []
+        source_files:
+            - brokers/common/resilience/errors.py
+            - domain/result.py
+            - brokers/common/resilience/retry.py
+            - cli/utils/error_formatter.py
+            - cli/utils/retry_handler.py
+            - brokers/common/gateway_errors.py
+            - datalake/api/middleware.py
+        children: []
+        depends_on: []
+        related_to: []
+    frontend_style:
+        dir_name: Bloomberg-Inspired Dark Theme with Tailwind CSS_2
+        title: Bloomberg-Inspired Dark Theme with Tailwind CSS
+        scope: []
+        source_files:
+            - frontend/tailwind.config.js
+            - frontend/src/styles/globals.css
+            - frontend/src/lib/utils.ts
+            - frontend/src/components/TopBar.tsx
+            - frontend/package.json
+        children: []
+        depends_on: []
+        related_to: []
+    logging_system:
+        dir_name: Centralized Logging with Token Redaction and Observability Integration_2
+        title: Centralized Logging with Token Redaction and Observability Integration
+        scope: []
+        source_files:
+            - brokers/common/logging_config.py
+            - brokers/common/observability/event_metrics.py
+            - brokers/common/observability/http_server.py
+            - brokers/common/observability/alerting.py
+            - brokers/common/core/constants/__init__.py
+            - cli/main.py
+            - api_server.py
+            - datalake/api/main.py
+        children: []
+        depends_on: []
+        related_to: []

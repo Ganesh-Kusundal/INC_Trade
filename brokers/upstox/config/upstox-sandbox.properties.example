@@ -1,0 +1,10 @@
+# Sample Upstox sandbox config — Trade_J ``upstox-sandbox.properties`` style.
+#
+# Mirror of /Users/apple/Downloads/Trade_J/config/upstox-sandbox.properties.example
+# Adapted for the Python project.
+
+upstox.environment=SANDBOX
+upstox.sandbox.clientId=
+upstox.sandbox.clientSecret=
+upstox.sandbox.redirectUri=http://127.0.0.1:18080/callback
+upstox.sandbox.accessToken=

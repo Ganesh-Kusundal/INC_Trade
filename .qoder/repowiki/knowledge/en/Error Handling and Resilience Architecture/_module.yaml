@@ -1,0 +1,14 @@
+schema_version: 1
+module_path: error_handling
+title: Error Handling and Resilience Architecture
+scope: []
+source_files:
+    - brokers/common/resilience/errors.py
+    - domain/result.py
+    - brokers/common/resilience/retry.py
+    - cli/utils/error_formatter.py
+    - cli/utils/retry_handler.py
+    - brokers/common/gateway_errors.py
+    - datalake/api/middleware.py
+depends_on: []
+related_to: []
