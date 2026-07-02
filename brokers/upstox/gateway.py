@@ -45,6 +45,7 @@ from brokers.common.defaults import (
     DEFAULT_VALIDITY,
 )
 from brokers.common.gateway import BrokerCapabilities, MarketDataGateway, ObservabilityProvider
+from brokers.common.responses import OrderResponseFactory as R
 from brokers.upstox.adapters import (
     HistoricalAdapter,
     PortfolioAdapter,
@@ -66,7 +67,6 @@ from domain import (
     MarketDepth,
     OptionChain,
     Order,
-    OrderResponse,
     OrderStatus,
     OrderType,
     Position,
@@ -745,11 +745,9 @@ class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvi
         """
         # Security guard: prevent live orders if disabled or analytics-only
         if self._broker.settings.analytics_only:
-            return OrderResponse.fail("Analytics-only mode: live orders are blocked.")
+            return R.analytics_blocked()
         if not self._broker.settings.allow_live_orders:
-            return OrderResponse.fail(
-                "Live orders are disabled. Set allow_live_orders=True in configuration."
-            )
+            return R.live_orders_disabled()
 
         if correlation_id is None:
             try:
@@ -788,7 +786,7 @@ class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvi
                     "error": str(e),
                 },
             )
-            return OrderResponse.fail(str(e))
+            return R.fail(str(e))
 
         # Log failed responses from adapter (risk checks, validation, etc.)
         if not response.success:
@@ -830,11 +828,9 @@ class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvi
         """
         # Safety guard: prevent live order cancellations if disabled
         if self._broker.settings.analytics_only:
-            return OrderResponse.fail("Analytics-only mode: live orders are blocked.")
+            return R.analytics_blocked()
         if not self._broker.settings.allow_live_orders:
-            return OrderResponse.fail(
-                "Live orders are disabled. Set allow_live_orders=True in configuration."
-            )
+            return R.live_orders_disabled()
 
         # Step 1: Send cancel request
         response = self._order_command.cancel_order(order_id)
@@ -843,10 +839,7 @@ class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvi
         if response.success:
             order = self.get_order(order_id)
             if order and order.status in (OrderStatus.FILLED,):
-                return OrderResponse.fail(
-                    message=f"Order {order_id} was already filled before cancel completed",
-                    status=OrderStatus.FILLED,
-                )
+                return R.already_executed(order_id)
 
         return response
 
@@ -880,32 +873,28 @@ class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvi
 
     def modify_order(self, order_id: str, **changes: Any) -> OrderResponse:
         """Modify an order via Upstox V3 API."""
-        from domain.entities import OrderResponse
-
         # Safety guard: prevent live order modifications if disabled
         if self._broker.settings.analytics_only:
-            return OrderResponse.fail("Analytics-only mode: live orders are blocked.")
+            return R.analytics_blocked()
         if not self._broker.settings.allow_live_orders:
-            return OrderResponse.fail(
-                "Live orders are disabled. Set allow_live_orders=True in configuration."
-            )
+            return R.live_orders_disabled()
 
         try:
             result = self._order_command.modify_order(order_id, **changes)
             if isinstance(result, dict) and result.get("status") == "success":
-                return OrderResponse.ok(order_id=order_id, message="Order modified")
+                return R.ok(order_id=order_id, message="Order modified")
             message = (
                 result.get("message", "modify failed")
                 if isinstance(result, dict)
                 else "modify failed"
             )
-            return OrderResponse.fail(message)
+            return R.fail(message)
         except Exception as exc:
             logger.warning(
                 "modify_order_failed",
                 extra={"order_id": order_id, "changes": changes, "error": str(exc)},
             )
-            return OrderResponse.fail(str(exc))
+            return R.fail(str(exc))
 
     # ── Backward compatibility for internal methods (used by tests) ──
 

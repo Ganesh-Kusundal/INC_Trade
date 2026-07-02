@@ -38,6 +38,7 @@ class OrderResponseFactory:
         order_id: str,
         message: str = "Order placed",
         status: OrderStatus | None = None,
+        **extra: Any,
     ) -> OrderResponse:
         """Build a successful order response.
 
@@ -49,11 +50,15 @@ class OrderResponseFactory:
             Human-readable success message.
         status : OrderStatus, optional
             Normalised order status. Defaults to ``OPEN``.
+        **extra
+            Additional keyword arguments forwarded to ``OrderResponse.ok()``
+            (e.g. ``raw_payload``).
         """
         return OrderResponse.ok(
             order_id=order_id,
             message=message,
             status=status,
+            **extra,
         )
 
     @staticmethod
@@ -74,12 +79,35 @@ class OrderResponseFactory:
             ``"ALREADY_EXECUTED"``).
         status : OrderStatus, optional
             Current order status if known.
-        extra : dict
-            Additional keyword arguments forwarded to ``OrderResponse.fail()``.
+        **extra
+            Additional keyword arguments forwarded to ``OrderResponse.fail()``
+            (e.g. ``raw_payload``).
         """
         return OrderResponse.fail(
             message=message,
             error_code=error_code,
+            status=status,
+            **extra,
+        )
+
+    @staticmethod
+    def direct(
+        success: bool,
+        order_id: str = "",
+        message: str = "",
+        status: OrderStatus | None = None,
+        **extra: Any,
+    ) -> OrderResponse:
+        """Build an OrderResponse with explicit fields (paper-gateway pattern).
+
+        This is an escape hatch for the paper gateway and test fixtures
+        that construct ``OrderResponse(success=True, order_id=..., ...)``
+        directly. Prefer ``ok()`` or ``fail()`` in production paths.
+        """
+        return OrderResponse(
+            success=success,
+            order_id=order_id,
+            message=message,
             status=status,
             **extra,
         )
@@ -105,4 +133,14 @@ class OrderResponseFactory:
         """Live orders disabled by configuration."""
         return OrderResponse.fail(
             "Live orders are disabled. Set allow_live_orders=True in configuration."
+        )
+
+    @staticmethod
+    def order_not_found(order_id: str) -> OrderResponse:
+        """Order lookup returned no result."""
+        return OrderResponse(
+            success=False,
+            order_id=order_id,
+            message="Order not found",
+            status=OrderStatus.REJECTED,
         )

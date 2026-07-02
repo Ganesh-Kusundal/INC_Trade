@@ -25,6 +25,19 @@ from brokers.common.defaults import (
     DEFAULT_TIMEFRAME,
     DEFAULT_VALIDITY,
 )
+from brokers.common.responses import OrderResponseFactory as R
+from brokers.common.defaults import (
+    DEFAULT_DEPTH_TYPE,
+    DEFAULT_DERIVATIVES_EXCHANGE,
+    DEFAULT_EXCHANGE,
+    DEFAULT_LOOKBACK_DAYS,
+    DEFAULT_ORDER_TYPE,
+    DEFAULT_PRODUCT_TYPE,
+    DEFAULT_SIDE,
+    DEFAULT_STREAM_MODE,
+    DEFAULT_TIMEFRAME,
+    DEFAULT_VALIDITY,
+)
 from brokers.common.dtos import BrokerOrderPayload
 from brokers.common.gateway import BrokerCapabilities, MarketDataGateway, ObservabilityProvider
 from brokers.common.common_broker_access import to_common_broker_gateway
@@ -40,7 +53,6 @@ from domain import (
     MarketDepth,
     OptionChain,
     Order,
-    OrderResponse,
     OrderStatus,
     OrderType,
     Position,
@@ -143,7 +155,7 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
             order = self._conn.orders.place_order(request)
             return self._normalize_order_response(order)
         except OrderError as exc:
-            return OrderResponse.fail(str(exc))
+            return R.fail(str(exc))
 
     def _resolve_correlation_id(self, correlation_id: str | None) -> str | None:
         if correlation_id is not None:
@@ -196,11 +208,11 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
                     "error": str(exc),
                 },
             )
-            return OrderResponse.fail(
+            return R.fail(
                 message=f"Unmapped order status: {getattr(order.status, 'value', str(order.status))}",
                 error_code="UNMAPPED_STATUS",
             )
-        return OrderResponse.ok(
+        return R.ok(
             order_id=order.order_id,
             message="Order placed",
             status=status,
@@ -223,10 +235,7 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
         if response.success:
             order = self.get_order(order_id)
             if order and order.status in (OrderStatus.FILLED,):
-                return OrderResponse.fail(
-                    message=f"Order {order_id} was already filled before cancel completed",
-                    status=OrderStatus.FILLED,
-                )
+                return R.already_executed(order_id)
         return response
 
     def get_order(self, order_id: str) -> Order | None:
@@ -252,7 +261,7 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
     def modify_order(self, order_id: str, **changes: Any) -> OrderResponse:
         try:
             order = self._conn.orders.modify_order(order_id, **changes)
-            return OrderResponse.ok(
+            return R.ok(
                 order_id=order.order_id, message="Order modified", status=order.status
             )
         except Exception as exc:
@@ -260,7 +269,7 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
                 "modify_order_failed",
                 extra={"order_id": order_id, "changes": changes, "error": str(exc)},
             )
-            return OrderResponse.fail(str(exc))
+            return R.fail(str(exc))
 
     def get_orderbook(self) -> list[Order]:
         return self._conn.orders.get_orderbook()

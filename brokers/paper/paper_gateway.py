@@ -30,6 +30,7 @@ from brokers.common.capabilities import (
 from brokers.common.common_broker_access import to_common_broker_gateway
 from brokers.common.identity import BrokerId
 from brokers.common.gateway import MarketDataGateway, ObservabilityProvider
+from brokers.common.responses import OrderResponseFactory as R
 from domain import (
     Balance,
     FutureChain,
@@ -37,7 +38,6 @@ from domain import (
     MarketDepth,
     OptionChain,
     Order,
-    OrderResponse,
     OrderStatus,
     Position,
     Quote,
@@ -127,7 +127,7 @@ class PaperGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
             trigger_price=trigger_price,
             correlation_id=correlation_id,
         )
-        return OrderResponse(
+        return R.direct(
             success=True,
             order_id=order.order_id,
             message="Order filled (paper)",
@@ -140,26 +140,21 @@ class PaperGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
         cancelled_order = self._orders.get_order(order_id)
 
         if success and cancelled_order:
-            return OrderResponse(
+            return R.direct(
                 success=True,
                 order_id=order_id,
                 message="Order cancelled (paper)",
                 status=OrderStatus.CANCELLED,
             )
         elif cancelled_order and cancelled_order.status == OrderStatus.FILLED:
-            return OrderResponse(
+            return R.direct(
                 success=False,
                 order_id=order_id,
                 message=f"Order {order_id} was already filled before cancel completed",
                 status=OrderStatus.FILLED,
             )
         else:
-            return OrderResponse(
-                success=False,
-                order_id=order_id,
-                message="Order not found",
-                status=OrderStatus.REJECTED,
-            )
+            return R.order_not_found(order_id)
 
     def modify_order(self, order_id: str, **changes: Any) -> OrderResponse:
         # Map values if they are enums
@@ -175,7 +170,7 @@ class PaperGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
                 mapped_changes[k] = v
 
         order = self._orders.modify_order(order_id, **mapped_changes)
-        return OrderResponse(
+        return R.direct(
             success=order is not None,
             order_id=order_id,
             message="Order modified (paper)" if order else "Order not found",

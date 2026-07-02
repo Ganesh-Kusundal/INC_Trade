@@ -33,7 +33,6 @@ from domain import (
     OptionContract,
     Order,
     OrderRequest,
-    OrderResponse,
     OrderStatus,
     OrderType,
     Position,
@@ -43,6 +42,7 @@ from domain import (
     Trade,
     Validity,
 )
+from brokers.common.responses import OrderResponseFactory as R
 from domain.parsing import (
     parse_decimal,
     parse_int,
@@ -287,7 +287,7 @@ class UpstoxDomainMapper:
     @staticmethod
     def to_order_response(payload: Any) -> OrderResponse:
         if not isinstance(payload, dict):
-            return OrderResponse.fail("Order failed: unexpected response")
+            return R.fail("Order failed: unexpected response")
         errors = payload.get("errors")
         if errors:
             first = errors[0] if isinstance(errors, list) and errors else {}
@@ -295,7 +295,7 @@ class UpstoxDomainMapper:
                 message = first.get("message") or first.get("error") or str(first)
             else:
                 message = str(first)
-            return OrderResponse.fail(message)
+            return R.fail(message)
         data = payload.get("data")
         if isinstance(data, dict):
             order_id = str(data.get("order_id") or payload.get("order_id") or "")
@@ -303,7 +303,7 @@ class UpstoxDomainMapper:
             order_id = str(payload.get("order_id") or "")
         if not order_id:
             remarks = payload.get("remarks") or payload.get("message") or "Order failed"
-            return OrderResponse.fail(remarks)
+            return R.fail(remarks)
 
         # Extract and normalize status from payload
         status_str = str(data.get("status") or payload.get("status") or "")
@@ -324,10 +324,10 @@ class UpstoxDomainMapper:
             # Default to OPEN but this should be investigated
             status = OrderStatus.OPEN
 
-        return OrderResponse.ok(
+        return R.ok(
             order_id=order_id,
             message=str(data) if data is not None else "",
-            status=status
+            status=status,
         )
 
     @staticmethod

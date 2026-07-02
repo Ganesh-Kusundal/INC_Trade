@@ -18,6 +18,7 @@ from decimal import Decimal
 from typing import Any
 
 from brokers.common.dtos import BrokerOrderPayload
+from brokers.common.responses import OrderResponseFactory as R
 from brokers.dhan.exceptions import DhanError, OrderError
 from brokers.dhan.http_client import DhanHttpClient
 from brokers.dhan.identity import DhanIdentityProvider, DhanInstrumentRef, coerce_identity_provider
@@ -447,8 +448,6 @@ class OrdersAdapter:
             broker's ``status`` field (or inferred from
             ``errorCode`` being absent).
         """
-        from domain.entities import OrderResponse
-
         # Safety guard: prevent live order cancellations if disabled
         if not self._allow_live_orders:
             raise OrderError("Live orders are disabled. Set DHAN_ALLOW_LIVE_ORDERS=1 to enable.")
@@ -460,13 +459,13 @@ class OrdersAdapter:
                 "order_cancel_network_error",
                 extra={"order_id": order_id, "error": str(exc)},
             )
-            return OrderResponse.fail(
+            return R.fail(
                 message=f"network error: {exc}",
                 error_code="BRO_ERR_CONNECTION_FAILED",
             )
 
         if not isinstance(data, dict):
-            return OrderResponse.fail(
+            return R.fail(
                 message="malformed broker response (not a dict)",
                 raw_payload={"raw": repr(data)},
             )
@@ -475,14 +474,14 @@ class OrdersAdapter:
         # Dhan uses both "success" and "ok"; both mean "cancelled".
         success = broker_status in {"success", "ok"}
         if success:
-            return OrderResponse.ok(
+            return R.ok(
                 order_id=order_id,
                 message=str(data.get("message", "Order cancelled")),
                 status=OrderStatus.CANCELLED,
                 raw_payload=data,
             )
         # Failure path
-        return OrderResponse.fail(
+        return R.fail(
             message=str(data.get("errorMessage") or data.get("message") or "Cancel failed"),
             error_code=str(data.get("errorCode", "")),
             raw_payload=data,
