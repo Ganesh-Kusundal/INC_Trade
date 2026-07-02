@@ -13,12 +13,25 @@ import pandas as pd
 
 from brokers.common.batch_mixin import BatchFetchMixin
 from brokers.common.broker_port import CommonBrokerGateway
+from brokers.common.defaults import (
+    DEFAULT_DEPTH_TYPE,
+    DEFAULT_DERIVATIVES_EXCHANGE,
+    DEFAULT_EXCHANGE,
+    DEFAULT_LOOKBACK_DAYS,
+    DEFAULT_ORDER_TYPE,
+    DEFAULT_PRODUCT_TYPE,
+    DEFAULT_SIDE,
+    DEFAULT_STREAM_MODE,
+    DEFAULT_TIMEFRAME,
+    DEFAULT_VALIDITY,
+)
 from brokers.common.dtos import BrokerOrderPayload
 from brokers.common.gateway import BrokerCapabilities, MarketDataGateway, ObservabilityProvider
 from brokers.common.common_broker_access import to_common_broker_gateway
+from brokers.common.identity import BrokerId
 from brokers.dhan.capabilities import dhan_capabilities
 from brokers.dhan.connection import DhanConnection
-from brokers.dhan.exceptions import OrderError
+from brokers.dhan.exceptions import InstrumentNotFoundError, OrderError
 from brokers.dhan.segments import DEFAULT_SEGMENT, EXCHANGE_TO_SEGMENT
 from domain import (
     Balance,
@@ -65,7 +78,7 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
 
     def common_broker_gateway(self) -> CommonBrokerGateway:
         """Native CommonBrokerGateway port for infrastructure bootstrap."""
-        return to_common_broker_gateway(self, "dhan")
+        return to_common_broker_gateway(self, BrokerId.DHAN)
 
     @property
     def extended(self) -> Any:
@@ -86,13 +99,13 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
     def place_order(
         self,
         symbol: str,
-        exchange: str = "NSE",
-        side: str = "BUY",
+        exchange: str = DEFAULT_EXCHANGE,
+        side: str = DEFAULT_SIDE,
         quantity: int = 1,
         price: Decimal = Decimal("0"),
-        order_type: str = "MARKET",
-        product_type: str = "INTRADAY",
-        validity: str = "DAY",
+        order_type: str = DEFAULT_ORDER_TYPE,
+        product_type: str = DEFAULT_PRODUCT_TYPE,
+        validity: str = DEFAULT_VALIDITY,
         trigger_price: Decimal = Decimal("0"),
         correlation_id: str | None = None,
     ) -> OrderResponse:
@@ -243,6 +256,10 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
                 order_id=order.order_id, message="Order modified", status=order.status
             )
         except Exception as exc:
+            logger.warning(
+                "modify_order_failed",
+                extra={"order_id": order_id, "changes": changes, "error": str(exc)},
+            )
             return OrderResponse.fail(str(exc))
 
     def get_orderbook(self) -> list[Order]:
@@ -261,13 +278,13 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
 
     # ── Market Data (ABC-aligned) ─────────────────────────────────────
 
-    def ltp(self, symbol: str, exchange: str = "NSE") -> Decimal:
+    def ltp(self, symbol: str, exchange: str = DEFAULT_EXCHANGE) -> Decimal:
         return self._conn.market_data.get_ltp(symbol, exchange)
 
-    def quote(self, symbol: str, exchange: str = "NSE") -> Quote:
+    def quote(self, symbol: str, exchange: str = DEFAULT_EXCHANGE) -> Quote:
         return self._conn.market_data.get_quote(symbol, exchange)
 
-    def depth(self, symbol: str, exchange: str = "NSE") -> MarketDepth:
+    def depth(self, symbol: str, exchange: str = DEFAULT_EXCHANGE) -> MarketDepth:
         return self._conn.market_data.get_depth(symbol, exchange)
 
     def _complete_depth_snapshot(
@@ -374,7 +391,7 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
     def depth_20(
         self,
         symbol: str,
-        exchange: str = "NSE",
+        exchange: str = DEFAULT_EXCHANGE,
         on_depth: Any | None = None,
     ) -> MarketDepth:
         """Subscribe to 20-level market depth for *symbol* via WebSocket.
@@ -430,7 +447,7 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
     def depth_200(
         self,
         symbol: str,
-        exchange: str = "NSE",
+        exchange: str = DEFAULT_EXCHANGE,
         on_depth: Any | None = None,
     ) -> MarketDepth:
         """Subscribe to 200-level market depth for *symbol* via WebSocket.
@@ -467,20 +484,26 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
 
     def history(
         self,
-        symbol: str,
-        exchange: str = "NSE",
-        timeframe: str = "1D",
-        lookback_days: int = 90,
+        symbol: str | list[str],
+        exchange: str = DEFAULT_EXCHANGE,
+        timeframe: str = DEFAULT_TIMEFRAME,
+        lookback_days: int = DEFAULT_LOOKBACK_DAYS,
         from_date: str | None = None,
         to_date: str | None = None,
     ) -> pd.DataFrame:
-        from brokers.dhan.exceptions import InstrumentNotFoundError
+        if isinstance(symbol, list):
+            return self.history_batch(
+                symbol,
+                exchange=exchange,
+                timeframe=timeframe,
+                lookback_days=lookback_days,
+            )
         to_d = date.today()
         from_d = to_d - timedelta(days=lookback_days)
         to_str = to_date or str(to_d)
         from_str = from_date or str(from_d)
-        timeframe_str = timeframe.upper() if timeframe else "1D"
-        
+        timeframe_str = timeframe.upper() if timeframe else DEFAULT_TIMEFRAME
+
         try:
             return self._conn.historical.get_historical(symbol, exchange, from_str, to_str, timeframe_str)
         except InstrumentNotFoundError:
@@ -490,7 +513,7 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
     def option_chain(
         self,
         underlying: str,
-        exchange: str = "NFO",
+        exchange: str = DEFAULT_DERIVATIVES_EXCHANGE,
         expiry: str | None = None,
     ) -> OptionChain:
         """Get option chain. Delegates MCX-specific expiry lookup to extended."""
@@ -499,7 +522,7 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
     def future_chain(
         self,
         underlying: str,
-        exchange: str = "NFO",
+        exchange: str = DEFAULT_DERIVATIVES_EXCHANGE,
     ) -> FutureChain:
         from config.indices import INDEX_TO_FNO_EXCHANGE
 
@@ -589,8 +612,8 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
     def stream(
         self,
         symbol: str,
-        exchange: str = "NSE",
-        mode: str = "LTP",
+        exchange: str = DEFAULT_EXCHANGE,
+        mode: str = DEFAULT_STREAM_MODE,
         on_tick: Any | None = None,
     ) -> Any:
         """Subscribe to a live tick stream for *symbol* on *exchange*.
@@ -606,7 +629,7 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
     def unstream(
         self,
         symbol: str,
-        exchange: str = "NSE",
+        exchange: str = DEFAULT_EXCHANGE,
         on_tick: Any | None = None,
     ) -> None:
         """Unsubscribe from a live tick stream."""
@@ -616,8 +639,8 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
     def stream_depth(
         self,
         symbol: str,
-        exchange: str = "NSE",
-        depth_type: str = "DEPTH_5",  # DEPTH_5, DEPTH_20, DEPTH_30, DEPTH_200
+        exchange: str = DEFAULT_EXCHANGE,
+        depth_type: str = DEFAULT_DEPTH_TYPE,  # DEPTH_5, DEPTH_20, DEPTH_30, DEPTH_200
         on_depth: Callable[[MarketDepth], None] | None = None,
     ) -> Any:
         """Map generic depth stream requests to Dhan's native 20-level and 200-level streams."""
@@ -640,11 +663,11 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
 
     # ── Parallel Data Fetching ──────────────────────────────────────
 
-    def ltp_batch(self, symbols: list[str], exchange: str = "NSE") -> dict[str, Decimal]:
+    def ltp_batch(self, symbols: list[str], exchange: str = DEFAULT_EXCHANGE) -> dict[str, Decimal]:
         """Fetch LTP for multiple symbols using native batch API (up to 1000)."""
         return self._conn.market_data.get_batch_ltp(symbols, exchange)
 
-    def quote_batch(self, symbols: list[str], exchange: str = "NSE") -> dict[str, Quote]:
+    def quote_batch(self, symbols: list[str], exchange: str = DEFAULT_EXCHANGE) -> dict[str, Quote]:
         """Fetch quotes for multiple symbols using native batch API (up to 1000)."""
         return self._conn.market_data.get_batch_quote(symbols, exchange)
 
@@ -660,11 +683,11 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
         Implements ObservabilityProvider protocol to expose connection
         status without exposing private attributes to CLI layer.
         """
-        status: dict[str, bool | str | float | None] = {}
+        status: dict[str, bool] = {}
 
         market_feed = getattr(self._conn, "market_feed", None)
         if market_feed is not None:
-            status["market_feed"] = market_feed.is_connected
+            status["market_feed"] = bool(market_feed.is_connected)
             with contextlib.suppress(Exception):
                 health = market_feed.health()
                 metrics = health.metrics or {}
@@ -675,11 +698,10 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
                 status["connection_blocked_by_lock"] = bool(
                     metrics.get("connection_blocked_by_lock", False)
                 )
-                status["next_connect_allowed_at"] = metrics.get("next_connect_allowed_at")
 
         order_stream = getattr(self._conn, "order_stream", None)
         if order_stream is not None:
-            status["order_stream"] = order_stream.is_connected
+            status["order_stream"] = bool(order_stream.is_connected)
 
         for feed_attr, status_key in (
             ("depth_20_feed", "depth_20"),
@@ -698,6 +720,26 @@ class BrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
                 status["has_active_subscriptions"] = False
 
         return status
+
+    def get_connection_metadata(self) -> dict[str, Any]:
+        """Return richer connection metadata for Dhan WebSocket streams.
+
+        Complements ``get_connection_status()`` with non-bool diagnostic
+        values such as float timestamps and optional/nullable fields.
+        Implements ObservabilityProvider protocol.
+        """
+        metadata: dict[str, Any] = {}
+
+        market_feed = getattr(self._conn, "market_feed", None)
+        if market_feed is not None:
+            with contextlib.suppress(Exception):
+                health = market_feed.health()
+                metrics = health.metrics or {}
+                metadata["next_connect_allowed_at"] = metrics.get(
+                    "next_connect_allowed_at"
+                )
+
+        return metadata
 
     def _is_feed_connected(self, feed: Any) -> bool:
         connected = getattr(feed, "is_connected", None)

@@ -4,13 +4,63 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal
-from typing import Literal
+from typing import Literal, TypedDict
 
 from brokers.dhan.http_client import DhanHttpClient
 from brokers.dhan.identity import DhanIdentityProvider, coerce_identity_provider
 from brokers.dhan.invariants import assert_dhan_identity
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# TypedDict definitions — describe the shapes of dicts returned by the adapter
+# ---------------------------------------------------------------------------
+
+class OptionLegData(TypedDict):
+    """Data for a single option leg (call or put) at a given strike."""
+
+    ltp: Decimal | None
+    oi: int
+    volume: int
+    iv: Decimal | None
+    delta: Decimal | None
+    theta: Decimal | None
+    gamma: Decimal | None
+    vega: Decimal | None
+    security_id: object  # int | str | None depending on broker response
+    symbol: str
+
+
+class OptionStrikeRow(TypedDict):
+    """One row in the option chain — a strike price with CE and PE legs."""
+
+    strike: Decimal
+    call: OptionLegData
+    put: OptionLegData
+
+
+class OptionChainResult(TypedDict):
+    """Full option chain result returned by :meth:`OptionsAdapter.get_option_chain`."""
+
+    underlying: str
+    expiry: str
+    spot: Decimal
+    strikes: list[OptionStrikeRow]
+
+
+class ExpiredOptionsSeries(TypedDict):
+    """Timestamped OHLCV arrays for one option leg (CE or PE)."""
+
+    timestamp: list[object]  # list[str] / list[int] per Dhan response
+
+
+class ExpiredOptionsResult(TypedDict):
+    """Result returned by :meth:`OptionsAdapter.get_expired_options_data`."""
+
+    status: str
+    ce: ExpiredOptionsSeries | None
+    pe: ExpiredOptionsSeries | None
 
 _DEFAULT_STRIKE_STEPS = {
     "NIFTY": Decimal("50"),
@@ -37,7 +87,7 @@ class OptionsAdapter:
         expiry: str,
         *,
         security_id: int | None = None,
-    ) -> dict:
+    ) -> OptionChainResult:
         """Fetch full option chain. Pass security_id for MCX commodities.
 
         The ``security_id`` parameter is intentionally restricted to the
@@ -75,7 +125,7 @@ class OptionsAdapter:
             spot = Decimal("0")
             oc = {}
 
-        strikes = []
+        strikes: list[OptionStrikeRow] = []
         for strike_str, legs in sorted(oc.items(), key=lambda kv: float(kv[0])):
             strike = Decimal(str(strike_str))
             ce = legs.get("ce", {}) or {}
@@ -176,7 +226,7 @@ class OptionsAdapter:
         to_date: str,
         required_data: list[str] | None = None,
         interval: int = 1,
-    ) -> dict:
+    ) -> ExpiredOptionsResult:
         """Fetch expired options OHLCV data from Dhan rolling option API.
 
         Parameters
@@ -230,15 +280,18 @@ class OptionsAdapter:
         data = response.get("data", {})
         inner = data.get("data", data) if isinstance(data, dict) else {}
 
-        result = {"status": "success", "ce": None, "pe": None}
+        ce_series: ExpiredOptionsSeries | None = None
+        pe_series: ExpiredOptionsSeries | None = None
         if isinstance(inner, dict):
-            ce = inner.get("ce")
-            pe = inner.get("pe")
-            result["ce"] = ce if ce and isinstance(ce, dict) and ce.get("timestamp") else None
-            result["pe"] = pe if pe and isinstance(pe, dict) and pe.get("timestamp") else None
+            raw_ce = inner.get("ce")
+            raw_pe = inner.get("pe")
+            if raw_ce and isinstance(raw_ce, dict) and raw_ce.get("timestamp"):
+                ce_series = raw_ce  # type: ignore[assignment]
+            if raw_pe and isinstance(raw_pe, dict) and raw_pe.get("timestamp"):
+                pe_series = raw_pe  # type: ignore[assignment]
 
-        ce_count = len(result["ce"]["timestamp"]) if result["ce"] else 0
-        pe_count = len(result["pe"]["timestamp"]) if result["pe"] else 0
+        ce_count = len(ce_series["timestamp"]) if ce_series else 0
+        pe_count = len(pe_series["timestamp"]) if pe_series else 0
         logger.info(
             "expired_options_data_fetched",
             extra={
@@ -249,6 +302,11 @@ class OptionsAdapter:
                 "pe_count": pe_count,
             },
         )
+        result: ExpiredOptionsResult = {
+            "status": "success",
+            "ce": ce_series,
+            "pe": pe_series,
+        }
         return result
 
     def _resolve_and_segment(self, symbol: str, exchange: str):

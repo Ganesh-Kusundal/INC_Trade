@@ -29,7 +29,22 @@ from typing import Any
 import pandas as pd
 
 from brokers.common.batch_mixin import BatchFetchMixin
-from brokers.common.gateway import BrokerCapabilities, MarketDataGateway
+from brokers.common.broker_port import CommonBrokerGateway
+from brokers.common.common_broker_access import to_common_broker_gateway
+from brokers.common.identity import BrokerId
+from brokers.common.defaults import (
+    DEFAULT_DEPTH_TYPE,
+    DEFAULT_DERIVATIVES_EXCHANGE,
+    DEFAULT_EXCHANGE,
+    DEFAULT_LOOKBACK_DAYS,
+    DEFAULT_ORDER_TYPE,
+    DEFAULT_PRODUCT_TYPE,
+    DEFAULT_SIDE,
+    DEFAULT_STREAM_MODE,
+    DEFAULT_TIMEFRAME,
+    DEFAULT_VALIDITY,
+)
+from brokers.common.gateway import BrokerCapabilities, MarketDataGateway, ObservabilityProvider
 from brokers.upstox.adapters import (
     HistoricalAdapter,
     PortfolioAdapter,
@@ -65,7 +80,7 @@ from domain import (
 logger = logging.getLogger(__name__)
 
 
-class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway):
+class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
     """Unified Upstox broker API. All calls delegate to UpstoxBroker adapters.
 
     This facade provides a clean public API while internally delegating to
@@ -114,6 +129,10 @@ class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway):
                 options_attr, exchange_normalize=_upstox_normalize_exchange
             )
 
+    def common_broker_gateway(self) -> CommonBrokerGateway:
+        """Native CommonBrokerGateway port for infrastructure bootstrap."""
+        return to_common_broker_gateway(self, BrokerId.UPSTOX)
+
     # ── Backward compatibility properties (for tests accessing internals) ──
 
     @property
@@ -128,7 +147,7 @@ class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway):
 
     # ── Market Data (ABC-aligned) ─────────────────────────────────────
 
-    def ltp(self, symbol: str, exchange: str = "NSE") -> Decimal:
+    def ltp(self, symbol: str, exchange: str = DEFAULT_EXCHANGE) -> Decimal:
         """Fetch last traded price for a symbol.
 
         Args:
@@ -141,7 +160,7 @@ class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway):
         key = self._resolve_instrument_key(symbol, exchange)
         return self._market_data.ltp(key, exchange)
 
-    def quote(self, symbol: str, exchange: str = "NSE") -> Quote:
+    def quote(self, symbol: str, exchange: str = DEFAULT_EXCHANGE) -> Quote:
         """Fetch full quote with OHLCV for a symbol.
 
         Args:
@@ -154,7 +173,7 @@ class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway):
         key = self._resolve_instrument_key(symbol, exchange)
         return self._market_data.quote(key, exchange)
 
-    def depth(self, symbol: str, exchange: str = "NSE") -> MarketDepth:
+    def depth(self, symbol: str, exchange: str = DEFAULT_EXCHANGE) -> MarketDepth:
         """Fetch order book depth for a symbol.
 
         Args:
@@ -254,26 +273,37 @@ class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway):
 
     def history(
         self,
-        symbol: str,
-        exchange: str = "NSE",
-        timeframe: str = "1D",
-        lookback_days: int = 90,
+        symbol: str | list[str],
+        exchange: str = DEFAULT_EXCHANGE,
+        timeframe: str = DEFAULT_TIMEFRAME,
+        lookback_days: int = DEFAULT_LOOKBACK_DAYS,
         from_date: str | None = None,
         to_date: str | None = None,
     ) -> pd.DataFrame:
         """Fetch historical candles (EOD or Intraday) for a symbol."""
+        if isinstance(symbol, list):
+            return self.history_batch(
+                symbol,
+                exchange=exchange,
+                timeframe=timeframe,
+                lookback_days=lookback_days,
+            )
         to_d = date.today()
         from_d = to_d - timedelta(days=lookback_days)
         to_str = to_date or str(to_d)
         from_str = from_date or str(from_d)
-        timeframe_str = timeframe.upper() if timeframe else "1D"
+        timeframe_str = timeframe.upper() if timeframe else DEFAULT_TIMEFRAME
 
         # Resolve timeframe to V3 interval
         unit, interval = HistoricalAdapter.resolve_timeframe(timeframe_str)
 
         try:
             return self._fetch_history(symbol, exchange, from_str, to_str, unit, interval)
-        except Exception:
+        except Exception as exc:
+            logger.warning(
+                "history_fetch_failed",
+                extra={"symbol": symbol, "exchange": exchange, "error": str(exc)},
+            )
             return pd.DataFrame()
 
     def _fetch_history(
@@ -314,7 +344,7 @@ class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway):
     def option_chain(
         self,
         underlying: str,
-        exchange: str = "NFO",
+        exchange: str = DEFAULT_DERIVATIVES_EXCHANGE,
         expiry: str | None = None,
     ) -> OptionChain:
         """Get the option chain for an underlying."""
@@ -338,7 +368,7 @@ class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway):
     def future_chain(
         self,
         underlying: str,
-        exchange: str = "NFO",
+        exchange: str = DEFAULT_DERIVATIVES_EXCHANGE,
     ) -> FutureChain:
         """Get the future chain for an underlying."""
         from config.indices import INDEX_TO_FNO_EXCHANGE
@@ -451,8 +481,8 @@ class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway):
     def stream(
         self,
         symbol: str,
-        exchange: str = "NSE",
-        mode: str = "LTP",
+        exchange: str = DEFAULT_EXCHANGE,
+        mode: str = DEFAULT_STREAM_MODE,
         on_tick: Any | None = None,
     ) -> Any:
         """Subscribe to a live tick stream for *symbol* on *exchange*.
@@ -543,8 +573,8 @@ class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway):
     def stream_depth(
         self,
         symbol: str,
-        exchange: str = "NSE",
-        depth_type: str = "DEPTH_5",  # DEPTH_5, DEPTH_30
+        exchange: str = DEFAULT_EXCHANGE,
+        depth_type: str = DEFAULT_DEPTH_TYPE,  # DEPTH_5, DEPTH_30
         on_depth: Callable[[MarketDepth], None] | None = None,
     ) -> Any:
         """Subscribe to Upstox L2 (D5) or L3 (D30) live WebSocket depth ticks."""
@@ -580,8 +610,11 @@ class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway):
                 self._ws.remove_listener(self._listener)
                 try:
                     self._ws.unsubscribe([self._key])
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug(
+                        "unsubscribe_ignored",
+                        extra={"key": self._key, "error": str(exc)},
+                    )
 
             def disconnect(self):
                 self.stop()
@@ -622,18 +655,77 @@ class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway):
             depth_type=depth_type
         )
 
+    # -----------------------------------------------------------------------
+    # ObservabilityProvider Implementation
+    # -----------------------------------------------------------------------
+
+    def get_connection_status(self) -> dict[str, bool]:
+        """Return connection status for Upstox WebSocket streams.
+
+        Implements ObservabilityProvider protocol to expose connection
+        status without exposing private attributes to CLI layer.
+        """
+        status: dict[str, bool] = {}
+
+        ws = getattr(self._broker, "market_data_websocket", None)
+        if ws is not None:
+            try:
+                status["market_data_ws"] = bool(ws.is_connected)
+            except Exception:
+                status["market_data_ws"] = False
+
+        ps = getattr(self._broker, "portfolio_stream", None)
+        if ps is not None:
+            try:
+                status["portfolio_stream"] = bool(ps.is_connected)
+            except Exception:
+                status["portfolio_stream"] = False
+
+        return status
+
+    def get_circuit_breaker_states(self) -> dict[str, int]:
+        """Return Upstox client circuit breaker states.
+
+        Delegates to the broker's circuit_breaker_states if available.
+        Implements ObservabilityProvider protocol.
+        """
+        cb = getattr(self._broker, "circuit_breaker_states", None)
+        if callable(cb):
+            try:
+                return cb()
+            except Exception:
+                pass
+        elif cb is not None:
+            return cb
+        return {}
+
+    def get_token_refresh_metrics(self) -> dict[str, int]:
+        """Return token refresh metrics from Upstox connection.
+
+        Implements ObservabilityProvider protocol.
+        """
+        token_refresh = getattr(self._broker, "token_refresh_metrics", None)
+        if callable(token_refresh):
+            try:
+                return token_refresh()
+            except Exception:
+                pass
+        elif token_refresh is not None:
+            return token_refresh
+        return {"refresh_count": 0, "error_count": 0}
+
     # ── MarketDataGateway required methods ──
 
     def place_order(
         self,
         symbol: str,
-        exchange: str = "NSE",
-        side: str = "BUY",
+        exchange: str = DEFAULT_EXCHANGE,
+        side: str = DEFAULT_SIDE,
         quantity: int = 1,
         price: Decimal = Decimal("0"),
-        order_type: str = "MARKET",
-        product_type: str = "INTRADAY",
-        validity: str = "DAY",
+        order_type: str = DEFAULT_ORDER_TYPE,
+        product_type: str = DEFAULT_PRODUCT_TYPE,
+        validity: str = DEFAULT_VALIDITY,
         trigger_price: Decimal = Decimal("0"),
         correlation_id: str | None = None,
         is_amo: bool = False,
@@ -809,6 +901,10 @@ class UpstoxBrokerGateway(BatchFetchMixin, MarketDataGateway):
             )
             return OrderResponse.fail(message)
         except Exception as exc:
+            logger.warning(
+                "modify_order_failed",
+                extra={"order_id": order_id, "changes": changes, "error": str(exc)},
+            )
             return OrderResponse.fail(str(exc))
 
     # ── Backward compatibility for internal methods (used by tests) ──

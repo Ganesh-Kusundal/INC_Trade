@@ -23,6 +23,7 @@ from brokers.common.extensions.super_order import (
     SuperOrderResult,
 )
 from brokers.common.gateway import MarketDataGateway
+from brokers.common.identity import BrokerId
 
 
 class DhanSuperOrderExtension(SuperOrderProvider):
@@ -137,11 +138,11 @@ class DhanNativeSliceExtension(NativeSliceOrderProvider):
 
 
 def register_dhan_extensions(gateway: MarketDataGateway) -> ExtensionBundle:
-    bundle = ExtensionBundle("dhan")
+    bundle = ExtensionBundle(BrokerId.DHAN)
     bundle.register(SuperOrderProvider, DhanSuperOrderExtension(gateway))
     bundle.register(ForeverOrderProvider, DhanForeverOrderExtension(gateway))
     bundle.register(NativeSliceOrderProvider, DhanNativeSliceExtension(gateway))
     return bundle
 
 
-register_extension_factory("dhan", register_dhan_extensions)
+register_extension_factory(BrokerId.DHAN, register_dhan_extensions)

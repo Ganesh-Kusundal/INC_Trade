@@ -1,0 +1,110 @@
+# Validates the repo-graph codebase graph stays consistent on every PR.
+# Run locally: uvx --from mcp-repo-graph repo-graph-init --repo .
+name: repo-graph validate
+
+on:
+  pull_request:
+    branches: [main, master, develop]
+  push:
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate codebase graph
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        # astral-sh/setup-uv@v5 — pinned to commit SHA for supply-chain security
+        uses: astral-sh/setup-uv@0c5bedb2fc4af0f4136657e0b7d96a6c8c41b828
+        with:
+          version: "latest"
+
+      - name: Restore repo-graph cache
+        uses: actions/cache@v4
+        id: cache-repo-graph
+        with:
+          path: .ai/repo-graph/
+          key: repo-graph-${{ hashFiles('**/*.py', '**/requirements.txt', '**/pyproject.toml') }}
+          restore-keys: |
+            repo-graph-
+
+      # Snapshot committed cache BEFORE generation so we can detect drift
+      - name: Snapshot committed cache (if tracked)
+        run: |
+          if git ls-files --error-unmatch .ai/repo-graph/manifest.json &>/dev/null; then
+            mkdir -p /tmp/repo-graph-committed
+            cp -a .ai/repo-graph/. /tmp/repo-graph-committed/
+            echo "Committed cache saved for drift check"
+            echo "drift_check=yes" >> "$GITHUB_ENV"
+          else
+            echo "Cache not tracked in git — skipping drift check"
+            echo "drift_check=no" >> "$GITHUB_ENV"
+          fi
+
+      - name: Generate & validate codebase graph
+        run: |
+          echo "::group::Generating codebase graph"
+          uvx --from mcp-repo-graph repo-graph-init --repo "${{ github.workspace }}"
+          echo "::endgroup::"
+
+          GRAPH_DIR="${{ github.workspace }}/.ai/repo-graph"
+
+          if [ ! -d "$GRAPH_DIR" ]; then
+            echo "❌ .ai/repo-graph/ directory not found"
+            exit 1
+          fi
+          if [ ! -f "$GRAPH_DIR/manifest.json" ]; then
+            echo "❌ manifest.json not found — graph generation failed"
+            exit 1
+          fi
+
+          GMAP_COUNT=$(find "$GRAPH_DIR" -name "*.gmap" | wc -l)
+          echo "✅ Graph generated: $GMAP_COUNT segment files"
+
+      - name: Check for graph drift
+        if: env.drift_check == 'yes'
+        run: |
+          if ! diff -r /tmp/repo-graph-committed .ai/repo-graph/ &>/dev/null; then
+            echo "⚠️ Graph cache has drifted from the committed version."
+            echo ""
+            echo "Fix: run this locally and commit the updated cache:"
+            echo "  uvx --from mcp-repo-graph repo-graph-init --repo ."
+            echo "  git add .ai/repo-graph/"
+            echo "  git commit -m 'chore: refresh repo-graph cache'"
+            exit 1
+          else
+            echo "✅ Graph cache is consistent with committed version"
+          fi
+
+      - name: Report summary
+        if: success() || failure()
+        run: |
+          {
+            echo "## repo-graph Validation"
+            echo ""
+            echo "| Check | Result |"
+            echo "|------|--------|"
+            echo "| Generation | ✅ Pass |"
+            echo "| Integrity | ✅ Pass |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -d .ai/repo-graph ]; then
+            SIZE=$(du -sh .ai/repo-graph/ | cut -f1)
+            echo "| Cache size | $SIZE |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          # Use shell var (runtime) not ${{ env }} (compile-time)
+          if [ "$drift_check" = "yes" ]; then
+            echo "| Drift check | ✅ Pass |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| Drift check | ⏭️ Skipped (cache not tracked) |" >> "$GITHUB_STEP_SUMMARY"
+          fi

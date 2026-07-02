@@ -1,4 +1,25 @@
-"""DhanAsyncHttpClient — async HTTP client for Dhan REST API with non-blocking I/O.
+"""
+====================================================================
+⚠️  DEAD CODE — YAGNI VIOLATION — DO NOT USE IN PRODUCTION  ⚠️
+====================================================================
+This module has ZERO callers anywhere in the INC_Trade codebase.
+It was written speculatively and has never been integrated.
+
+  • Verified with: grep -r 'async_http_client' brokers/ --include='*.py' -l
+    → Only this file itself is returned.
+  • Registered in: .autoresearch/dead_code_registry.md
+  • Last git touch: 2026-07-02 10:37:10 +0530
+
+To resurrect this module, search git history::
+
+    git log --all --oneline -- brokers/dhan/async_http_client.py
+    git show <commit>:brokers/dhan/async_http_client.py
+
+Do NOT add new code or imports that depend on this file without first
+removing this warning block and adding a real integration test or caller.
+====================================================================
+
+DhanAsyncHttpClient — async HTTP client for Dhan REST API with non-blocking I/O.
 
 Uses ``httpx.AsyncClient`` instead of the synchronous ``requests.Session`` used
 by :class:`~brokers.dhan.http_client.DhanHttpClient`.  All retry back-offs and
@@ -29,6 +50,10 @@ Mirrors the sync :class:`DhanHttpClient` interface and shares its:
 The only difference is that all blocking calls (``time.sleep()``) are replaced
 with ``asyncio.sleep()`` and the HTTP transport uses ``httpx.AsyncClient``.
 """
+
+# fmt: off
+# ruff: noqa: F401  — module intentionally not imported by any caller (dead code)
+# fmt: on
 
 from __future__ import annotations
 

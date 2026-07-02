@@ -85,6 +85,14 @@ Need a review or decision?
 │   ├── Frontend → frontend-platform-engineer
 │   └── Integration → integration-test-coordinator
 │
+├── Karpathy system operation → AI PLATFORM AGENT
+│   ├── Memory read/write → memory-curator
+│   ├── Codebase structure → codebase-cartographer
+│   ├── Metrics tracking → metric-historian
+│   ├── Experiment/optimization → experiment-runner
+│   ├── Blast radius analysis → blast-radius-analyst
+│   └── First-principles design → from-scratch-architect
+│
 ├── Tactical code audit → EXISTING AUDITOR
 │   ├── Architecture → architecture-reviewer
 │   ├── Broker integration → broker-auditor
@@ -95,6 +103,11 @@ Need a review or decision?
 │   ├── Production → production-readiness-reviewer
 │   ├── Reliability → reliability-readiness-reviewer
 │   └── Testing → testing-strategy-auditor
+│
+├── Memory protocol → MEMORY SYSTEM
+│   ├── Before acting → /memory-read — check past relevant knowledge
+│   ├── After learning → /memory-write — save what you discovered
+│   └── Quality governance → memory-curator
 │
 └── Governance gate
     ├── ADR/dependency policy → architecture-review-board

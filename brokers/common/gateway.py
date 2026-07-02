@@ -11,7 +11,10 @@ Methods are grouped into:
   - Instrument: search, load_instruments
   - Lifecycle: describe, capabilities, close
 
-.. note:: Pre-v1.0 — method signatures may change without notice.
+.. note:: v1.0 — this is the **producer** interface (what broker adapters
+          implement). The **consumer** interface is
+          :class:`~brokers.common.broker_port.CommonBrokerGateway`.
+          The split is intentional (see ADR-003).
 """
 
 from __future__ import annotations
@@ -35,7 +38,18 @@ from brokers.common.gateway_interfaces import (
     StreamProvider,
     TradingExecutor,
 )
-from domain.constants import DEFAULT_DERIVATIVES_EXCHANGE, DEFAULT_EXCHANGE, DEFAULT_LOOKBACK_DAYS
+from brokers.common.defaults import (
+    DEFAULT_DEPTH_TYPE,
+    DEFAULT_DERIVATIVES_EXCHANGE,
+    DEFAULT_EXCHANGE,
+    DEFAULT_LOOKBACK_DAYS,
+    DEFAULT_ORDER_TYPE,
+    DEFAULT_PRODUCT_TYPE,
+    DEFAULT_SIDE,
+    DEFAULT_STREAM_MODE,
+    DEFAULT_TIMEFRAME,
+    DEFAULT_VALIDITY,
+)
 from domain.entities import (
     Balance,
     FutureChain,
@@ -85,7 +99,7 @@ class MarketDataGateway(
         self,
         symbol: str | list[str],
         exchange: str = DEFAULT_EXCHANGE,
-        timeframe: str = "1D",
+        timeframe: str = DEFAULT_TIMEFRAME,
         lookback_days: int = DEFAULT_LOOKBACK_DAYS,
         from_date: str | None = None,
         to_date: str | None = None,
@@ -150,7 +164,7 @@ class MarketDataGateway(
         self,
         symbol: str,
         exchange: str = DEFAULT_EXCHANGE,
-        mode: str = "LTP",
+        mode: str = DEFAULT_STREAM_MODE,
         on_tick: Any | None = None,
     ) -> Any:
         """Start WebSocket streaming for a symbol.
@@ -173,7 +187,7 @@ class MarketDataGateway(
         self,
         symbol: str,
         exchange: str = DEFAULT_EXCHANGE,
-        depth_type: str = "DEPTH_5",
+        depth_type: str = DEFAULT_DEPTH_TYPE,
         on_depth: Callable[[MarketDepth], None] | None = None,
     ) -> Any:
         """Start WebSocket depth streaming for a symbol."""
@@ -209,7 +223,7 @@ class MarketDataGateway(
         self,
         symbols: list[str],
         exchange: str = DEFAULT_EXCHANGE,
-        timeframe: str = "1D",
+        timeframe: str = DEFAULT_TIMEFRAME,
         lookback_days: int = DEFAULT_LOOKBACK_DAYS,
     ) -> pd.DataFrame:
         """Return historical data for multiple symbols.
@@ -227,12 +241,12 @@ class MarketDataGateway(
         self,
         symbol: str,
         exchange: str = DEFAULT_EXCHANGE,
-        side: str = "BUY",
+        side: str = DEFAULT_SIDE,
         quantity: int = 1,
         price: Decimal = Decimal("0"),
-        order_type: str = "MARKET",
-        product_type: str = "INTRADAY",
-        validity: str = "DAY",
+        order_type: str = DEFAULT_ORDER_TYPE,
+        product_type: str = DEFAULT_PRODUCT_TYPE,
+        validity: str = DEFAULT_VALIDITY,
         trigger_price: Decimal = Decimal("0"),
         correlation_id: str | None = None,
     ) -> OrderResponse:

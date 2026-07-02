@@ -20,6 +20,7 @@ from brokers.common.extensions.fundamentals import (
 )
 from brokers.common.extensions.news import NewsItem, NewsProvider
 from brokers.common.gateway import MarketDataGateway
+from brokers.common.identity import BrokerId
 
 
 class UpstoxNewsExtension(NewsProvider):
@@ -147,7 +148,7 @@ class UpstoxForeverOrderExtension(ForeverOrderProvider):
 
 
 def register_upstox_extensions(gateway: MarketDataGateway) -> ExtensionBundle:
-    bundle = ExtensionBundle("upstox")
+    bundle = ExtensionBundle(BrokerId.UPSTOX)
     bundle.register(NewsProvider, UpstoxNewsExtension(gateway))
     bundle.register(FundamentalsProvider, UpstoxFundamentalsExtension(gateway))
     bundle.register(ForeverOrderProvider, UpstoxForeverOrderExtension(gateway))
@@ -157,4 +158,4 @@ def register_upstox_extensions(gateway: MarketDataGateway) -> ExtensionBundle:
 # Register factory so brokers.common.adapters can find it without importing us
 from brokers.common.extensions import register_extension_factory
 
-register_extension_factory("upstox", register_upstox_extensions)
+register_extension_factory(BrokerId.UPSTOX, register_upstox_extensions)

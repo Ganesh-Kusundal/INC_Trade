@@ -390,6 +390,10 @@ class UpstoxBroker:
         backfill_callback: Any | None = None,
         reconciliation_service: Any | None = None,
     ) -> None:
+        # Pre-declare all attributes injected by UpstoxBrokerBuilder so that mypy
+        # can resolve them statically.  Values are overwritten by builder.build().
+        self._declare_slots()
+
         if settings is None:
             settings = UpstoxConnectionSettings(client_id="placeholder")
 
@@ -404,6 +408,104 @@ class UpstoxBroker:
             reconciliation_service=reconciliation_service,
         )
         builder.build()
+
+    # ── Attribute declarations (populated by UpstoxBrokerBuilder) ──
+
+    def _declare_slots(self) -> None:
+        """Pre-declare every attribute injected by :class:`UpstoxBrokerBuilder`.
+
+        This method is called at the very top of ``__init__`` — before the
+        builder runs — so that mypy can resolve all instance attributes
+        statically without changing the delegated-construction design.
+        All values are placeholder ``None`` / empty sentinels; the builder
+        overwrites them during ``build()``.
+        """
+        # ── _init_basic_state ──
+        self._name: str = ""
+        self._broker_id: str = ""
+        self._capabilities: set[Capability] = set()
+        self._capability_map: dict[Capability, Any] = {}
+        self._status: ConnectionStatus = ConnectionStatus.DISCONNECTED
+        self.settings: UpstoxConnectionSettings  # set by builder
+        self._token_manager: UpstoxTokenManager  # set by builder
+        self.context: UpstoxAdapterContext  # set by builder
+        self._oms: Any = None
+        self._event_bus: EventBus | None = None
+        self._risk_manager: RiskManagerPort | None = None
+        self._backfill_callback: Any | None = None
+        self._reconciliation_service: Any | None = None
+        self._extended_ready: bool = False
+
+        # ── _init_http_clients ──
+        self.instrument_resolver: UpstoxInstrumentResolver  # set by builder
+        self.instrument_loader: UpstoxInstrumentLoader  # set by builder
+        self.instrument_search: UpstoxInstrumentSearch  # set by builder
+
+        # ── _init_core_adapters (explicit) ──
+        self.market_data_v2: UpstoxMarketDataV2Client  # set by builder
+        self.market_data_v3: UpstoxMarketDataV3Client  # set by builder
+        self.historical_v2: UpstoxHistoricalV2Client  # set by builder
+        self.historical_v3: UpstoxHistoricalV3Client  # set by builder
+        self.order_client: UpstoxRestOrderClient  # set by builder
+        self.expired_instruments_client: UpstoxExpiredInstrumentsClient  # set by builder
+        self.futures_client: UpstoxFuturesClient  # set by builder
+        self.futures: UpstoxFuturesAdapter  # set by builder (registry loop)
+
+        # ── _init_core_adapters (registry-driven) ──
+        self.portfolio_client: UpstoxPortfolioClient  # set by builder
+        self.portfolio: UpstoxPortfolioAdapter  # set by builder
+        self.margin_client: UpstoxMarginClient  # set by builder
+        self.margin: UpstoxMarginAdapter  # set by builder
+        self.options_client: UpstoxOptionsClient  # set by builder
+        self.options: UpstoxOptionsAdapter  # set by builder
+        self.market_status_client: UpstoxMarketStatusClient  # set by builder
+        self.market_status: UpstoxMarketStatusAdapter  # set by builder
+        self.kill_switch_client: UpstoxKillSwitchClient  # set by builder
+        self.kill_switch: UpstoxKillSwitchAdapter  # set by builder
+        self.gtt_client: UpstoxGttClient  # set by builder
+        self.gtt: UpstoxGttAdapter  # set by builder
+
+        # ── _init_special_adapters ──
+        self.market_data: UpstoxMarketDataAdapter  # set by builder
+        self.idempotency_cache: InMemoryIdempotencyCache  # set by builder
+        self.order_command: UpstoxOrderCommandAdapter  # set by builder
+        self.order_query: UpstoxOrderQueryAdapter  # set by builder
+        self.slice: UpstoxSliceAdapter  # set by builder
+        self.cover: UpstoxCoverOrderAdapter  # set by builder
+        self.alert: UpstoxAlertAdapter  # set by builder
+        self.exit_all: UpstoxExitAllAdapter  # set by builder
+
+        # ── _init_websocket_layer ──
+        self.feed_authorizer: UpstoxFeedAuthorizer  # set by builder
+        self.market_data_websocket: UpstoxMarketDataV3Multiplexer  # set by builder
+        self.portfolio_stream: UpstoxPortfolioStream  # set by builder
+
+        # ── _init_services ──
+        self.historical_service: HistoricalDataService  # set by builder
+        self.reconciliation_service: UpstoxReconciliationService  # set by builder
+
+        # ── _init_capabilities ──
+        self.capabilities: _UpstoxCapabilities  # set by builder
+
+        # ── _ensure_extended (lazy extended adapters) ──
+        # These are set lazily; typed as Any to avoid importing heavy modules at
+        # class-definition time.
+        self.intelligence: Any = None
+        self.intelligence_snapshot: Any = None
+        self.intelligence_client: Any = None
+        self.trade_pnl_calculator: Any = None
+        self.ipo: Any = None
+        self.ipo_client: Any = None
+        self.payments: Any = None
+        self.payments_client: Any = None
+        self.mutual_funds: Any = None
+        self.mutual_funds_client: Any = None
+        self.fundamentals: Any = None
+        self.fundamentals_client: Any = None
+        self.news: Any = None
+        self.news_client: Any = None
+        self.static_ip: Any = None
+        self.static_ip_client: Any = None
 
     def _ensure_extended(self) -> None:
         """Load extended adapters on first access (IPO, payments, fundamentals, etc.)."""

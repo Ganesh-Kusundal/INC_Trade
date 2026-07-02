@@ -6,6 +6,7 @@ from brokers.common.capabilities import (
     RateLimitProfile,
     StreamLimitProfile,
 )
+from brokers.common.identity import BrokerId
 
 
 def dhan_capabilities() -> BrokerCapabilities:
@@ -18,7 +19,7 @@ def dhan_capabilities() -> BrokerCapabilities:
         efficient connection management.
     """
     return BrokerCapabilities(
-        broker_id="dhan",
+        broker_id=BrokerId.DHAN,
         supports_place_order=True,
         supports_cancel_order=True,
         supports_modify_order=True,

@@ -35,11 +35,14 @@ from __future__ import annotations
 
 import contextlib
 import itertools
+import logging
 import threading
 import time
 from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Generic, TypeVar
+
+log = logging.getLogger(__name__)
 
 _CallbackT = TypeVar("_CallbackT", bound=Callable[..., None])
 
@@ -73,14 +76,22 @@ class ReconnectingServiceMixin(Generic[_CallbackT]):
     INITIAL_BACKOFF = 1.0
     MAX_BACKOFF = 30.0
 
+    # ── Heartbeat / ping-timeout config ────────────────────────────────────
+    #: Seconds of silence after which the watchdog treats the connection as
+    #: ghost and triggers a reconnect.  Set to 0 or ``float("inf")`` to
+    #: disable the watchdog entirely.
+    heartbeat_timeout_seconds: float = 30.0
+
     def _init_reconnect_state(self) -> None:
         """Initialise the reconnect / message-tracking state."""
         self._stop_event = threading.Event()
         self._is_connected = False
         self._reconnect_count = 0
         self._last_message_at = None
+        self._last_monotonic_at: float = time.monotonic()
         self._message_count = 0
         self._callback_lock = threading.RLock()
+        self._watchdog_thread: threading.Thread | None = None
 
     # ── Callback registration (lock + snapshot discipline) ─────────────────
 
@@ -120,9 +131,77 @@ class ReconnectingServiceMixin(Generic[_CallbackT]):
         order update. This is what ``health()`` reports as the freshness
         signal — and it must NOT be updated on heartbeats only
         (Plan §5.1 finding).
+
+        Also resets the monotonic heartbeat timer so the watchdog does
+        not fire while real data is flowing.
         """
         self._last_message_at = datetime.now(timezone.utc)
+        self._last_monotonic_at = time.monotonic()
         self._message_count += 1
+
+    # ── Heartbeat watchdog ─────────────────────────────────────────────────
+
+    def _start_heartbeat_watchdog(self) -> None:
+        """Start the background watchdog thread (idempotent).
+
+        The watchdog polls every second. If no message has been received
+        for :attr:`heartbeat_timeout_seconds` it logs a warning and sets
+        ``_stop_event``, which is already respected by
+        :meth:`_backoff_sleep` and every subclass recv loop — so the
+        existing reconnect path fires without any additional coupling.
+
+        Safe to call from a subclass ``__init__`` or from the start of
+        the reconnect loop.  If the watchdog is already running (e.g.
+        called twice), the old thread is left alone.
+        """
+        timeout = self.heartbeat_timeout_seconds
+        if not timeout or timeout == float("inf"):
+            return  # watchdog disabled
+        if self._watchdog_thread is not None and self._watchdog_thread.is_alive():
+            return  # already running
+        self._last_monotonic_at = time.monotonic()  # reset on each start
+        t = threading.Thread(
+            target=self._heartbeat_watchdog_loop,
+            name=f"{type(self).__name__}-heartbeat-watchdog",
+            daemon=True,
+        )
+        self._watchdog_thread = t
+        t.start()
+
+    def _stop_heartbeat_watchdog(self) -> None:
+        """Signal the watchdog thread to exit and wait for it.
+
+        The watchdog checks ``_stop_event``, so calling
+        :meth:`_stop_event.set` (which ``stop()`` in subclasses already
+        does) is enough — this method just joins for a clean shutdown.
+        """
+        t = self._watchdog_thread
+        if t is not None and t.is_alive():
+            t.join(timeout=3.0)
+        self._watchdog_thread = None
+
+    def _heartbeat_watchdog_loop(self) -> None:
+        """Internal: the watchdog thread body.
+
+        Polls every second. Exits when ``_stop_event`` is set.  On
+        silence exceeding :attr:`heartbeat_timeout_seconds` it logs a
+        warning and sets ``_stop_event`` once, then exits — the
+        reconnect cycle in the subclass thread will wake up naturally.
+        """
+        timeout = self.heartbeat_timeout_seconds
+        while not self._stop_event.wait(timeout=1.0):
+            silence = time.monotonic() - self._last_monotonic_at
+            if self._is_connected and silence > timeout:
+                log.warning(
+                    "%s heartbeat timeout — no message for %.1fs (limit %.1fs); "
+                    "triggering reconnect.",
+                    type(self).__name__,
+                    silence,
+                    timeout,
+                )
+                self._stop_event.set()
+                return
+        # _stop_event fired — watchdog exits cleanly
 
     # ── Backoff ────────────────────────────────────────────────────────────
 

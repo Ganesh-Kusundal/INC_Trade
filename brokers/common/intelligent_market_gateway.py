@@ -159,7 +159,11 @@ class IntelligentMarketDataGateway(MarketDataGateway):
         """Resolve the underlying legacy gateway if this is an adapter, avoiding mock objects."""
         if type(gateway).__name__ in ("Mock", "MagicMock", "NonCallableMock", "AsyncMock"):
             return gateway
-        return self._get_legacy_gateway(gateway)
+        # If this is a MarketDataGatewayAdapter, extract the underlying sync gateway
+        legacy = getattr(gateway, "legacy_gateway", None)
+        if legacy is not None:
+            return legacy
+        return gateway  # Not an adapter, return as-is
 
     def _acquire_quota(self, broker_id: str, endpoint_class: str) -> Any:
         """Acquire a quota token for the operation.
@@ -590,7 +594,7 @@ class IntelligentMarketDataGateway(MarketDataGateway):
         if not available_brokers:
             return {self._primary: symbols}
 
-        # Simple round-robin allocation based on quota headroom
+        # Simple round-robin allocation across available brokers
         allocations: dict[str, list[str]] = {bid: [] for bid in available_brokers}
         for i, symbol in enumerate(symbols):
             broker_id = available_brokers[i % len(available_brokers)]

@@ -7,6 +7,7 @@ Dhan-specific status strings that have no Upstox equivalent.
 from __future__ import annotations
 
 from domain import OrderStatus
+from brokers.common.identity import BrokerId
 from domain.status_mapper import COMMON_STATUS_MAP, StatusMapperRegistry
 
 DHAN_STATUS_MAP: dict[str, OrderStatus] = {
@@ -19,4 +20,4 @@ DHAN_STATUS_MAP: dict[str, OrderStatus] = {
 }
 
 # Register Dhan mappings at module load
-StatusMapperRegistry.register("dhan", DHAN_STATUS_MAP)
+StatusMapperRegistry.register(BrokerId.DHAN, DHAN_STATUS_MAP)

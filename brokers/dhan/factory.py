@@ -17,10 +17,12 @@ from urllib.parse import urlencode
 from brokers.common.auth import AuthManager, JsonTokenStateStore, TokenSource, TokenState
 from brokers.common.factory import BrokerProviderFactory
 from brokers.common.gateway import MarketDataGateway
+from brokers.common.identity import BrokerId
 from brokers.dhan.account_registry import AccountConnectionRegistry
 from brokers.dhan.connection import DhanConnection
 from brokers.dhan.gateway import BrokerGateway
 from brokers.dhan.http_client import DhanHttpClient
+from brokers.dhan.secret_utils import read_secret as _read_secret
 from brokers.dhan.settings import DhanConnectionSettings, DhanSettingsLoader
 from brokers.dhan.token_scheduler import TokenRefreshScheduler
 
@@ -44,7 +46,7 @@ class BrokerFactory(BrokerProviderFactory):
         resolved_env = env_path or Path(".env.local")
 
         return AccountConnectionRegistry.get_or_create(
-            "dhan",
+            BrokerId.DHAN,
             cid,
             lambda: self._build_gateway(
                 settings=settings,
@@ -119,7 +121,7 @@ class BrokerFactory(BrokerProviderFactory):
         # ── Health check registration ──────────────────────────────
         from brokers.common.observability.health_check import register_broker_health_check
 
-        register_broker_health_check("dhan", gateway)
+        register_broker_health_check(BrokerId.DHAN, gateway)
 
         return gateway
 
@@ -199,7 +201,7 @@ class BrokerFactory(BrokerProviderFactory):
         Maintains backward compatibility with existing read/write/admin
         circuit breaker naming used by the HTTP client and connection.
         """
-        from brokers.dhan.config import DhanResilienceConfig, DEFAULT_CONFIG
+        from brokers.dhan.config import DEFAULT_CONFIG
         from brokers.dhan.config_loader import DhanConfigLoader
         from brokers.dhan.resilience import (
             create_circuit_breakers,
@@ -311,11 +313,8 @@ class BrokerFactory(BrokerProviderFactory):
             reconciliation_service=reconciliation_service,
             lifecycle=lifecycle,
             allow_live_orders=settings.allow_live_orders,
+            auth=auth,
         )
-        connection._auth = auth  # Store auth manager on connection
-        from brokers.dhan.session_manager import DhanSessionManager
-
-        connection._session_manager = DhanSessionManager(connection, auth)
         return BrokerGateway(connection)
 
     def _wire_websocket_services(
@@ -512,8 +511,6 @@ def _generate_totp_token(settings: DhanConnectionSettings | None = None) -> str 
         logger.warning("TOTP token generation failed: %s", exc)
         return None
 
-
-from brokers.dhan.secret_utils import read_secret as _read_secret
 
 
 def _update_env_token(env_path: Path, token: str) -> None:

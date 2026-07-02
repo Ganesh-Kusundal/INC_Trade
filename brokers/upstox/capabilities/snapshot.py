@@ -6,12 +6,13 @@ from brokers.common.capabilities import (
     RateLimitProfile,
     StreamLimitProfile,
 )
+from brokers.common.identity import BrokerId
 
 
 def upstox_capabilities() -> BrokerCapabilities:
     """Authoritative capability snapshot for the Upstox broker."""
     return BrokerCapabilities(
-        broker_id="upstox",
+        broker_id=BrokerId.UPSTOX,
         supports_place_order=True,
         supports_cancel_order=True,
         supports_modify_order=True,

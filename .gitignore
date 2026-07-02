@@ -1,0 +1,13 @@
+# Bytecode / Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Default .gitignore patterns
+.env
+.env.local
+dist/
+build/
+*.egg-info/

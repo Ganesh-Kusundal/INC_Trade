@@ -195,7 +195,7 @@ class Depth200ConnectionPool:
         self._access_token = access_token
         self._event_bus = event_bus
         self._max_connections = max_connections
-        self._feeds: Dict[Self.InstrumentKey, DhanDepth200Feed] = {}
+        self._feeds: Dict[Tuple[str, str], DhanDepth200Feed] = {}
         self._lock = RLock()
         
     def get_feed(self, instrument: InstrumentKey) -> DhanDepth200Feed:

@@ -7,13 +7,14 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
+from brokers.common.auth import AuthManager
 from brokers.common.resilience.circuit_breaker import CircuitState
 from brokers.dhan.alerts import AlertsAdapter
 from brokers.dhan.conditional_triggers import ConditionalTriggersAdapter
 from brokers.dhan.connection_lifecycle import ConnectionLifecycle
 from brokers.dhan.connection_token_manager import ConnectionTokenManager
 from brokers.dhan.depth_20 import DhanDepth20Feed
-from brokers.dhan.depth_200 import DhanDepth200Feed, Depth200ConnectionPool
+from brokers.dhan.depth_200 import DhanDepth200Feed
 from brokers.dhan.edis import EDISAdapter
 from brokers.dhan.exit_all import ExitAllAdapter
 from brokers.dhan.forever_orders import ForeverOrdersAdapter
@@ -92,6 +93,7 @@ class DhanConnection:
         reconciliation_service: object | None = None,
         lifecycle: LifecycleManager | None = None,
         allow_live_orders: bool = False,
+        auth: AuthManager | None = None,
     ):
         self._client = client
         self.instruments = resolver or SymbolResolver()
@@ -135,7 +137,10 @@ class DhanConnection:
         from brokers.dhan.subscription_engine import SubscriptionEngine
 
         self.subscription_engine = SubscriptionEngine(self)
-        self._session_manager: DhanSessionManager | None = None
+        self._auth: AuthManager | None = auth
+        self._session_manager: DhanSessionManager | None = (
+            DhanSessionManager(self, auth) if auth is not None else None
+        )
 
     @property
     def market_data(self) -> MarketDataAdapter:

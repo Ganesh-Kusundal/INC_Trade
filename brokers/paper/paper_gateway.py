@@ -8,13 +8,28 @@ from typing import Any, Callable
 import pandas as pd
 
 from brokers.common.batch_mixin import BatchFetchMixin
+from brokers.common.broker_port import CommonBrokerGateway
+from brokers.common.defaults import (
+    DEFAULT_DEPTH_TYPE,
+    DEFAULT_DERIVATIVES_EXCHANGE,
+    DEFAULT_EXCHANGE,
+    DEFAULT_LOOKBACK_DAYS,
+    DEFAULT_ORDER_TYPE,
+    DEFAULT_PRODUCT_TYPE,
+    DEFAULT_SIDE,
+    DEFAULT_STREAM_MODE,
+    DEFAULT_TIMEFRAME,
+    DEFAULT_VALIDITY,
+)
 from brokers.common.capabilities import (
     BrokerCapabilities,
     HistoricalWindowConstraint,
     RateLimitProfile,
     StreamLimitProfile,
 )
-from brokers.common.gateway import MarketDataGateway
+from brokers.common.common_broker_access import to_common_broker_gateway
+from brokers.common.identity import BrokerId
+from brokers.common.gateway import MarketDataGateway, ObservabilityProvider
 from domain import (
     Balance,
     FutureChain,
@@ -24,13 +39,9 @@ from domain import (
     Order,
     OrderResponse,
     OrderStatus,
-    OrderType,
     Position,
-    ProductType,
     Quote,
-    Side,
     Trade,
-    Validity,
 )
 from domain.constants.defaults import PAPER_INITIAL_CAPITAL
 
@@ -39,7 +50,7 @@ from .paper_orders import PaperOrders
 from .paper_portfolio import PaperPortfolio
 
 
-class PaperGateway(BatchFetchMixin, MarketDataGateway):
+class PaperGateway(BatchFetchMixin, MarketDataGateway, ObservabilityProvider):
     """Unified paper-trading API implementing MarketDataGateway v1.0.
 
     All market-data, order, and portfolio calls delegate to the
@@ -71,6 +82,10 @@ class PaperGateway(BatchFetchMixin, MarketDataGateway):
         )
         self._portfolio = PaperPortfolio(self._orders, initial_capital)
 
+    def common_broker_gateway(self) -> CommonBrokerGateway:
+        """Native CommonBrokerGateway port for infrastructure bootstrap."""
+        return to_common_broker_gateway(self, BrokerId.PAPER)
+
     @property
     def market_data(self) -> PaperMarketData:
         return self._market_data
@@ -90,13 +105,13 @@ class PaperGateway(BatchFetchMixin, MarketDataGateway):
     def place_order(
         self,
         symbol: str,
-        exchange: str = "NSE",
-        side: str = "BUY",
+        exchange: str = DEFAULT_EXCHANGE,
+        side: str = DEFAULT_SIDE,
         quantity: int = 1,
         price: Decimal = Decimal("0"),
-        order_type: str = "MARKET",
-        product_type: str = "INTRADAY",
-        validity: str = "DAY",
+        order_type: str = DEFAULT_ORDER_TYPE,
+        product_type: str = DEFAULT_PRODUCT_TYPE,
+        validity: str = DEFAULT_VALIDITY,
         trigger_price: Decimal = Decimal("0"),
         correlation_id: str | None = None,
     ) -> OrderResponse:
@@ -174,9 +189,9 @@ class PaperGateway(BatchFetchMixin, MarketDataGateway):
     def history(
         self,
         symbol: str | list[str],
-        exchange: str = "NSE",
-        timeframe: str = "1D",
-        lookback_days: int = 90,
+        exchange: str = DEFAULT_EXCHANGE,
+        timeframe: str = DEFAULT_TIMEFRAME,
+        lookback_days: int = DEFAULT_LOOKBACK_DAYS,
         from_date: str | None = None,
         to_date: str | None = None,
     ) -> pd.DataFrame:
@@ -218,7 +233,7 @@ class PaperGateway(BatchFetchMixin, MarketDataGateway):
 
         return pd.DataFrame(rows)
 
-    def quote(self, symbol: str, exchange: str = "NSE") -> Quote:
+    def quote(self, symbol: str, exchange: str = DEFAULT_EXCHANGE) -> Quote:
         q = self._market_data.get_quote(symbol, exchange)
         return Quote(
             symbol=symbol,
@@ -234,10 +249,10 @@ class PaperGateway(BatchFetchMixin, MarketDataGateway):
             timestamp=q.timestamp,
         )
 
-    def ltp(self, symbol: str, exchange: str = "NSE") -> Decimal:
+    def ltp(self, symbol: str, exchange: str = DEFAULT_EXCHANGE) -> Decimal:
         return self._market_data.get_ltp(symbol, exchange)
 
-    def depth(self, symbol: str, exchange: str = "NSE") -> MarketDepth:
+    def depth(self, symbol: str, exchange: str = DEFAULT_EXCHANGE) -> MarketDepth:
         d = self._market_data.get_depth(symbol, exchange)
         return MarketDepth(
             symbol=symbol,
@@ -248,7 +263,7 @@ class PaperGateway(BatchFetchMixin, MarketDataGateway):
     def option_chain(
         self,
         underlying: str,
-        exchange: str = "NFO",
+        exchange: str = DEFAULT_DERIVATIVES_EXCHANGE,
         expiry: str | None = None,
     ) -> OptionChain:
         import numpy as np
@@ -276,7 +291,7 @@ class PaperGateway(BatchFetchMixin, MarketDataGateway):
     def future_chain(
         self,
         underlying: str,
-        exchange: str = "NFO",
+        exchange: str = DEFAULT_DERIVATIVES_EXCHANGE,
     ) -> FutureChain:
         import numpy as np
 
@@ -309,8 +324,8 @@ class PaperGateway(BatchFetchMixin, MarketDataGateway):
     def stream(
         self,
         symbol: str,
-        exchange: str = "NSE",
-        mode: str = "LTP",
+        exchange: str = DEFAULT_EXCHANGE,
+        mode: str = DEFAULT_STREAM_MODE,
         on_tick: Any | None = None,
     ) -> Any:
         class _PaperStream:
@@ -329,8 +344,8 @@ class PaperGateway(BatchFetchMixin, MarketDataGateway):
     def stream_depth(
         self,
         symbol: str,
-        exchange: str = "NSE",
-        depth_type: str = "DEPTH_5",
+        exchange: str = DEFAULT_EXCHANGE,
+        depth_type: str = DEFAULT_DEPTH_TYPE,
         on_depth: Callable[[MarketDepth], None] | None = None,
     ) -> Any:
         class _PaperStream:
@@ -423,7 +438,7 @@ class PaperGateway(BatchFetchMixin, MarketDataGateway):
     # =======================================================================
 
     def search(self, query: str) -> list[dict]:
-        return [{"symbol": query.upper(), "exchange": "NSE", "name": query.upper()}]
+        return [{"symbol": query.upper(), "exchange": DEFAULT_EXCHANGE, "name": query.upper()}]
 
     def load_instruments(self, source: str | None = None, use_cache: bool = True) -> None:
         pass
@@ -434,7 +449,7 @@ class PaperGateway(BatchFetchMixin, MarketDataGateway):
 
     def capabilities(self) -> BrokerCapabilities:
         return BrokerCapabilities(
-            broker_id="paper",
+            broker_id=BrokerId.PAPER,
             supports_place_order=True,
             supports_cancel_order=True,
             supports_modify_order=True,
@@ -512,7 +527,7 @@ class PaperGateway(BatchFetchMixin, MarketDataGateway):
 
     def describe(self) -> dict:
         return {
-            "broker": "paper",
+            "broker": BrokerId.PAPER,
             "name": "paper",
             "version": "1.0.0",
             "connected": True,

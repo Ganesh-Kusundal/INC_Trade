@@ -25,8 +25,8 @@ There are TWO gateway abstractions in this codebase. This is intentional:
   queries. Defined as an ``ABC`` for nominal typing.
 
 New code should prefer **CommonBrokerGateway** for trading operations and
-**MarketDataGateway** for read-only data access. The two interfaces will be
-merged in a future release (tracked as P2-1 technical debt).
+**MarketDataGateway** for read-only data access. The two interfaces are
+intentionally separate as a producer/consumer boundary (see ADR-003).
 """
 
 from __future__ import annotations
