@@ -1,0 +1,44 @@
+"""Broker gateway port — composition of narrow ports (ISP).
+
+This is the main interface that broker adapters implement. It composes
+narrow ports rather than defining a fat interface, following the
+Interface Segregation Principle.
+
+Usage::
+
+    from brokers.ports.broker import BrokerGateway
+
+    def process(gw: BrokerGateway):
+        price = gw.market_data.ltp("RELIANCE")
+        resp = gw.orders.place_order("RELIANCE", "NSE", Side.BUY, 10)
+"""
+
+from __future__ import annotations
+
+from typing import Protocol, runtime_checkable
+
+from brokers.ports.auth import AuthPort
+from brokers.ports.instruments import InstrumentPort
+from brokers.ports.market_data import MarketDataPort
+from brokers.ports.order_execution import OrderExecutionPort
+from brokers.ports.portfolio import PortfolioPort
+
+
+@runtime_checkable
+class BrokerGateway(Protocol):
+    @property
+    def orders(self) -> OrderExecutionPort: ...
+
+    @property
+    def market_data(self) -> MarketDataPort: ...
+
+    @property
+    def portfolio(self) -> PortfolioPort: ...
+
+    @property
+    def instruments(self) -> InstrumentPort: ...
+
+    @property
+    def auth(self) -> AuthPort: ...
+
+    def close(self) -> None: ...

@@ -1,0 +1,70 @@
+"""Domain enumerations — the vocabulary of the trading domain.
+
+These enums define the allowed values for order parameters, exchange segments,
+and status tracking. They are the innermost layer with zero dependencies.
+"""
+
+from __future__ import annotations
+
+from enum import Enum
+
+
+class Side(str, Enum):
+    BUY = "BUY"
+    SELL = "SELL"
+
+    @property
+    def opposite(self) -> Side:
+        return Side.SELL if self is Side.BUY else Side.BUY
+
+
+class OrderType(str, Enum):
+    MARKET = "MARKET"
+    LIMIT = "LIMIT"
+    STOP_LOSS = "STOP_LOSS"
+    STOP_LOSS_MARKET = "STOP_LOSS_MARKET"
+
+    @property
+    def is_limit(self) -> bool:
+        return self is OrderType.LIMIT
+
+    @property
+    def is_stop(self) -> bool:
+        return self in (OrderType.STOP_LOSS, OrderType.STOP_LOSS_MARKET)
+
+
+class OrderStatus(str, Enum):
+    PENDING = "PENDING"
+    OPEN = "OPEN"
+    PARTIALLY_FILLED = "PARTIALLY_FILLED"
+    FILLED = "FILLED"
+    CANCELLED = "CANCELLED"
+    REJECTED = "REJECTED"
+
+    @property
+    def is_terminal(self) -> bool:
+        return self in (
+            OrderStatus.FILLED,
+            OrderStatus.CANCELLED,
+            OrderStatus.REJECTED,
+        )
+
+    @property
+    def is_active(self) -> bool:
+        return self in (
+            OrderStatus.PENDING,
+            OrderStatus.OPEN,
+            OrderStatus.PARTIALLY_FILLED,
+        )
+
+
+class ProductType(str, Enum):
+    INTRADAY = "INTRADAY"
+    DELIVERY = "DELIVERY"
+    MARGIN = "MARGIN"
+
+
+class Validity(str, Enum):
+    DAY = "DAY"
+    IOC = "IOC"
+    GTT = "GTT"

@@ -1,0 +1,212 @@
+"""Integration tests for Dhan adapter — uses mocked HTTP responses."""
+
+from __future__ import annotations
+
+from decimal import Decimal
+from unittest.mock import MagicMock, patch
+
+from brokers.adapters.dhan.gateway import DhanGateway
+from brokers.adapters.dhan.identity import DhanInstrumentRef
+from brokers.domain import Side
+from brokers.ports import BrokerGateway
+
+
+def _mock_response(json_data, status_code=200):
+    resp = MagicMock()
+    resp.status_code = status_code
+    resp.json.return_value = json_data
+    resp.text = str(json_data)
+    return resp
+
+
+def _equity_ref(
+    symbol: str = "RELIANCE", security_id: str = "2885"
+) -> DhanInstrumentRef:
+    return DhanInstrumentRef(
+        symbol=symbol,
+        security_id=security_id,
+        exchange_segment="NSE_EQ",
+        instrument_type="EQUITY",
+        lot_size=1,
+    )
+
+
+def _patch_resolver(gw: DhanGateway, ref: DhanInstrumentRef | None = None):
+    ref = ref or _equity_ref()
+    gw._resolver.resolve = MagicMock(return_value=ref)  # type: ignore[method-assign]
+
+
+class TestDhanGatewayProtocol:
+    def test_satisfies_broker_gateway(self):
+        gw = DhanGateway(access_token="test", client_id="test")
+        assert isinstance(gw, BrokerGateway)
+        gw.close()
+
+
+class TestDhanOrders:
+    def setup_method(self):
+        self.gw = DhanGateway(access_token="test-token", client_id="test-client")
+        self.mock_resp = MagicMock()
+
+    def teardown_method(self):
+        self.gw.close()
+
+    @patch("brokers.adapters.dhan.http.requests.Session")
+    def test_place_order(self, mock_session_cls):
+        mock_session = MagicMock()
+        mock_session.request.return_value = _mock_response(
+            {
+                "orderId": "12345",
+                "orderStatus": "OPEN",
+            }
+        )
+        mock_session.headers = {}
+        mock_session_cls.return_value = mock_session
+
+        gw = DhanGateway(access_token="tok", client_id="cid")
+        _patch_resolver(gw)
+        resp = gw.orders.place_order("RELIANCE", "NSE", Side.BUY, 10)
+        assert resp.success
+        assert resp.order_id == "12345"
+
+        call_args = mock_session.request.call_args
+        payload = call_args.kwargs.get("json") or call_args[1].get("json")
+        assert payload["securityId"] == "2885"
+        assert payload["exchangeSegment"] == "NSE_EQ"
+        assert "tradingSymbol" not in payload
+        gw.close()
+
+    @patch("brokers.adapters.dhan.http.requests.Session")
+    def test_cancel_order(self, mock_session_cls):
+        mock_session = MagicMock()
+        mock_session.request.return_value = _mock_response({})
+        mock_session.headers = {}
+        mock_session_cls.return_value = mock_session
+
+        gw = DhanGateway(access_token="tok", client_id="cid")
+        resp = gw.orders.cancel_order("12345")
+        assert resp.success
+        gw.close()
+
+    @patch("brokers.adapters.dhan.http.requests.Session")
+    def test_get_orderbook(self, mock_session_cls):
+        mock_session = MagicMock()
+        mock_session.request.return_value = _mock_response(
+            {
+                "data": [
+                    {
+                        "orderId": "1",
+                        "tradingSymbol": "RELIANCE",
+                        "orderStatus": "OPEN",
+                        "transactionType": 1,
+                        "quantity": 10,
+                        "exchangeSegment": "NSE_EQ",
+                    },
+                    {
+                        "orderId": "2",
+                        "tradingSymbol": "TCS",
+                        "orderStatus": "FILLED",
+                        "transactionType": 2,
+                        "quantity": 5,
+                        "exchangeSegment": "NSE_EQ",
+                    },
+                ]
+            }
+        )
+        mock_session.headers = {}
+        mock_session_cls.return_value = mock_session
+
+        gw = DhanGateway(access_token="tok", client_id="cid")
+        book = gw.orders.get_orderbook()
+        assert len(book) == 2
+        gw.close()
+
+
+class TestDhanMarketData:
+    @patch("brokers.adapters.dhan.http.requests.Session")
+    def test_ltp(self, mock_session_cls):
+        mock_session = MagicMock()
+        mock_session.request.return_value = _mock_response(
+            {"data": {"2885": {"last_price": 2500.0}}}
+        )
+        mock_session.headers = {}
+        mock_session_cls.return_value = mock_session
+
+        gw = DhanGateway(access_token="tok", client_id="cid")
+        _patch_resolver(gw)
+        price = gw.market_data.ltp("RELIANCE")
+        assert price == Decimal("2500.0")
+
+        call_args = mock_session.request.call_args
+        payload = call_args.kwargs.get("json") or call_args[1].get("json")
+        assert payload == {"NSE_EQ": [2885]}
+        gw.close()
+
+    @patch("brokers.adapters.dhan.http.requests.Session")
+    def test_quote(self, mock_session_cls):
+        mock_session = MagicMock()
+        mock_session.request.return_value = _mock_response(
+            {"data": {"2885": {"last_price": 2500.0, "volume": 100000}}}
+        )
+        mock_session.headers = {}
+        mock_session_cls.return_value = mock_session
+
+        gw = DhanGateway(access_token="tok", client_id="cid")
+        _patch_resolver(gw)
+        q = gw.market_data.quote("RELIANCE")
+        assert q.symbol == "RELIANCE"
+        assert q.ltp == Decimal("2500.0")
+        gw.close()
+
+
+class TestDhanPortfolio:
+    @patch("brokers.adapters.dhan.http.requests.Session")
+    def test_positions(self, mock_session_cls):
+        mock_session = MagicMock()
+        mock_session.request.return_value = _mock_response(
+            {
+                "data": [
+                    {
+                        "tradingSymbol": "RELIANCE",
+                        "exchangeSegment": "NSE_EQ",
+                        "netQty": 10,
+                        "productType": "INTRADAY",
+                    },
+                ]
+            }
+        )
+        mock_session.headers = {}
+        mock_session_cls.return_value = mock_session
+
+        gw = DhanGateway(access_token="tok", client_id="cid")
+        positions = gw.portfolio.positions()
+        assert len(positions) == 1
+        assert positions[0].symbol == "RELIANCE"
+        gw.close()
+
+    @patch("brokers.adapters.dhan.http.requests.Session")
+    def test_funds(self, mock_session_cls):
+        mock_session = MagicMock()
+        mock_session.request.return_value = _mock_response(
+            {"data": [{"availabelBalance": 50000.0, "utilizedMargin": 10000.0}]}
+        )
+        mock_session.headers = {}
+        mock_session_cls.return_value = mock_session
+
+        gw = DhanGateway(access_token="tok", client_id="cid")
+        bal = gw.portfolio.funds()
+        assert bal.available_cash == Decimal("50000.0")
+        gw.close()
+
+
+class TestDhanAuth:
+    def test_is_authenticated(self):
+        gw = DhanGateway(access_token="tok", client_id="cid")
+        assert gw.auth.is_authenticated()
+        assert gw.auth.get_token() == "tok"
+        gw.close()
+
+    def test_not_authenticated_without_token(self):
+        gw = DhanGateway(access_token="", client_id="cid")
+        assert not gw.auth.is_authenticated()
+        gw.close()
