@@ -77,11 +77,11 @@ class UpstoxPortfolioStream:
     def _resolve_headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self._token_provider()}"}
 
-    def _on_open(self, ws) -> None:
+    def _on_open(self, ws: Any) -> None:
         self._connected = True
         logger.info("upstox_portfolio_stream_connected")
 
-    def _on_message(self, ws, message: str | bytes) -> None:
+    def _on_message(self, ws: Any, message: str | bytes) -> None:
         try:
             if isinstance(message, bytes):
                 message = message.decode("utf-8")
@@ -97,9 +97,9 @@ class UpstoxPortfolioStream:
             except Exception as exc:
                 logger.warning("Portfolio listener error: %s", exc)
 
-    def _on_error(self, ws, error) -> None:
+    def _on_error(self, ws: Any, error: Any) -> None:
         logger.warning("upstox_portfolio_stream_error", extra={"error": str(error)})
 
-    def _on_close(self, ws, code, msg) -> None:
+    def _on_close(self, ws: Any, code: int, msg: str | bytes) -> None:
         self._connected = False
         logger.info("upstox_portfolio_stream_disconnected")

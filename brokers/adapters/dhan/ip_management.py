@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from brokers.ports.http_client_port import HttpClientPort
 
@@ -15,7 +16,7 @@ class DhanIpManagement:
     def __init__(self, client: HttpClientPort) -> None:
         self._client = client
 
-    def whitelist_ip(self, ip_address: str) -> dict:
+    def whitelist_ip(self, ip_address: str) -> dict[str, Any]:
         """Whitelist an IP address dynamically."""
         logger.info(f"whitelisting_ip: {ip_address}")
         payload = {"ipAddress": ip_address}
@@ -23,10 +24,11 @@ class DhanIpManagement:
 
     def get_whitelisted_ips(self) -> list[str]:
         """Get list of whitelisted IPs."""
-        resp = self._client.get("/ip/whitelist")
-        return resp.get("data", []) if isinstance(resp, dict) else []
+        resp: dict[str, Any] = self._client.get("/ip/whitelist")
+        data: Any = resp.get("data", []) if isinstance(resp, dict) else []
+        return list(data) if isinstance(data, list) else []
 
-    def remove_whitelisted_ip(self, ip_address: str) -> dict:
+    def remove_whitelisted_ip(self, ip_address: str) -> dict[str, Any]:
         """Remove a whitelisted IP address."""
         logger.info(f"removing_whitelisted_ip: {ip_address}")
         return self._client.delete(f"/ip/whitelist/{ip_address}")

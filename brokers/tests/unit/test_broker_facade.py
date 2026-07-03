@@ -10,16 +10,18 @@ import pytest
 def test_broker_facade_options_exposure():
     facade = create_broker("paper")
     
-    # Test getting expiries
-    expiries = facade.get_expiries("NIFTY")
-    assert isinstance(expiries, list)
-    
-    # Test getting option chain
-    chain = facade.get_option_chain("NIFTY")
-    assert chain.underlying == "NIFTY"
+    from brokers.domain.exceptions import NotSupportedError
+    import pytest
+
+    # Test getting expiries throws error for paper
+    with pytest.raises(NotSupportedError):
+        expiries = facade.get_expiries("NIFTY")
+
+    # Test getting option chain throws error for paper
+    with pytest.raises(NotSupportedError):
+        chain = facade.get_option_chain("NIFTY")
 
 
-@pytest.mark.xfail(reason="DhanForeverOrders does not conform to ForeverOrderProvider protocol yet")
 def test_broker_facade_extensions_dhan():
     # Because factory is used, Dhan instantiates extensions
     facade = create_broker("dhan", client_id="test", access_token="test")
@@ -30,15 +32,16 @@ def test_broker_facade_extensions_dhan():
     assert hasattr(forever_provider, "place_forever_order")
 
 
-@pytest.mark.xfail(reason="UpstoxGtt does not conform to ForeverOrderProvider protocol yet")
 def test_broker_facade_extensions_upstox():
+    from brokers.ports.capabilities import GTTProvider
+
     # Upstox factory
     facade = create_broker("upstox", access_token="test")
     
-    # Upstox registers GTT as ForeverOrderProvider
-    forever_provider = facade.extensions.resolve(facade.broker_id.value, ForeverOrderProvider)
-    assert forever_provider is not None
-    assert hasattr(forever_provider, "place_forever_order")
+    # Upstox registers GTTProvider
+    gtt_provider = facade.extensions.resolve(facade.broker_id.value, GTTProvider)
+    assert gtt_provider is not None
+    assert hasattr(gtt_provider, "place_gtt")
     
     # Upstox registers News
     news_provider = facade.extensions.resolve(facade.broker_id.value, NewsProvider)

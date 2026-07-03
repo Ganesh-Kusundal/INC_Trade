@@ -37,7 +37,7 @@ from .redirect_server import UpstoxRedirectServer
 logger = logging.getLogger("brokers.adapters.upstox.auth.login")
 
 
-def _parse_args(argv: list | None = None) -> argparse.Namespace:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run interactive Upstox OAuth PKCE flow."
     )
@@ -155,7 +155,7 @@ def perform_login(
     }
 
 
-def _persist_state(settings: UpstoxConnectionSettings, result: dict) -> None:
+def _persist_state(settings: UpstoxConnectionSettings, result: dict[str, Any]) -> None:
     if not settings.token_state_file:
         return
     settings.token_state_file.parent.mkdir(parents=True, exist_ok=True)
@@ -180,7 +180,7 @@ def _persist_state(settings: UpstoxConnectionSettings, result: dict) -> None:
     logger.info("token_state_persisted", extra={"file": str(settings.token_state_file)})
 
 
-def main(argv: list | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     if argv is None:
         argv = sys.argv[1:]
     args = _parse_args(argv)

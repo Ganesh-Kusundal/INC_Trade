@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from brokers.adapters.upstox.config import _INTERVAL_MAP
 from brokers.adapters.upstox.instruments import UpstoxInstruments, resolve_upstox_instrument_key
@@ -82,7 +83,7 @@ class UpstoxHistorical:
         return self.get_historical_candles(symbol, exchange, start_time, end_time, resolution)
 
     @staticmethod
-    def _parse(data: dict, symbol: str) -> list[Candle]:
+    def _parse(data: dict[str, Any], symbol: str) -> list[Candle]:
         inner = unwrap_data(data, default=data)
         if isinstance(inner, dict):
             candles_raw = inner.get("candles", [])

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from brokers.ports.http_client_port import HttpClientPort
 
@@ -18,7 +19,7 @@ class DhanLedger:
     def __init__(self, client: HttpClientPort) -> None:
         self._client = client
 
-    def get_ledger(self, from_date: str, to_date: str) -> list[dict]:
+    def get_ledger(self, from_date: str, to_date: str) -> list[dict[str, Any]]:
         """Fetch ledger statement for a date range.
 
         Parameters

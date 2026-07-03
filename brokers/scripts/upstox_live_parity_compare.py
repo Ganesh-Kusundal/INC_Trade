@@ -13,6 +13,7 @@ import json
 import os
 import sys
 from decimal import Decimal
+from typing import Any
 
 
 def _require_gate() -> None:
@@ -21,7 +22,7 @@ def _require_gate() -> None:
         sys.exit(1)
 
 
-def _compare(name: str, archived_val, modern_val) -> dict:
+def _compare(name: str, archived_val: Any, modern_val: Any) -> dict[str, Any]:
     match = archived_val == modern_val
     return {
         "check": name,
@@ -34,7 +35,7 @@ def _compare(name: str, archived_val, modern_val) -> dict:
 def main() -> int:
     _require_gate()
 
-    results: list[dict] = []
+    results: list[dict[str, Any]] = []
 
     # Modern gateway
     from brokers.adapters.upstox.gateway import UpstoxGateway

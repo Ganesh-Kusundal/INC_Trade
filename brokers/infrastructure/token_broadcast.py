@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import Callable, Protocol, runtime_checkable
+from typing import Any, Callable, Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ class TokenManager:
         with self._lock:
             return self._current_token
 
-    def health(self) -> dict:
+    def health(self) -> dict[str, Any]:
         """Return health snapshot for monitoring."""
         with self._lock:
             return {

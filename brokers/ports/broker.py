@@ -1,67 +1,88 @@
-"""Broker gateway port — composition of narrow ports (ISP).
+"""Core broker gateway interface.
 
-This is the main interface that broker adapters implement. It composes
-narrow ports rather than defining a fat interface, following the
-Interface Segregation Principle.
-
-Usage::
-
-    from brokers.ports.broker import BrokerGateway
-
-    def process(gw: BrokerGateway):
-        price = gw.market_data.ltp("RELIANCE")
-        resp = gw.orders.place_order("RELIANCE", "NSE", Side.BUY, 10)
+This is the primary contract that all broker adapters must implement.
+It provides access to all core services through properties, enabling
+dependency injection and capability-based feature discovery.
 """
 
 from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from brokers.domain.capabilities import BrokerCapabilities
-from brokers.domain.enums import BrokerID
 from brokers.ports.auth import AuthPort
+from brokers.ports.capabilities import Capabilities
+from brokers.ports.extension_registry import ExtensionRegistryPort
 from brokers.ports.historical import HistoricalPort
 from brokers.ports.instruments import InstrumentPort
 from brokers.ports.market_data import MarketDataPort
+from brokers.ports.options import OptionsPort
 from brokers.ports.order_execution import OrderExecutionPort
 from brokers.ports.portfolio import PortfolioPort
 from brokers.ports.streaming import StreamingPort
-from brokers.ports.options import OptionsPort
 
 
 @runtime_checkable
 class BrokerGateway(Protocol):
-    @property
-    def broker_id(self) -> BrokerID: ...
+    """Primary interface for all broker adapters.
 
-    """Canonical broker identifier (e.g., 'dhan', 'upstox')."""
-
-    @property
-    def orders(self) -> OrderExecutionPort: ...
+    Brokers implement this interface to provide access to their services.
+    Clients should depend on this abstraction, not on concrete broker implementations.
+    """
 
     @property
-    def market_data(self) -> MarketDataPort: ...
+    def broker_id(self) -> str:
+        """Unique identifier for this broker (e.g., 'dhan', 'upstox')."""
+        ...
+
+    def capabilities(self) -> Capabilities:
+        """Feature discovery interface."""
+        ...
 
     @property
-    def portfolio(self) -> PortfolioPort: ...
+    def orders(self) -> OrderExecutionPort:
+        """Order execution service."""
+        ...
 
     @property
-    def instruments(self) -> InstrumentPort: ...
+    def market_data(self) -> MarketDataPort:
+        """Market data service."""
+        ...
 
     @property
-    def auth(self) -> AuthPort: ...
+    def portfolio(self) -> PortfolioPort:
+        """Portfolio and positions service."""
+        ...
 
     @property
-    def historical(self) -> HistoricalPort: ...
+    def historical(self) -> HistoricalPort:
+        """Historical data service."""
+        ...
 
     @property
-    def streaming(self) -> StreamingPort: ...
+    def instruments(self) -> InstrumentPort:
+        """Instrument master service."""
+        ...
 
     @property
-    def options(self) -> OptionsPort: ...
+    def options(self) -> OptionsPort | None:
+        """Options/derivatives service (None if not supported)."""
+        ...
 
-    def capabilities(self) -> BrokerCapabilities: ...
+    @property
+    def auth(self) -> AuthPort:
+        """Authentication service."""
+        ...
 
-    """Return broker capability matrix for feature discovery."""
+    @property
+    def streaming(self) -> StreamingPort:
+        """Streaming/real-time data service."""
+        ...
 
-    def close(self) -> None: ...
+    @property
+    def extensions(self) -> ExtensionRegistryPort:
+        """Broker-specific extensions registry."""
+        ...
+
+    def close(self) -> None:
+        """Close connections and release resources."""
+        ...

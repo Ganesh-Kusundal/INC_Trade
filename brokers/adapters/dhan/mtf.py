@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal
+from typing import Any
 
 from brokers.adapters.dhan.config import (
     ENDPOINTS,
@@ -41,7 +42,7 @@ class DhanMTF:
         price: Decimal = Decimal("0"),
         validity: Validity = Validity.DAY,
         trigger_price: Decimal = Decimal("0"),
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Place an MTF (Margin Trading Facility) order.
 
         MTF uses the standard order endpoint but with productType set to MTF.

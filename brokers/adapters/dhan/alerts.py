@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from brokers.ports.http_client_port import HttpClientPort
 
@@ -21,7 +22,7 @@ class DhanAlerts:
         price: float,
         condition: str,
         exchange_segment: str = "NSE_EQ",
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Create a price alert."""
         payload = {
             "tradingSymbol": symbol,
@@ -31,20 +32,21 @@ class DhanAlerts:
         }
         return self._client.post("/alerts", json=payload)
 
-    def get_alerts(self) -> list[dict]:
+    def get_alerts(self) -> list[dict[str, Any]]:
         """Fetch all active alerts."""
-        resp = self._client.get("/alerts")
-        return resp.get("data", []) if isinstance(resp, dict) else []
+        resp: dict[str, Any] = self._client.get("/alerts")
+        data: Any = resp.get("data", []) if isinstance(resp, dict) else []
+        return list(data) if isinstance(data, list) else []
 
-    def get_alert(self, alert_id: str) -> dict:
+    def get_alert(self, alert_id: str) -> dict[str, Any]:
         """Fetch a specific alert by ID."""
         return self._client.get(f"/alerts/{alert_id}")
 
-    def delete_alert(self, alert_id: str) -> dict:
+    def delete_alert(self, alert_id: str) -> dict[str, Any]:
         """Delete a price alert."""
         return self._client.delete(f"/alerts/{alert_id}")
 
-    def update_alert(self, alert_id: str, price: float, condition: str) -> dict:
+    def update_alert(self, alert_id: str, price: float, condition: str) -> dict[str, Any]:
         """Update an existing price alert."""
         payload = {"alertPrice": price, "alertCondition": condition}
         return self._client.put(f"/alerts/{alert_id}", json=payload)

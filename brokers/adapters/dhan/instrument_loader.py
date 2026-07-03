@@ -162,13 +162,13 @@ class InstrumentLoader:
 
     @staticmethod
     def _download_compact_csv() -> str:
-        resp = requests.get(_COMPACT_CSV_URL, timeout=30)
+        resp: requests.Response = requests.get(_COMPACT_CSV_URL, timeout=30)
         resp.raise_for_status()
         return resp.text
 
     @staticmethod
     def _download_mcx_detailed_csv() -> str:
-        resp = requests.get(
+        resp: requests.Response = requests.get(
             _DETAILED_MCX_URL,
             timeout=30,
             headers={"User-Agent": "TradeXV2/1.0"},
@@ -279,7 +279,7 @@ class InstrumentLoader:
         return out.getvalue()
 
 
-def _safe_float_str(value: object, default: str) -> str:
+def _safe_float_str(value: str | float | int | None, default: str) -> str:
     try:
         if value is None or value == "":
             return default

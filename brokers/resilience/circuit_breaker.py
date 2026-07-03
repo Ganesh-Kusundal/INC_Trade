@@ -23,7 +23,7 @@ class CircuitBreakerConfig:
     success_threshold: int = 3
     open_duration_ms: int = 30_000  # 30 seconds default
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.failure_threshold <= 0:
             raise ValueError(
                 f"failure_threshold must be positive, got {self.failure_threshold}"
@@ -78,7 +78,11 @@ class CircuitBreaker:
             # Greenfield constructor: (failure_threshold, recovery_timeout, success_threshold)
             self.name = "default"
             self._failure_threshold = failure_threshold
-            self._recovery_timeout = float(recovery_timeout)
+            self._recovery_timeout = (
+                recovery_timeout.open_duration_ms / 1000.0
+                if isinstance(recovery_timeout, CircuitBreakerConfig)
+                else float(recovery_timeout)
+            )
             self._success_threshold = success_threshold
             self.config = CircuitBreakerConfig(
                 failure_threshold=self._failure_threshold,

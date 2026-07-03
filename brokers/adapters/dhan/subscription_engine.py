@@ -21,10 +21,10 @@ class SubscriptionEngine:
     def __init__(self, connection: Any) -> None:
         self._conn = connection
         self._lock = threading.RLock()
-        self._instrument_refs: dict[tuple[str, str], int] = {}
-        self._instrument_modes: dict[tuple[str, str], str] = {}
-        self._market_callbacks: dict[tuple[str, str], list[Any]] = {}
-        self._market_wrappers: dict[tuple[str, str], list[tuple[Any, Any]]] = {}
+        self._instrument_refs: dict[str, int] = {}
+        self._instrument_modes: dict[str, str] = {}
+        self._market_callbacks: dict[str, list[Any]] = {}
+        self._market_wrappers: dict[str, list[tuple[Any, Any]]] = {}
         self._order_callbacks: list[Any] = []
         self._order_wrappers: list[tuple[Any, Any]] = []
 
@@ -57,7 +57,7 @@ class SubscriptionEngine:
                 if on_tick not in existing:
 
                     def _wrap(
-                        data: dict, _sym: str = symbol, _cb: Any = on_tick
+                        data: dict[str, Any], _sym: str = symbol, _cb: Any = on_tick
                     ) -> None:
                         try:
                             from brokers.domain.entities import Quote
@@ -145,7 +145,7 @@ class SubscriptionEngine:
                 existing = [cb for cb, _ in self._order_wrappers]
                 if on_order not in existing:
 
-                    def _wrap(data: dict, _cb: Any = on_order) -> None:
+                    def _wrap(data: dict[str, Any], _cb: Any = on_order) -> None:
                         _cb(data)
 
                     stream.on_order_update(_wrap)

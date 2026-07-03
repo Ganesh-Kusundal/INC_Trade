@@ -6,6 +6,7 @@ Re-exports the public auth surface for the Upstox adapter.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from brokers.adapters.upstox.auth.exceptions import UpstoxApiError, UpstoxAuthError
@@ -77,7 +78,7 @@ class UpstoxAuth:
 
         self._settings = s
         self._manager = UpstoxTokenManager(s)
-        self._token_change_callbacks: list = []
+        self._token_change_callbacks: list[Callable[[str], None]] = []
 
     def get_token(self) -> str:
         return self._manager.bearer_token()
@@ -116,7 +117,7 @@ class UpstoxAuth:
             logger.warning("Upstox force_refresh failed: %s", exc)
             return None
 
-    def expires_at(self):
+    def expires_at(self) -> Any:
         exp_ms = self._manager._effective_expiry_ms()
         if exp_ms <= 0:
             return None
@@ -129,10 +130,10 @@ class UpstoxAuth:
         return bool(getattr(self._settings, "analytics_only", False))
 
     @property
-    def settings(self):
+    def settings(self) -> UpstoxConnectionSettings:
         return self._settings
 
-    def on_token_change(self, callback) -> None:
+    def on_token_change(self, callback: Callable[[str], None]) -> None:
         self._token_change_callbacks.append(callback)
 
     @property

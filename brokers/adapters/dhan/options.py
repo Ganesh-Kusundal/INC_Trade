@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
 from brokers.ports.http_client_port import HttpClientPort
@@ -228,7 +228,7 @@ class DhanOptions:
         to_date: str,
         required_data: list[str] | None = None,
         interval: int = 1,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Fetch expired options OHLCV data from Dhan rolling option API.
 
         Parameters
@@ -322,7 +322,7 @@ class DhanOptions:
             return ""
 
 
-def _dec(value) -> Decimal | None:
+def _dec(value: Any) -> Decimal | None:
     """Convert value to Decimal, returning None for empty/None values."""
     if value in (None, ""):
         return None

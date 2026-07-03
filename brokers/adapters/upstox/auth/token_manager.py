@@ -10,6 +10,7 @@ import logging
 import threading
 import time
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
@@ -66,7 +67,7 @@ class UpstoxTokenManager:
         base_v2 = getattr(settings, "base_v2", "https://api.upstox.com")
         self._oauth_client = oauth_client or UpstoxOAuthClient(base_url=base_v2)
         self._state_store = state_store or (
-            JsonTokenStateStore(getattr(settings, "token_state_file", None))
+            JsonTokenStateStore(Path(getattr(settings, "token_state_file", "")))
             if getattr(settings, "token_state_file", None)
             else None
         )
@@ -509,7 +510,7 @@ class UpstoxTokenManager:
             return False
         if getattr(persisted, "expires_at", None) is None:
             return False
-        return persisted.is_valid()
+        return bool(persisted.is_valid())
 
     def _valid_snapshot(self, state: TokenSnapshot) -> bool:
         if not state.access_token:

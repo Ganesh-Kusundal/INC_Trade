@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal
+from typing import Any
 
 from brokers.adapters.dhan.config import (
     ORDER_TYPE_MAP,
@@ -40,7 +41,7 @@ class DhanConditionalTriggers:
         product_type: ProductType = ProductType.INTRADAY,
         validity: Validity = Validity.DAY,
         trigger_price: Decimal = Decimal("0"),
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Place a conditional (GTT) order.
 
         Parameters
@@ -89,12 +90,13 @@ class DhanConditionalTriggers:
         response = self._client.post("/conditionalOrders", json=payload)
         return response
 
-    def cancel_conditional_order(self, trigger_id: str) -> dict:
+    def cancel_conditional_order(self, trigger_id: str) -> dict[str, Any]:
         """Cancel a pending conditional order."""
         logger.info("canceling_conditional_order", extra={"trigger_id": trigger_id})
         return self._client.delete(f"/conditionalOrders/{trigger_id}")
 
-    def get_conditional_orders(self) -> list[dict]:
+    def get_conditional_orders(self) -> list[dict[str, Any]]:
         """Fetch all conditional orders."""
-        response = self._client.get("/conditionalOrders")
-        return response.get("data", []) if isinstance(response, dict) else []
+        response: dict[str, Any] = self._client.get("/conditionalOrders")
+        data: Any = response.get("data", []) if isinstance(response, dict) else []
+        return list(data) if isinstance(data, list) else []

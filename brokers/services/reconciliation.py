@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, Literal, Any
+from typing import Literal, Any
 import time
 
 from brokers.domain import Order, Position
@@ -22,7 +22,7 @@ class DriftItem:
     severity: DriftSeverity
     symbol: str = ""
     details: str = ""
-    payload: dict | None = None
+    payload: dict[str, Any] | None = None
 
 
 @dataclass(slots=True)
@@ -57,7 +57,7 @@ class ReconciliationEngine:
         self.sync_interval_seconds = sync_interval_seconds
         self._running = False
         self._task = None
-        self.local_order_ledger: Dict[str, OrderResponse] = {}
+        self.local_order_ledger: dict[str, OrderResponse] = {}
 
     def compare_orders(
         self,
@@ -174,13 +174,13 @@ class ReconciliationEngine:
 
         return drift
 
-    def start(self):
+    def start(self) -> None:
         if not self._running:
             self._running = True
             self._task = asyncio.create_task(self._reconciliation_loop())
             logger.info("ReconciliationEngine started.")
 
-    async def stop(self):
+    async def stop(self) -> None:
         if self._running:
             self._running = False
             if self._task:
@@ -191,7 +191,7 @@ class ReconciliationEngine:
                     pass
             logger.info("ReconciliationEngine stopped.")
 
-    async def _reconciliation_loop(self):
+    async def _reconciliation_loop(self) -> None:
         while self._running:
             try:
                 await self._sync_orders()
@@ -199,6 +199,6 @@ class ReconciliationEngine:
                 logger.error(f"Reconciliation loop error: {e}")
             await asyncio.sleep(self.sync_interval_seconds)
 
-    async def _sync_orders(self):
+    async def _sync_orders(self) -> None:
         logger.debug("Performing authoritative broker ledger sync...")
         pass

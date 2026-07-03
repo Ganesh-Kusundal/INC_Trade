@@ -16,9 +16,16 @@ from brokers.ports.streaming import StreamHandle, StreamingPort
 
 logger = logging.getLogger(__name__)
 
-TickCallback = Callable[[dict], None]
+TickCallback = Callable[[dict[str, Any]], None]
 ConnectCallback = Callable[[], None]
 DisconnectCallback = Callable[[], None]
+
+__all__ = [
+    "BaseWebSocketStreaming",
+    "TickCallback",
+    "ConnectCallback",
+    "DisconnectCallback",
+]
 
 
 class BaseWebSocketStreaming(StreamingPort):
@@ -75,7 +82,7 @@ class BaseWebSocketStreaming(StreamingPort):
         else:
             self._tick_handlers.pop(subscription_key, None)
 
-    def _dispatch_tick(self, tick: dict, subscription_key: str | None = None) -> None:
+    def _dispatch_tick(self, tick: dict[str, Any], subscription_key: str | None = None) -> None:
         if self._on_tick:
             self._on_tick(tick)
         if subscription_key:
@@ -155,7 +162,7 @@ class BaseWebSocketStreaming(StreamingPort):
                 )
                 strategy.wait()
 
-    def _on_open(self, ws) -> None:
+    def _on_open(self, ws: Any) -> None:
         logger.info(f"{self._log_prefix}_connected")
         if self._on_connect:
             self._on_connect()
@@ -163,7 +170,7 @@ class BaseWebSocketStreaming(StreamingPort):
         if subs:
             self._send_subscribe(subs)
 
-    def _on_message(self, ws, message: str) -> None:
+    def _on_message(self, ws: Any, message: str) -> None:
         try:
             data = json.loads(message)
         except (json.JSONDecodeError, TypeError):
@@ -173,10 +180,10 @@ class BaseWebSocketStreaming(StreamingPort):
             key = tick.get("subscription_key") or tick.get("key")
             self._dispatch_tick(tick, str(key) if key else None)
 
-    def _on_error(self, ws, error) -> None:
+    def _on_error(self, ws: Any, error: Any) -> None:
         logger.warning(f"{self._log_prefix}_error", extra={"error": str(error)})
 
-    def _on_close(self, ws, close_status_code, close_msg) -> None:
+    def _on_close(self, ws: Any, close_status_code: Any, close_msg: Any) -> None:
         logger.info(f"{self._log_prefix}_disconnected")
         if self._on_disconnect:
             self._on_disconnect()
@@ -205,7 +212,7 @@ class BaseWebSocketStreaming(StreamingPort):
         """Return JSON message for unsubscribing from keys. Must be implemented by subclass."""
         raise NotImplementedError
 
-    def _parse_tick(self, data: dict) -> dict | None:
+    def _parse_tick(self, data: dict[str, Any]) -> dict[str, Any] | None:
         """Parse raw WebSocket data into a tick dict. Must be implemented by subclass."""
         raise NotImplementedError
 
@@ -236,7 +243,7 @@ class BaseWebSocketStreaming(StreamingPort):
 
         if on_tick is not None:
 
-            def _on_tick(tick: dict) -> None:
+            def _on_tick(tick: dict[str, Any]) -> None:
                 quote = Quote(
                     symbol=tick.get("symbol", ""),
                     ltp=Decimal(str(tick.get("ltp", 0))),
@@ -307,7 +314,7 @@ class BaseWebSocketStreaming(StreamingPort):
     ) -> None:
         """Subscribe to real-time market quotes (async wrapper)."""
 
-        def _on_tick(tick: dict) -> None:
+        def _on_tick(tick: dict[str, Any]) -> None:
             quote = Quote(
                 symbol=tick.get("symbol", ""),
                 ltp=Decimal(str(tick.get("ltp", 0))),
@@ -335,7 +342,7 @@ class BaseWebSocketStreaming(StreamingPort):
 
 
 class StreamHandle:
-    def __init__(self, streaming, symbol: str, exchange: str) -> None:
+    def __init__(self, streaming: BaseWebSocketStreaming, symbol: str, exchange: str) -> None:
         self._streaming = streaming
         self._symbol = symbol
         self._exchange = exchange

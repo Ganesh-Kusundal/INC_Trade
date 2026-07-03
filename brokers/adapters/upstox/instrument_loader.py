@@ -6,8 +6,9 @@ import gzip
 import json
 import logging
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
+from typing import IO
 
 import requests
 
@@ -70,6 +71,7 @@ class UpstoxInstrumentLoader:
 
     def iter_definitions(self, path: Path) -> Iterator[UpstoxInstrumentDefinition]:
         path = Path(path)
+        opener: Callable[[], IO[str]]
         if str(path).endswith(".gz"):
             opener = lambda: gzip.open(path, "rt", encoding="utf-8")
         else:

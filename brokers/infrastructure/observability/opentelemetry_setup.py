@@ -30,10 +30,10 @@ try:
 
     _HAS_SDK = True
 except ImportError:
-    _otel_trace = None  # type: ignore[assignment]
-    TracerProvider = None  # type: ignore[assignment,misc]
-    BatchSpanProcessor = None  # type: ignore[assignment,misc]
-    Resource = None  # type: ignore[assignment,misc]
+    _otel_trace = None
+    TracerProvider = None
+    BatchSpanProcessor = None
+    Resource = None
     _SERVICE_NAME = None
     _HAS_SDK = False
 
@@ -42,7 +42,7 @@ try:
 
     _HAS_OTLP = True
 except ImportError:
-    OTLPSpanExporter = None  # type: ignore[assignment,misc]
+    OTLPSpanExporter = None
     _HAS_OTLP = False
 
 try:
@@ -50,7 +50,7 @@ try:
 
     _HAS_CONSOLE_EXPORTER = True
 except ImportError:
-    ConsoleSpanExporter = None  # type: ignore[assignment,misc]
+    ConsoleSpanExporter = None
     _HAS_CONSOLE_EXPORTER = False
 
 try:
@@ -58,7 +58,7 @@ try:
 
     _HAS_FASTAPI_INSTR = True
 except ImportError:
-    FastAPIInstrumentor = None  # type: ignore[assignment,misc]
+    FastAPIInstrumentor = None
     _HAS_FASTAPI_INSTR = False
 
 try:
@@ -66,7 +66,7 @@ try:
 
     _HAS_REQUESTS_INSTR = True
 except ImportError:
-    RequestsInstrumentor = None  # type: ignore[assignment,misc]
+    RequestsInstrumentor = None
     _HAS_REQUESTS_INSTR = False
 
 try:
@@ -76,9 +76,9 @@ try:
 
     _HAS_PROPAGATION = True
 except ImportError:
-    set_global_textmap = None  # type: ignore[assignment]
-    CompositePropagator = None  # type: ignore[assignment]
-    TraceContextTextMapPropagator = None  # type: ignore[assignment]
+    set_global_textmap = None
+    CompositePropagator = None
+    TraceContextTextMapPropagator = None
     _HAS_PROPAGATION = False
 
 # ---------------------------------------------------------------------------
@@ -123,40 +123,40 @@ def setup_telemetry(
         return False
 
     # -- resource (service name) -------------------------------------------
-    resource = Resource(attributes={_SERVICE_NAME: service_name})  # type: ignore[arg-type]
+    resource = Resource(attributes={_SERVICE_NAME: service_name})
 
     # -- tracer provider ---------------------------------------------------
-    provider = TracerProvider(resource=resource)  # type: ignore[arg-type]
+    provider = TracerProvider(resource=resource)
 
     # -- span exporter -----------------------------------------------------
     if otlp_endpoint and _HAS_OTLP:
-        exporter = OTLPSpanExporter(endpoint=otlp_endpoint, insecure=True)  # type: ignore[call-arg]
+        exporter = OTLPSpanExporter(endpoint=otlp_endpoint, insecure=True)
         logger.info("OTLP exporter configured -> %s", otlp_endpoint)
     elif _HAS_CONSOLE_EXPORTER:
-        exporter = ConsoleSpanExporter()  # type: ignore[call-arg]
+        exporter = ConsoleSpanExporter()
         logger.info("Using ConsoleSpanExporter (dev mode)")
     else:
         logger.warning("No span exporter available -- spans will be discarded")
         exporter = None
 
     if exporter is not None:
-        provider.add_span_processor(BatchSpanProcessor(exporter))  # type: ignore[arg-type]
+        provider.add_span_processor(BatchSpanProcessor(exporter))
 
     # -- register as global provider ---------------------------------------
-    _otel_trace.set_tracer_provider(provider)  # type: ignore[union-attr]
+    _otel_trace.set_tracer_provider(provider)
 
     # -- context propagation (W3C TraceContext) ----------------------------
     if _HAS_PROPAGATION:
-        set_global_textmap(CompositePropagator([TraceContextTextMapPropagator()]))  # type: ignore[arg-type]
+        set_global_textmap(CompositePropagator([TraceContextTextMapPropagator()]))
         logger.debug("W3C TraceContext propagator registered")
 
     # -- auto-instrumentation ----------------------------------------------
     if _HAS_FASTAPI_INSTR and app is not None:
-        FastAPIInstrumentor.instrument_app(app)  # type: ignore[union-attr]
+        FastAPIInstrumentor.instrument_app(app)
         logger.info("FastAPI auto-instrumentation attached")
 
     if _HAS_REQUESTS_INSTR:
-        RequestsInstrumentor().instrument()  # type: ignore[union-attr]
+        RequestsInstrumentor().instrument()
         logger.info("requests library instrumented")
 
     otel_available = True
@@ -171,10 +171,10 @@ def get_tracer(name: str | None = None) -> object:
     need to guard their own code.
     """
     if _HAS_SDK and otel_available:
-        return _otel_trace.get_tracer(name or "tradex")  # type: ignore[union-attr]
+        return _otel_trace.get_tracer(name or "tradex")
 
     # No-op fallback
-    return _otel_trace  # type: ignore[return-value]
+    return _otel_trace
 
 
 __all__ = [

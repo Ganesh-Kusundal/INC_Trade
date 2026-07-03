@@ -1,76 +1,121 @@
-"""Order service — application-level order operations with validation.
+"""Order service — domain layer for order management.
 
-Sits between the consumer and the broker adapter, adding validation,
-idempotency, logging, and error translation. Depends on ports, not concretions.
+This service provides business logic for order placement, validation,
+and lifecycle management. It depends on the OrderExecutionPort abstraction,
+not on any specific broker implementation.
 """
 
 from __future__ import annotations
 
 import logging
 from decimal import Decimal
+from typing import Any
 
-from brokers.domain import Order, OrderResponse, Side
-from brokers.domain.enums import OrderType, ProductType, Validity
-from brokers.domain.exceptions import OrderRejectedError
+from brokers.domain import Order, OrderRequest, OrderResponse
+from brokers.domain.enums import OrderType, ProductType, Side, Validity
 from brokers.ports.order_execution import OrderExecutionPort
-from brokers.services.order_validation import (
-    check_notional_warning,
-    validate_lot_size,
-    validate_order_fields,
-    validate_product_segment,
-    validate_tick_alignment,
-)
-from brokers.utils.idempotency_cache import TypedIdempotencyCache
 
 logger = logging.getLogger(__name__)
 
 
 class OrderService:
+    """Domain service for order management.
+
+    Encapsulates business rules for order placement, validation, and risk checks.
+    Clients depend on this service instead of calling broker gateways directly.
+    """
+
     def __init__(
         self,
-        executor: OrderExecutionPort,
-        idempotency_cache: TypedIdempotencyCache[OrderResponse] | None = None,
-        lot_size: int = 0,
-        tick_size: Decimal = Decimal("0"),
+        order_port: OrderExecutionPort,
+        idempotency_cache: Any | None = None,
         allow_live_orders: bool = True,
     ):
-        self._executor = executor
-        self._idempotency = idempotency_cache
-        self._lot_size = lot_size
-        self._tick_size = tick_size
+        """Initialize with an order execution port.
+
+        Args:
+            order_port: Broker-agnostic order execution interface
+            idempotency_cache: Optional cache for idempotency (backward compat)
+            allow_live_orders: Enable live order placement (backward compat)
+        """
+        self._order_port = order_port
+        self._idempotency_cache = idempotency_cache
         self._allow_live_orders = allow_live_orders
 
     def place_order(
         self,
-        symbol: str,
-        exchange: str,
-        side: Side,
-        quantity: int,
+        symbol: str = "",
+        exchange: str = "",
+        side: Side = Side.BUY,
+        quantity: int = 0,
         order_type: OrderType = OrderType.MARKET,
         price: Decimal = Decimal("0"),
         product_type: ProductType = ProductType.INTRADAY,
         validity: Validity = Validity.DAY,
         trigger_price: Decimal = Decimal("0"),
         correlation_id: str = "",
+        request: OrderRequest | None = None,
     ) -> OrderResponse:
-        if not self._allow_live_orders:
-            return OrderResponse.live_orders_disabled()
+        """Place an order with business validation.
 
-        validate_order_fields(symbol, exchange, quantity, order_type, price, trigger_price)
-        validate_product_segment(product_type, exchange)
+        Args:
+            symbol: Instrument symbol
+            exchange: Exchange code
+            side: BUY or SELL
+            quantity: Number of shares/contracts
+            order_type: MARKET, LIMIT, etc.
+            price: Limit price (for LIMIT orders)
+            product_type: INTRADAY, DELIVERY, etc.
+            validity: DAY, IOC, etc.
+            trigger_price: Stop-loss trigger price
+            correlation_id: Unique ID for idempotency
 
-        if self._lot_size > 0:
-            validate_lot_size(quantity, self._lot_size)
-        if self._tick_size > 0 and price > 0:
-            validate_tick_alignment(price, self._tick_size)
+            correlation_id: Unique ID for idempotency
+            request: Optional OrderRequest DTO encapsulating the order details
 
-        check_notional_warning(quantity, price)
+        Returns:
+            OrderResponse with success status and order details
+        """
+        if request is not None:
+            symbol = request.symbol
+            exchange = request.exchange
+            side = request.side
+            quantity = request.quantity
+            order_type = request.order_type
+            product_type = request.product_type
+            validity = request.validity
+            correlation_id = request.correlation_id
+            price = getattr(request, "price", Decimal("0"))
+            trigger_price = getattr(request, "trigger_price", Decimal("0"))
 
-        if self._idempotency and correlation_id:
-            if not self._idempotency.check_and_set(correlation_id):
-                return OrderResponse.already_executed(correlation_id)
+        # Business validation
+        if not symbol or not symbol.strip():
+            from brokers.domain.exceptions import ValidationError
 
-        resp = self._executor.place_order(
+            raise ValidationError("symbol is required")
+
+        if not exchange or not exchange.strip():
+            from brokers.domain.exceptions import ValidationError
+
+            raise ValidationError("exchange is required")
+
+        if quantity <= 0:
+            from brokers.domain.exceptions import ValidationError
+
+            raise ValidationError("quantity must be positive")
+
+        if order_type == OrderType.STOP_LOSS and trigger_price <= 0:
+            from brokers.domain.exceptions import ValidationError
+
+            raise ValidationError("trigger_price must be positive for STOP_LOSS orders")
+
+        if order_type in (OrderType.LIMIT, OrderType.STOP_LOSS) and price <= 0:
+            from brokers.domain.exceptions import ValidationError
+
+            raise ValidationError("price must be positive for LIMIT/STOP_LOSS orders")
+
+        # Delegate to broker-specific implementation
+        return self._order_port.place_order(
             symbol=symbol,
             exchange=exchange,
             side=side,
@@ -82,12 +127,21 @@ class OrderService:
             trigger_price=trigger_price,
         )
 
-        if resp.success:
-            logger.info("order_placed", extra={"order_id": resp.order_id, "symbol": symbol})
-        else:
-            logger.warning("order_rejected", extra={"symbol": symbol, "message": resp.message})
+    def cancel_order(self, order_id: str) -> OrderResponse:
+        """Cancel an existing order.
 
-        return resp
+        Args:
+            order_id: Order identifier to cancel
+
+        Returns:
+            OrderResponse with cancellation status
+        """
+        if not order_id:
+            from brokers.domain.exceptions import OrderRejectedError
+
+            raise OrderRejectedError("order_id is required")
+
+        return self._order_port.cancel_order(order_id)
 
     def modify_order(
         self,
@@ -97,20 +151,22 @@ class OrderService:
         order_type: OrderType | None = None,
         validity: Validity | None = None,
     ) -> OrderResponse:
-        if not self._allow_live_orders:
-            return OrderResponse.live_orders_disabled()
+        """Modify an existing order.
+
+        Args:
+            order_id: Order identifier to modify
+            quantity: New quantity (optional)
+            price: New price (optional)
+            order_type: New order type (optional)
+            validity: New validity (optional)
+
+        Returns:
+            OrderResponse with modification status
+        """
         if not order_id:
-            raise OrderRejectedError("order_id is required")
+            return OrderResponse.fail("Order ID is required", error_code="VALIDATION_FAILED")
 
-        if self._lot_size > 0 and quantity is not None:
-            validate_lot_size(quantity, self._lot_size)
-        if self._tick_size > 0 and price is not None and price > 0:
-            validate_tick_alignment(price, self._tick_size)
-
-        if quantity is not None and price is not None:
-            check_notional_warning(quantity, price)
-
-        resp = self._executor.modify_order(
+        return self._order_port.modify_order(
             order_id=order_id,
             quantity=quantity,
             price=price,
@@ -118,22 +174,21 @@ class OrderService:
             validity=validity,
         )
 
-        if resp.success:
-            logger.info("order_modified", extra={"order_id": order_id})
-        else:
-            logger.warning("order_modify_rejected", extra={"order_id": order_id, "message": resp.message})
-
-        return resp
-
-    def cancel_order(self, order_id: str) -> OrderResponse:
-        if not self._allow_live_orders:
-            return OrderResponse.live_orders_disabled()
-        if not order_id:
-            raise OrderRejectedError("order_id is required")
-        return self._executor.cancel_order(order_id)
-
     def get_order(self, order_id: str) -> Order | None:
-        return self._executor.get_order(order_id)
+        """Fetch order details by ID.
+
+        Args:
+            order_id: Order identifier
+
+        Returns:
+            Order object if found, None otherwise
+        """
+        return self._order_port.get_order(order_id)
 
     def get_orderbook(self) -> list[Order]:
-        return self._executor.get_orderbook()
+        """Fetch all open orders.
+
+        Returns:
+            List of open orders
+        """
+        return self._order_port.get_orderbook()

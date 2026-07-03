@@ -11,7 +11,7 @@ Usage::
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from brokers.domain import (
     Balance as Balance,
@@ -186,7 +186,7 @@ def create_broker(
     if name == "dhan":
         from brokers.adapters.dhan.gateway import DhanGateway
 
-        gateway = DhanGateway(
+        dhan_gw = DhanGateway(
             access_token=credentials.get("access_token"),
             client_id=credentials.get("client_id"),
             pin=credentials.get("pin"),
@@ -207,26 +207,26 @@ def create_broker(
         )
 
         registry = DictExtensionRegistry()
-        registry.register("dhan", KillSwitchProvider, gateway.orders)
-        registry.register("dhan", SliceOrderProvider, gateway.orders)
-        registry.register("dhan", MarginProvider, gateway.margin)
-        registry.register("dhan", ForeverOrderProvider, gateway.forever_orders)
-        registry.register("dhan", SuperOrderProvider, gateway.super_orders)
+        registry.register("dhan", cast(type, KillSwitchProvider), dhan_gw.orders)
+        registry.register("dhan", cast(type, SliceOrderProvider), dhan_gw.orders)
+        registry.register("dhan", MarginProvider, dhan_gw.margin)
+        registry.register("dhan", ForeverOrderProvider, dhan_gw.forever_orders)
+        registry.register("dhan", SuperOrderProvider, dhan_gw.super_orders)
         
-        return BrokerFacade(gateway, allow_live_orders=allow_live_orders, extension_registry=registry)
+        return BrokerFacade(cast(BrokerGateway, dhan_gw), allow_live_orders=allow_live_orders, extension_registry=registry)
     if name == "upstox":
         from brokers.adapters.upstox.gateway import UpstoxGateway
 
-        gateway = UpstoxGateway(
+        upstox_gw = UpstoxGateway(
             access_token=credentials["access_token"],
             allow_live_orders=allow_live_orders,
         )
         from brokers.ports.extension_registry import DictExtensionRegistry
-        from brokers.ports.capabilities import NewsProvider, ForeverOrderProvider
+        from brokers.ports.capabilities import NewsProvider, GTTProvider
         registry = DictExtensionRegistry()
-        registry.register("upstox", NewsProvider, gateway.news)
-        registry.register("upstox", ForeverOrderProvider, gateway.gtt)
-        return BrokerFacade(gateway, allow_live_orders=allow_live_orders, extension_registry=registry)
+        registry.register("upstox", cast(type, NewsProvider), upstox_gw.news)
+        registry.register("upstox", cast(type, GTTProvider), upstox_gw.gtt)
+        return BrokerFacade(cast(BrokerGateway, upstox_gw), allow_live_orders=allow_live_orders, extension_registry=registry)
     if name == "paper":
         from decimal import Decimal
 
@@ -234,10 +234,10 @@ def create_broker(
 
         initial_cash = credentials.get("initial_cash")
         if initial_cash is not None:
-            gateway = PaperGateway(initial_cash=Decimal(str(initial_cash)))
+            paper_gw = PaperGateway(initial_cash=Decimal(str(initial_cash)))
         else:
-            gateway = PaperGateway()
+            paper_gw = PaperGateway()
         from brokers.ports.extension_registry import DictExtensionRegistry
         registry = DictExtensionRegistry()
-        return BrokerFacade(gateway, allow_live_orders=allow_live_orders, extension_registry=registry)
+        return BrokerFacade(cast(BrokerGateway, paper_gw), allow_live_orders=allow_live_orders, extension_registry=registry)
     raise ValueError(f"Unknown broker: {name!r}. Choose from: dhan, upstox, paper")

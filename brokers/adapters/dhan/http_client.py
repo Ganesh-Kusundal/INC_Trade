@@ -1,7 +1,7 @@
 """Dhan HTTP client factory and response mapping."""
 
 import urllib.parse
-from typing import Callable
+from typing import Any, Callable
 
 import requests
 
@@ -41,7 +41,7 @@ def _parse_retry_after(resp: requests.Response) -> float:
     return 30.0
 
 
-def _dhan_handle_response(resp: requests.Response) -> dict:
+def _dhan_handle_response(resp: requests.Response) -> dict[str, Any]:
     if resp.status_code == 401:
         raise TokenRefreshSignal("Token expired or invalid")
 
@@ -69,7 +69,7 @@ def _dhan_handle_response(resp: requests.Response) -> dict:
         raise BrokerError(f"HTTP {resp.status_code}: {msg}", code=str(resp.status_code))
 
     try:
-        data = resp.json()
+        data: dict[str, Any] = resp.json()
     except Exception:
         return {"data": resp.text}
 
@@ -99,6 +99,7 @@ def create_dhan_http_client(
         url_builder_fn=_build_url,
         response_handler_fn=_dhan_handle_response,
         token_refresh_fn=token_refresh_fn,
+        client_id=client_id,
     )
     client.session.headers.update(
         {
@@ -108,5 +109,4 @@ def create_dhan_http_client(
             "Accept": "application/json",
         }
     )
-    client.client_id = client_id
     return client

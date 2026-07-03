@@ -236,7 +236,7 @@ class UpstoxStreaming(BaseWebSocketStreaming):
     def _send_unsubscribe(self, keys: list[str]) -> None:
         self._send_ws_binary(self._build_unsubscribe_message(keys))
 
-    def _on_message(self, ws, message: str | bytes) -> None:
+    def _on_message(self, ws: Any, message: str | bytes) -> None:
         if isinstance(message, bytes):
             frames = self._decoder.parse(message)
             if frames:
@@ -244,7 +244,7 @@ class UpstoxStreaming(BaseWebSocketStreaming):
                     quote = frame_to_quote(frame)
                     tick = frame_to_tick_dict(frame) if quote is None else quote
                     if tick and self._on_tick:
-                        self._on_tick(tick)
+                        self._on_tick(tick)  # type: ignore[arg-type]
 
                     if quote and "depth" in frame and self._on_depth:
                         from brokers.domain import DepthLevel, MarketDepth

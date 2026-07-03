@@ -17,25 +17,36 @@ from brokers.adapters.dhan.capabilities import dhan_capabilities
 from brokers.adapters.dhan.connection_manager import DhanConnectionManager
 from brokers.adapters.dhan.depth20 import DhanDepth20Stream
 from brokers.adapters.dhan.depth200 import DhanDepth200Stream
+from brokers.adapters.dhan.extensions.forever_orders import DhanForeverOrders
+from brokers.adapters.dhan.extensions.margin import DhanMargin
+from brokers.adapters.dhan.extensions.super_orders import DhanSuperOrders
 from brokers.adapters.dhan.health_reporter import DhanHealthReporter
 from brokers.adapters.dhan.historical import DhanHistorical
 from brokers.adapters.dhan.http_client import create_dhan_http_client
 from brokers.adapters.dhan.identity import DhanInstrumentRef, DhanInstrumentResolver
 from brokers.adapters.dhan.instruments import DhanInstruments
 from brokers.adapters.dhan.market_data import DhanMarketData
+from brokers.adapters.dhan.new_capabilities import dhan_capabilities as new_dhan_capabilities
+from brokers.adapters.dhan.options import DhanOptions
 from brokers.adapters.dhan.order_stream import DhanOrderStream
 from brokers.adapters.dhan.orders import DhanOrders
 from brokers.adapters.dhan.portfolio import DhanPortfolio
 from brokers.adapters.dhan.streaming import DhanStreaming
-from brokers.adapters.dhan.options import DhanOptions
-from brokers.adapters.dhan.extensions.margin import DhanMargin
-from brokers.adapters.dhan.extensions.forever_orders import DhanForeverOrders
-from brokers.adapters.dhan.extensions.super_orders import DhanSuperOrders
 from brokers.domain.capabilities import BrokerCapabilities
 from brokers.domain.enums import BrokerID
 from brokers.infrastructure.lifecycle import LifecycleManager
 from brokers.infrastructure.token_broadcast import TokenManager
+from brokers.ports.capabilities import (
+    AlertsProvider,
+    ExitAllProvider,
+    ForeverOrderProvider,
+    IPManagementProvider,
+    MarginProvider,
+    SliceOrderProvider,
+    SuperOrderProvider,
+)
 from brokers.ports.event_publisher import EventPublisherPort
+from brokers.ports.extension_registry import ExtensionRegistry, ExtensionRegistryPort
 from brokers.ports.risk_manager import RiskManagerPort
 from brokers.ports.streaming import StreamingPort
 from brokers.ports.token_store import TokenStorePort
@@ -78,9 +89,9 @@ class DhanGateway:
         """Canonical broker identifier."""
         return self._broker_id
 
-    def capabilities(self) -> BrokerCapabilities:
+    def capabilities(self) -> Capabilities:
         """Return Dhan broker capability matrix."""
-        return dhan_capabilities()
+        return new_dhan_capabilities()
 
     def __init__(
         self,
@@ -154,7 +165,7 @@ class DhanGateway:
         self._instruments = DhanInstruments(self._resolver)
         self._historical = DhanHistorical(self._client, self._resolver)
         self._options = DhanOptions(self._client, self._instruments)
-        
+
         # Extensions
         self._margin = DhanMargin(self._client, self._resolver)
         self._forever_orders = DhanForeverOrders(self._client, self._resolver)
@@ -270,6 +281,32 @@ class DhanGateway:
     @property
     def streaming(self) -> StreamingPort:
         return self._streaming
+
+    @property
+    def extensions(self) -> ExtensionRegistryPort:
+        """Registry of broker-specific extensions."""
+        if not hasattr(self, "_extension_registry"):
+            from brokers.ports.extension_registry import DictExtensionRegistry
+
+            self._extension_registry = DictExtensionRegistry()
+            # Register extensions
+            self._extension_registry.register("dhan", MarginProvider, self._margin)
+            self._extension_registry.register("dhan", SuperOrderProvider, self._super_orders)
+            self._extension_registry.register("dhan", ForeverOrderProvider, self._forever_orders)
+            self._extension_registry.register(
+                "dhan",
+                SliceOrderProvider,
+                self._orders,  # DhanOrders implements slice orders
+            )
+            if hasattr(self, "_alerts") and self._alerts:
+                self._extension_registry.register("dhan", AlertsProvider, self._alerts)
+            if hasattr(self, "_exit_all") and self._exit_all:
+                self._extension_registry.register("dhan", ExitAllProvider, self._exit_all)
+            if hasattr(self, "_ip_management") and self._ip_management:
+                self._extension_registry.register("dhan", IPManagementProvider, self._ip_management)
+            if hasattr(self, "_transfer") and self._transfer:
+                self._extension_registry.register("dhan", BrokerToBrokerTransferProvider, self._transfer)
+        return self._extension_registry
 
     # ── Health & observability ─────────────────────────────────────────
 

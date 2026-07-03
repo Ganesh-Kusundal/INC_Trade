@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -24,7 +25,7 @@ class UpstoxInstrumentDefinition:
     underlying_symbol: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> UpstoxInstrumentDefinition:
+    def from_dict(cls, data: dict[str, Any]) -> UpstoxInstrumentDefinition:
         return cls(
             instrument_key=str(data.get("instrument_key", "")),
             exchange=str(data.get("exchange", "")),
@@ -43,7 +44,7 @@ class UpstoxInstrumentDefinition:
             underlying_symbol=data.get("underlying_symbol"),
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "instrument_key": self.instrument_key,
             "exchange": self.exchange,

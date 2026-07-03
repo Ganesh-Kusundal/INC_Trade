@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import threading
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from typing import Any, Callable
 
+from brokers.adapters.paper.capabilities import paper_capabilities
 from brokers.domain import (
     Balance,
     Holding,
@@ -22,10 +24,13 @@ from brokers.domain import (
     Side,
     Trade,
 )
+from brokers.domain.capabilities import BrokerCapabilities
 from brokers.domain.enums import BrokerID, OrderStatus, OrderType, ProductType, Validity
 from brokers.ports import (
     InstrumentInfo,
 )
+from brokers.ports.capabilities import Capabilities
+from brokers.ports.extension_registry import ExtensionRegistry, ExtensionRegistryPort
 from brokers.ports.streaming import StreamingPort
 
 
@@ -129,7 +134,7 @@ class _PaperMarketData:
         with self._lock:
             q = self._quotes.get(symbol)
             if q:
-                return q.ltp
+                return Decimal(q.ltp) if not isinstance(q.ltp, Decimal) else q.ltp
         return Decimal("100.00")
 
     def quote(self, symbol: str, exchange: str = "NSE") -> Quote:
@@ -202,32 +207,37 @@ class _PaperAuth:
 
 
 class _PaperHistorical:
-    def get_historical_candles(self, symbol, exchange, start_time, end_time, resolution):
-        return []
+    def get_historical_candles(
+        self,
+        symbol: str,
+        exchange: str,
+        start_time: datetime,
+        end_time: datetime,
+        resolution: str,
+    ) -> list[Any]:
+        from brokers.domain.exceptions import NotSupportedError
+
+        raise NotSupportedError("PaperGateway does not support historical candles.")
 
 
 class _PaperOptions:
     def get_expiries(self, underlying: str, exchange: str = "NFO") -> list[str]:
-        return []
+        from brokers.domain.exceptions import NotSupportedError
+
+        raise NotSupportedError("PaperGateway does not support option expiries.")
 
     def get_option_chain(
         self,
         underlying: str,
         exchange: str = "NFO",
         expiry: str | None = None,
-    ):
-        from brokers.domain.entities import OptionChain
-        from decimal import Decimal
-        return OptionChain(
-            underlying=underlying,
-            expiry=expiry or "",
-            spot=Decimal("0"),
-            strikes=()
-        )
+    ) -> Any:
+        from brokers.domain.exceptions import NotSupportedError
+
+        raise NotSupportedError("PaperGateway does not support option chains.")
 
 
-
-class _PaperStreaming(StreamingPort):
+class _PaperStreaming(StreamingPort):  # type: ignore[misc]
     async def connect(self) -> None:
         pass
 
@@ -279,16 +289,8 @@ class PaperGateway:
     def broker_id(self) -> BrokerID:
         return BrokerID.PAPER
 
-    def capabilities(self) -> BrokerCapabilities:
-        from brokers.domain.capabilities import BrokerCapabilities
-
-        return BrokerCapabilities(
-            broker_id=BrokerID.PAPER,
-            supports_place_order=True,
-            supports_cancel_order=True,
-            supports_historical_data=True,
-            supports_live_market_data=True,
-        )
+    def capabilities(self) -> Capabilities:
+        return paper_capabilities()
 
     @property
     def orders(self) -> _PaperOrders:
@@ -317,6 +319,15 @@ class PaperGateway:
     @property
     def streaming(self) -> StreamingPort:
         return self._streaming
+
+    @property
+    def extensions(self) -> ExtensionRegistryPort:
+        """Registry of broker-specific extensions (empty for paper trading)."""
+        if not hasattr(self, "_extension_registry"):
+            from brokers.ports.extension_registry import DictExtensionRegistry
+
+            self._extension_registry = DictExtensionRegistry()
+        return self._extension_registry
 
     @property
     def options(self) -> _PaperOptions:

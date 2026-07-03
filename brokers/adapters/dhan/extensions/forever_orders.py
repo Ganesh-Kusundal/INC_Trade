@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal
+from typing import Any
 
 from brokers.adapters.dhan.config import (
     ENDPOINTS,
@@ -27,23 +28,21 @@ class DhanForeverOrders:
         self._client = client
         self._resolver = resolver
 
-    def place_forever_order(
-        self,
-        symbol: str,
-        exchange: str,
-        side: Side,
-        quantity: int,
-        price: Decimal,
-        trigger_price: Decimal,
-        order_flag: str = "SINGLE",
-        price1: Decimal | None = None,
-        trigger_price1: Decimal | None = None,
-        quantity1: int | None = None,
-        product_type: ProductType = ProductType.DELIVERY,
-        order_type: OrderType = OrderType.LIMIT,
-        validity: Validity = Validity.DAY,
-        correlation_id: str | None = None,
-    ) -> ForeverOrder:
+    def place_forever_order(self, request: dict[str, Any]) -> ForeverOrder:
+        symbol = request.get("symbol", "")
+        exchange = request.get("exchange", "NSE")
+        side = request.get("side", Side.BUY)
+        quantity = request.get("quantity", 0)
+        price = request.get("price", Decimal("0"))
+        trigger_price = request.get("trigger_price", Decimal("0"))
+        order_flag = request.get("order_flag", "SINGLE")
+        price1 = request.get("price1")
+        trigger_price1 = request.get("trigger_price1")
+        quantity1 = request.get("quantity1")
+        product_type = request.get("product_type", ProductType.DELIVERY)
+        order_type = request.get("order_type", OrderType.LIMIT)
+        validity = request.get("validity", Validity.DAY)
+        correlation_id = request.get("correlation_id")
 
         errors = self._validate_forever_order(
             order_flag,
@@ -93,6 +92,15 @@ class DhanForeverOrders:
         order_data = data.get("data", data)
         return self._parse_forever_order(order_data)
 
+    def modify_forever_order(self, order_id: str, changes: dict[str, Any]) -> ForeverOrder:
+        raise NotImplementedError("Modify not implemented for DhanForeverOrders")
+        
+    def cancel_forever_order(self, order_id: str) -> bool:
+        raise NotImplementedError("Cancel not implemented for DhanForeverOrders")
+        
+    def get_forever_orders(self) -> list[Any]:
+        raise NotImplementedError("Get forever orders not implemented for DhanForeverOrders")
+
     def _validate_forever_order(
         self,
         order_flag: str,
@@ -124,7 +132,7 @@ class DhanForeverOrders:
 
         return errors
 
-    def _parse_forever_order(self, data: dict) -> ForeverOrder:
+    def _parse_forever_order(self, data: dict[str, Any]) -> ForeverOrder:
         return ForeverOrder(
             order_id=str(data.get("orderId", "")),
             order_status=data.get("orderStatus", ""),

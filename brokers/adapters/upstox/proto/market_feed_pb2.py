@@ -6,7 +6,7 @@ Re-exports from MarketDataFeed_pb2.
 from __future__ import annotations
 
 try:
-    from .MarketDataFeed_pb2 import (
+    from .MarketDataFeed_pb2 import (  # type: ignore[attr-defined]
         LTPC,
         MarketLevel,
         MarketOHLC,
@@ -26,7 +26,7 @@ try:
     )
 except ImportError:
     try:
-        from MarketDataFeed_pb2 import (
+        from MarketDataFeed_pb2 import (  # type: ignore[import-not-found]
             LTPC,
             MarketLevel,
             MarketOHLC,
@@ -46,7 +46,7 @@ except ImportError:
         )
     except ImportError:
         # Fallback dummy class if import fails in unit tests
-        class FeedResponse:
+        class FeedResponse:  # type: ignore[no-redef]
             pass
-        class Feed:
+        class Feed:  # type: ignore[no-redef]
             pass

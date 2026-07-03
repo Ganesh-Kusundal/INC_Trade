@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from brokers.adapters.dhan.config import ENDPOINTS
@@ -92,7 +93,7 @@ class DhanHistorical:
         return self.get_historical_candles(symbol, exchange, start_time, end_time, resolution)
 
     @staticmethod
-    def _parse(data: dict, symbol: str) -> list[Candle]:
+    def _parse(data: dict[str, Any], symbol: str) -> list[Candle]:
         raw = data.get("data", data) if isinstance(data, dict) else data
         if isinstance(raw, dict) and "data" in raw:
             raw = raw["data"]
@@ -102,12 +103,12 @@ class DhanHistorical:
             # Dhan sometimes returns column arrays instead of row dicts for chart data
             if ("start_Time" in raw or "timestamp" in raw) and "open" in raw:
                 # Columnar format
-                times = raw.get("start_Time", raw.get("timestamp", []))
-                opens = raw.get("open", [])
-                highs = raw.get("high", [])
-                lows = raw.get("low", [])
-                closes = raw.get("close", [])
-                vols = raw.get("volume", [])
+                times: Any = raw.get("start_Time", raw.get("timestamp", []))
+                opens: Any = raw.get("open", [])
+                highs: Any = raw.get("high", [])
+                lows: Any = raw.get("low", [])
+                closes: Any = raw.get("close", [])
+                vols: Any = raw.get("volume", [])
 
                 candles = []
                 for i in range(len(times)):

@@ -29,21 +29,6 @@ disallow_incomplete_defs = true
 check_untyped_defs = true
 
 [[tool.mypy.overrides]]
-module = "brokers.adapters.*"
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-
-[[tool.mypy.overrides]]
-module = "brokers.infrastructure.*"
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-
-[[tool.mypy.overrides]]
-module = "brokers.config.*"
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-
-[[tool.mypy.overrides]]
 module = "brokers.tests.*"
 disallow_untyped_defs = false
 disallow_incomplete_defs = false

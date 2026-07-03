@@ -16,9 +16,16 @@ class UpstoxRefreshCoordinator:
 
     def __init__(self, manager: UpstoxTokenManager) -> None:
         self._manager = manager
+
+        def _do_refresh() -> str:
+            result = manager.force_refresh()
+            if result:
+                return result.access_token
+            return manager.current_token() or ""
+
         self._cooldown = TokenManager(
             get_token_fn=manager.bearer_token,
-            refresh_fn=lambda: (manager.force_refresh() or manager.current_token() or ""),
+            refresh_fn=_do_refresh,
             cooldown_seconds=30.0,
         )
         self._lock = threading.Lock()

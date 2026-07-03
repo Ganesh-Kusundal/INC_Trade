@@ -14,6 +14,7 @@ Optional env:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import sys
@@ -22,6 +23,9 @@ import time
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
+
+from brokers.adapters.dhan.gateway import DhanGateway
 
 _REPO = Path(__file__).resolve().parents[2]
 
@@ -59,10 +63,10 @@ class CheckResult:
     name: str
     ok: bool
     detail: str = ""
-    extra: dict = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
 
-def _load_gateway():
+def _load_gateway() -> DhanGateway:
     from brokers.adapters.dhan.gateway import DhanGateway
     from brokers.infrastructure.credentials import CredentialResolver
 
@@ -88,7 +92,7 @@ def _load_gateway():
     return gw
 
 
-def _resolve_instruments(gw) -> list[InstrumentCase]:
+def _resolve_instruments(gw: DhanGateway) -> list[InstrumentCase]:
     cases: list[InstrumentCase] = [
         InstrumentCase("equity", "RELIANCE", "NSE"),
     ]
@@ -117,7 +121,7 @@ def _resolve_instruments(gw) -> list[InstrumentCase]:
     return cases
 
 
-def _check_rest_depth(gw, case: InstrumentCase) -> CheckResult:
+def _check_rest_depth(gw: DhanGateway, case: InstrumentCase) -> CheckResult:
     name = f"rest_depth_{case.kind}"
     try:
         depth = gw.market_data.depth(case.symbol, case.exchange)
@@ -134,7 +138,7 @@ def _check_rest_depth(gw, case: InstrumentCase) -> CheckResult:
         return CheckResult(name, False, str(exc), {"symbol": case.symbol})
 
 
-def _check_rest_ltp_quote(gw, case: InstrumentCase) -> list[CheckResult]:
+def _check_rest_ltp_quote(gw: DhanGateway, case: InstrumentCase) -> list[CheckResult]:
     out: list[CheckResult] = []
     try:
         ltp = gw.market_data.ltp(case.symbol, case.exchange)
@@ -165,13 +169,13 @@ def _check_rest_ltp_quote(gw, case: InstrumentCase) -> list[CheckResult]:
     return out
 
 
-def _check_ws_mode(gw, case: InstrumentCase, mode: str) -> CheckResult:
+def _check_ws_mode(gw: DhanGateway, case: InstrumentCase, mode: str) -> CheckResult:
     name = f"ws_{mode.lower()}_{case.kind}"
     received = threading.Event()
-    ticks: list[dict] = []
+    ticks: list[dict[str, Any]] = []
     wait_s = _ws_wait()
 
-    def on_tick(tick: dict) -> None:
+    def on_tick(tick: dict[str, Any]) -> None:
         ticks.append(tick)
         received.set()
 
@@ -192,18 +196,18 @@ def _check_ws_mode(gw, case: InstrumentCase, mode: str) -> CheckResult:
         streaming.stop()
         return CheckResult(name, ok, detail, {"symbol": case.symbol, "mode": mode})
     except Exception as exc:
-        with threading.suppress(Exception):
+        with contextlib.suppress(Exception):
             streaming.stop()
         return CheckResult(name, False, str(exc), {"symbol": case.symbol, "mode": mode})
 
 
-def _check_depth20_ws(gw, case: InstrumentCase) -> CheckResult:
+def _check_depth20_ws(gw: DhanGateway, case: InstrumentCase) -> CheckResult:
     name = f"ws_depth20_{case.kind}"
     received = threading.Event()
-    updates: list = []
+    updates: list[Any] = []
     wait_s = _ws_wait()
 
-    def on_depth(depth) -> None:
+    def on_depth(depth: Any) -> None:
         updates.append(depth)
         if depth.bids and depth.asks:
             received.set()
@@ -228,7 +232,7 @@ def _check_depth20_ws(gw, case: InstrumentCase) -> CheckResult:
         feed.stop()
         return CheckResult(name, ok, detail, {"symbol": case.symbol})
     except Exception as exc:
-        with threading.suppress(Exception):
+        with contextlib.suppress(Exception):
             feed.stop()
         return CheckResult(name, False, str(exc), {"symbol": case.symbol})
 

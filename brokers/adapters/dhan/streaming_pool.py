@@ -35,7 +35,7 @@ class DhanStreamChannel(WebSocketConnection):
         )
     """
 
-    def __init__(self, *args, request_code: int = 23, **kwargs):
+    def __init__(self, *args: Any, request_code: int = 23, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._request_code = request_code
 
@@ -121,11 +121,11 @@ class PooledDhanStreaming:
         self,
         access_token: str | Callable[[], str],
         client_id: str,
-    ):
+    ) -> None:
         self._access_token = access_token
         self._client_id = client_id
         self._connection: WebSocketConnection | None = None
-        self._on_tick: Callable[[dict], None] | None = None
+        self._on_tick: Callable[[dict[str, Any]], None] | None = None
         self._on_connect: Callable[[], None] | None = None
         self._on_disconnect: Callable[[int, str], None] | None = None
         self._on_error: Callable[[Exception], None] | None = None
@@ -168,7 +168,7 @@ class PooledDhanStreaming:
             self._on_tick(tick)
 
     @staticmethod
-    def _parse_tick(data: dict) -> dict | None:
+    def _parse_tick(data: dict[str, Any]) -> dict[str, Any] | None:
         """Parse raw tick data."""
         if not isinstance(data, dict):
             return None
@@ -182,11 +182,11 @@ class PooledDhanStreaming:
         }
 
     @property
-    def on_tick(self) -> Callable[[dict], None] | None:
+    def on_tick(self) -> Callable[[dict[str, Any]], None] | None:
         return self._on_tick
 
     @on_tick.setter
-    def on_tick(self, callback: Callable[[dict], None] | None) -> None:
+    def on_tick(self, callback: Callable[[dict[str, Any]], None] | None) -> None:
         self._on_tick = callback
 
     @property
@@ -258,11 +258,11 @@ class PooledDhanDepth20Stream:
         self,
         access_token: str | Callable[[], str],
         client_id: str,
-    ):
+    ) -> None:
         self._access_token = access_token
         self._client_id = client_id
         self._connection: WebSocketConnection | None = None
-        self._on_depth_update: Callable[[dict], None] | None = None
+        self._on_depth_update: Callable[[dict[str, Any]], None] | None = None
 
     def _get_ws_headers(self) -> dict[str, str]:
         """Get WebSocket connection headers."""
@@ -299,11 +299,11 @@ class PooledDhanDepth20Stream:
             self._on_depth_update(data)
 
     @property
-    def on_depth_update(self) -> Callable[[dict], None] | None:
+    def on_depth_update(self) -> Callable[[dict[str, Any]], None] | None:
         return self._on_depth_update
 
     @on_depth_update.setter
-    def on_depth_update(self, callback: Callable[[dict], None] | None) -> None:
+    def on_depth_update(self, callback: Callable[[dict[str, Any]], None] | None) -> None:
         self._on_depth_update = callback
 
     @property
@@ -349,11 +349,11 @@ class PooledDhanDepth200Stream:
         self,
         access_token: str | Callable[[], str],
         client_id: str,
-    ):
+    ) -> None:
         self._access_token = access_token
         self._client_id = client_id
         self._connection: WebSocketConnection | None = None
-        self._on_depth_update: Callable[[dict], None] | None = None
+        self._on_depth_update: Callable[[dict[str, Any]], None] | None = None
 
     def _get_ws_headers(self) -> dict[str, str]:
         """Get WebSocket connection headers."""
@@ -390,11 +390,11 @@ class PooledDhanDepth200Stream:
             self._on_depth_update(data)
 
     @property
-    def on_depth_update(self) -> Callable[[dict], None] | None:
+    def on_depth_update(self) -> Callable[[dict[str, Any]], None] | None:
         return self._on_depth_update
 
     @on_depth_update.setter
-    def on_depth_update(self, callback: Callable[[dict], None] | None) -> None:
+    def on_depth_update(self, callback: Callable[[dict[str, Any]], None] | None) -> None:
         self._on_depth_update = callback
 
     @property
@@ -440,11 +440,11 @@ class PooledDhanOrderStream:
         self,
         access_token: str | Callable[[], str],
         client_id: str,
-    ):
+    ) -> None:
         self._access_token = access_token
         self._client_id = client_id
         self._connection: WebSocketConnection | None = None
-        self._on_order_update: Callable[[dict], None] | None = None
+        self._on_order_update: Callable[[dict[str, Any]], None] | None = None
 
     def _get_ws_headers(self) -> dict[str, str]:
         """Get WebSocket connection headers."""
@@ -503,11 +503,11 @@ class PooledDhanOrderStream:
             self._on_order_update(data)
 
     @property
-    def on_order_update(self) -> Callable[[dict], None] | None:
+    def on_order_update(self) -> Callable[[dict[str, Any]], None] | None:
         return self._on_order_update
 
     @on_order_update.setter
-    def on_order_update(self, callback: Callable[[dict], None] | None) -> None:
+    def on_order_update(self, callback: Callable[[dict[str, Any]], None] | None) -> None:
         self._on_order_update = callback
 
     @property

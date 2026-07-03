@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Callable
 
@@ -68,7 +69,7 @@ class DhanConnectionManager:
                 on_refresh=self._on_token_refreshed,
             )
             if lifecycle is not None:
-                lifecycle.register(self._scheduler)
+                lifecycle.register(self._scheduler)  # type: ignore[arg-type]
             else:
                 self._scheduler.start()
 
@@ -118,7 +119,7 @@ class DhanConnectionManager:
             try:
                 state = self._auth.state
                 if state is not None:
-                    self._token_store.save(state)
+                    self._token_store.save(asdict(state))
             except Exception as exc:
                 logger.warning("token_state_persist_failed", extra={"error": str(exc)})
 

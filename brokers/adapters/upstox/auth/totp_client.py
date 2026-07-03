@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class UpstoxTotpClient:
     def __init__(self, settings: Any) -> None:
         self._settings = settings
-        self._client = None
+        self._client: Any = None
         self._initialize_client()
 
     def _initialize_client(self) -> None:

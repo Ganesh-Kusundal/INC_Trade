@@ -19,7 +19,7 @@ def _parse_chain_entries(raw: Any) -> tuple[OptionStrike, ...]:
         return ()
 
     # Group by strike price
-    by_strike: dict[Decimal, dict[str, dict]] = {}
+    by_strike: dict[Decimal, dict[str, dict[str, Any]]] = {}
     for item in raw.get("options", []):
         if not isinstance(item, dict):
             continue

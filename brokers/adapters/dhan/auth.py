@@ -24,7 +24,7 @@ from brokers.infrastructure.totp_cooldown import TOTPCooldown, TotpRateLimitErro
 logger = logging.getLogger(__name__)
 
 
-def _prefer_ipv4():
+def _prefer_ipv4() -> None:
     """Patch socket to prefer IPv4 connections.
 
     Workaround for auth.dhan.co IPv6 connectivity issues where Python's
@@ -33,13 +33,13 @@ def _prefer_ipv4():
     if not hasattr(socket, "_dhan_ipv4_patched"):
         original_getaddrinfo = socket.getaddrinfo
 
-        def getaddrinfo_ipv4(*args):
-            results = original_getaddrinfo(*args)
+        def getaddrinfo_ipv4(*args: Any, **kwargs: Any) -> Any:
+            results = original_getaddrinfo(*args, **kwargs)
             ipv4 = [r for r in results if r[0] == socket.AF_INET]
             return ipv4 if ipv4 else results
 
         socket.getaddrinfo = getaddrinfo_ipv4
-        socket._dhan_ipv4_patched = True
+        setattr(socket, "_dhan_ipv4_patched", True)
 
 
 

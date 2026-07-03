@@ -10,6 +10,8 @@ from typing import Protocol, runtime_checkable
 
 from brokers.domain.entities import InstrumentInfo
 
+__all__ = ["InstrumentInfo", "InstrumentPort"]
+
 
 @runtime_checkable
 class InstrumentPort(Protocol):

@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import Callable, Protocol, runtime_checkable
+from typing import Any, Callable, Protocol, runtime_checkable
 
 from brokers.domain.exceptions import TokenRateLimitError
 
@@ -123,7 +123,7 @@ class TokenRefreshScheduler:
         """The shared refresh lock."""
         return self._refresh_lock
 
-    def health(self) -> dict:
+    def health(self) -> dict[str, Any]:
         """Health status and metrics."""
         state = "STOPPED"
         if self.is_running:
@@ -161,7 +161,7 @@ class TokenRefreshScheduler:
             logger.debug("token_refresh_backoff_active")
             return False
 
-        state = self._auth.state
+        state: Any = self._auth.state
         if state is not None and state.is_valid() and not state.refresh_recommended(self._buffer):
             return True
 

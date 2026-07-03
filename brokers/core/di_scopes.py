@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import contextvars
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import Any
 
@@ -70,7 +70,7 @@ class ScopeManager:
 
 
 @contextmanager
-def request_scope():
+def request_scope() -> Iterator[dict[str, Any]]:
     """Context manager that creates a new request scope.
 
     Services registered with scope='request' are created once

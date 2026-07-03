@@ -26,7 +26,7 @@ class TokenReceiverRef:
 
     def __init__(self, receiver: TokenReceiver) -> None:
         self._receiver: TokenReceiver | None = None
-        self._weak_method: weakref.WeakMethod | None = None
+        self._weak_method: weakref.WeakMethod[TokenReceiver] | None = None
 
         if hasattr(receiver, "__self__") and hasattr(receiver, "__func__"):
             try:

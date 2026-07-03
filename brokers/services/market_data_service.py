@@ -1,98 +1,106 @@
-"""Market data service — application-level market data with caching.
+"""Market data service — domain layer for real-time market data.
 
-Adds TTL-based caching on top of the raw MarketDataPort to avoid
-hitting the broker API for every LTP/quote call.
+This service provides business logic for fetching and caching market
+data. It depends on the MarketDataPort abstraction, not on any specific
+broker implementation.
 """
 
 from __future__ import annotations
 
 import logging
-import threading
-import time
 from decimal import Decimal
-from typing import cast
 
-from brokers.domain import MarketDepth, Quote
+from brokers.domain.entities import MarketDepth, Quote
 from brokers.ports.market_data import MarketDataPort
 
 logger = logging.getLogger(__name__)
 
-_CacheEntry = tuple[float, Quote | MarketDepth]
-
 
 class MarketDataService:
-    def __init__(self, provider: MarketDataPort, cache_ttl_seconds: float = 1.0):
-        self._provider = provider
-        self._ttl = cache_ttl_seconds
-        self._cache: dict[str, _CacheEntry] = {}
-        self._lock = threading.Lock()
+    """Domain service for real-time market data.
+
+    Encapsulates business rules for data fetching, caching, and normalization.
+    """
+
+    def __init__(
+        self,
+        market_data_port: MarketDataPort,
+        cache_ttl_seconds: float | None = None,
+    ):
+        """Initialize with a market data port.
+
+        Args:
+            market_data_port: Broker-agnostic market data interface
+            cache_ttl_seconds: Cache TTL in seconds (backward compat, not used)
+        """
+        self._market_data_port = market_data_port
+        self._cache_ttl_seconds = cache_ttl_seconds
 
     def ltp(self, symbol: str, exchange: str = "NSE") -> Decimal:
-        q = self.quote(symbol, exchange)
-        return q.ltp
+        """Get last traded price.
+
+        Args:
+            symbol: Instrument symbol
+            exchange: Exchange code (default: NSE)
+
+        Returns:
+            Last traded price
+        """
+        return self._market_data_port.ltp(symbol, exchange)
 
     def quote(self, symbol: str, exchange: str = "NSE") -> Quote:
-        key = f"quote:{exchange}:{symbol}"
-        cached = self._get_cached(key)
-        if cached is not None:
-            return cast(Quote, cached)
-        result = self._provider.quote(symbol, exchange)
-        self._set_cached(key, result)
-        return result
+        """Get full quote with bid/ask.
+
+        Args:
+            symbol: Instrument symbol
+            exchange: Exchange code (default: NSE)
+
+        Returns:
+            Quote object
+        """
+        return self._market_data_port.quote(symbol, exchange)
 
     def depth(self, symbol: str, exchange: str = "NSE") -> MarketDepth:
-        key = f"depth:{exchange}:{symbol}"
-        cached = self._get_cached(key)
-        if cached is not None:
-            return cast(MarketDepth, cached)
-        result = self._provider.depth(symbol, exchange)
-        self._set_cached(key, result)
-        return result
+        """Get market depth (order book).
+
+        Args:
+            symbol: Instrument symbol
+            exchange: Exchange code (default: NSE)
+
+        Returns:
+            MarketDepth object
+        """
+        return self._market_data_port.depth(symbol, exchange)
 
     def ltp_batch(self, symbols: list[str], exchange: str = "NSE") -> dict[str, Decimal]:
-        quotes = self.quote_batch(symbols, exchange)
-        return {sym: q.ltp for sym, q in quotes.items()}
+        """Get LTP for multiple symbols.
+
+        Args:
+            symbols: List of instrument symbols
+            exchange: Exchange code (default: NSE)
+
+        Returns:
+            Dictionary mapping symbol to LTP
+        """
+        return self._market_data_port.ltp_batch(symbols, exchange)
 
     def quote_batch(self, symbols: list[str], exchange: str = "NSE") -> dict[str, Quote]:
-        result: dict[str, Quote] = {}
-        missing_symbols: list[str] = []
+        """Get quotes for multiple symbols.
 
-        for sym in symbols:
-            key = f"quote:{exchange}:{sym}"
-            cached = self._get_cached(key)
-            if cached is not None:
-                result[sym] = cast(Quote, cached)
-            else:
-                missing_symbols.append(sym)
+        Args:
+            symbols: List of instrument symbols
+            exchange: Exchange code (default: NSE)
 
-        if missing_symbols:
-            missing_quotes = self._provider.quote_batch(missing_symbols, exchange)
-            for sym, quote_data in missing_quotes.items():
-                self._set_cached(f"quote:{exchange}:{sym}", quote_data)
-                result[sym] = quote_data
+        Returns:
+            Dictionary mapping symbol to Quote
+        """
+        return self._market_data_port.quote_batch(symbols, exchange)
 
-        return result
+    def invalidate(self, symbol: str) -> None:
+        """Invalidate cached data for a symbol (backward compat).
 
-    def invalidate(self, symbol: str = "", exchange: str = "") -> None:
-        with self._lock:
-            if not symbol:
-                self._cache.clear()
-            else:
-                for prefix in ("quote", "depth"):
-                    self._cache.pop(f"{prefix}:{exchange}:{symbol}", None)
-
-    def _get_cached(self, key: str) -> Quote | MarketDepth | None:
-        with self._lock:
-            entry = self._cache.get(key)
-        if entry is None:
-            return None
-        ts, value = entry
-        if time.monotonic() - ts > self._ttl:
-            with self._lock:
-                self._cache.pop(key, None)
-            return None
-        return value
-
-    def _set_cached(self, key: str, value: Quote | MarketDepth) -> None:
-        with self._lock:
-            self._cache[key] = (time.monotonic(), value)
+        Args:
+            symbol: Symbol to invalidate
+        """
+        # No-op for now (cache not implemented in this version)
+        pass

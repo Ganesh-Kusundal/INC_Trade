@@ -22,7 +22,7 @@ class SimpleWebSocketRateLimiter:
     - Connection pool size management for depth-200 feeds
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._lock = threading.RLock()
         self._last_connection_time = 0.0
         self._min_connection_interval = 1.0

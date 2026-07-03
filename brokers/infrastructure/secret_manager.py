@@ -83,13 +83,13 @@ class SecretManager:
         return self._fernet
 
     def encrypt(self, plaintext: str) -> str:
-        return self.fernet.encrypt(plaintext.encode("utf-8")).decode("utf-8")
+        return str(self.fernet.encrypt(plaintext.encode("utf-8")).decode("utf-8"))
 
     def decrypt(self, ciphertext: str) -> str:
-        return self.fernet.decrypt(ciphertext.encode("utf-8")).decode("utf-8")
+        return str(self.fernet.decrypt(ciphertext.encode("utf-8")).decode("utf-8"))
 
     def generate_key(self) -> str:
-        return Fernet.generate_key().decode("utf-8")
+        return str(Fernet.generate_key().decode("utf-8"))
 
     @classmethod
     def get_instance(cls, encryption_key: str | None = None) -> SecretManager:
@@ -196,7 +196,7 @@ class EncryptedTokenStore:
             return None
         try:
             plaintext = self._secret_manager.decrypt(ciphertext)
-            return json.loads(plaintext)
+            return dict(json.loads(plaintext))
         except InvalidToken:
             logger.error(
                 "Failed to decrypt token state file %s - invalid token or wrong key",
@@ -218,7 +218,7 @@ class EncryptedTokenStore:
                 self._path,
             )
         try:
-            return json.loads(content)
+            return dict(json.loads(content))
         except json.JSONDecodeError as exc:
             logger.error(
                 "Failed to parse token state file %s: %s", self._path, exc

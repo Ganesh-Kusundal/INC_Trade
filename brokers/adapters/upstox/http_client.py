@@ -1,6 +1,6 @@
 """Upstox HTTP client factory and response mapping."""
 
-from typing import Callable
+from typing import Any, Callable
 import requests
 from brokers.infrastructure.http.resilient_client import ResilientHttpClient, TokenRefreshSignal
 from brokers.adapters.upstox.config import RATE_LIMITS, READ_PREFIXES, WRITE_PREFIXES
@@ -15,7 +15,7 @@ def _upstox_categorize(endpoint: str) -> str:
             return "write"
     return "admin"
 
-def _upstox_handle_response(resp: requests.Response) -> dict:
+def _upstox_handle_response(resp: requests.Response) -> dict[str, Any]:
     if resp.status_code in (401, 403):
         raise TokenRefreshSignal("Token expired or invalid")
     if resp.status_code == 429:
@@ -37,7 +37,7 @@ def _upstox_handle_response(resp: requests.Response) -> dict:
             msg = resp.text
         raise BrokerError(f"HTTP {resp.status_code}: {msg}", code=str(resp.status_code))
     try:
-        return resp.json()
+        return resp.json()  # type: ignore[no-any-return]
     except Exception:
         return {"data": resp.text}
 

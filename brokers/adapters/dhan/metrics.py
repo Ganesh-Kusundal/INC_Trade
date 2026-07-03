@@ -64,14 +64,14 @@ class MetricsRegistry:
         DHAN_REQUEST_DURATION.labels(method=method, path=path).observe(duration)
 
 
-def observe_metrics(path: str | None = None) -> Callable:
+def observe_metrics(path: str | None = None) -> Callable[..., Any]:
     """Decorator to observe HTTP request metrics."""
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         metric_path = path or func.__qualname__
 
         @wraps(func)
-        def wrapper(self, *args, **kwargs) -> Any:
+        def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
             start = perf_counter()
             try:
                 result = func(self, *args, **kwargs)
@@ -94,12 +94,12 @@ def observe_metrics(path: str | None = None) -> Callable:
     return decorator
 
 
-def with_metrics(name: str, tracker: Any = None) -> Callable:
+def with_metrics(name: str, tracker: Any = None) -> Callable[..., Any]:
     """Decorator to log metrics using a tracker."""
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 result = func(*args, **kwargs)
                 if tracker is not None:
@@ -115,12 +115,12 @@ def with_metrics(name: str, tracker: Any = None) -> Callable:
     return decorator
 
 
-def with_rate_limit(rate_limiter: Any) -> Callable:
+def with_rate_limit(rate_limiter: Any) -> Callable[..., Any]:
     """Decorator to apply rate limiting using a limiter."""
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             rate_limiter.acquire()
             return func(*args, **kwargs)
 

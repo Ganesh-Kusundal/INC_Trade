@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from brokers.domain.constants.timeouts import DEFAULT_HTTP_TIMEOUT_SECONDS
 
@@ -360,6 +361,7 @@ class UpstoxSettingsLoader(SettingsLoaderBase):
         configured_token_state_file = cls._path_from_env(
             values.get(f"{prefix}.tokenStateFile")
         )
+        token_state_file: Path | None
         if auth_mode == "TOTP":
             token_state_file = (
                 configured_token_state_file or UPSTOX_DEFAULT_TOKEN_STATE_FILE
@@ -385,7 +387,7 @@ class UpstoxSettingsLoader(SettingsLoaderBase):
             instrument_cache=cls._path_from_env(
                 values.get(f"{prefix}.instrumentCache"),
                 Path(".cache/upstox/complete.json.gz"),
-            ),
+            ) or Path(".cache/upstox/complete.json.gz"),
             refresh_buffer_minutes=cls._parse_int(
                 values.get(f"{prefix}.refreshBufferMinutes"), 30
             ),

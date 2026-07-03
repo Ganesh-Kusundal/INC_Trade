@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Generic, TypeVar
 
@@ -36,7 +37,7 @@ class TypedIdempotencyCache(Generic[T]):
             self._cache[correlation_id] = (value, time.monotonic())
 
     @contextmanager
-    def lock(self, _key: str):
+    def lock(self, _key: str) -> Iterator[TypedIdempotencyCache[T]]:
         """Process-wide lock for atomic check-then-act on a correlation id."""
         with self._lock:
             yield self

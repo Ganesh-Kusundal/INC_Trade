@@ -151,7 +151,8 @@ class FeatureFlags:
         cls._ensure_initialized()
         eval_counter, _ = cls._get_metrics()
         eval_counter.inc()
-        return cls._flags.get(flag_name, False)  # type: ignore[return-value]
+        assert cls._flags is not None
+        return cls._flags.get(flag_name, False)
 
     @classmethod
     def is_enabled_for_user(cls, flag_name: str, user_id: str) -> bool:
@@ -161,10 +162,12 @@ class FeatureFlags:
         eval_counter, _ = cls._get_metrics()
         eval_counter.inc()
 
-        if not cls._flags.get(flag_name, False):  # type: ignore[union-attr]
+        assert cls._flags is not None
+        assert cls._rollout_percentages is not None
+        if not cls._flags.get(flag_name, False):
             return False
 
-        rollout = cls._rollout_percentages.get(flag_name, 100)  # type: ignore[union-attr]
+        rollout = cls._rollout_percentages.get(flag_name, 100)
 
         if rollout >= 100:
             return True
@@ -184,7 +187,8 @@ class FeatureFlags:
         cls._ensure_initialized()
         if flag_name not in cls.FLAG_DEFINITIONS:
             raise ValueError(f"Unknown feature flag: {flag_name}")
-        return cls._rollout_percentages.get(flag_name, 100)  # type: ignore[return-value]
+        assert cls._rollout_percentages is not None
+        return cls._rollout_percentages.get(flag_name, 100)
 
     @classmethod
     def set_rollout_percentage(cls, flag_name: str, percentage: int) -> None:
@@ -196,8 +200,9 @@ class FeatureFlags:
         if not 0 <= percentage <= 100:
             raise ValueError(f"rollout_percentage must be 0-100, got {percentage}")
 
-        old = cls._rollout_percentages.get(flag_name, 100)  # type: ignore[union-attr]
-        cls._rollout_percentages[flag_name] = percentage  # type: ignore[index]
+        assert cls._rollout_percentages is not None
+        old = cls._rollout_percentages.get(flag_name, 100)
+        cls._rollout_percentages[flag_name] = percentage
 
         _, change_counter = cls._get_metrics()
         change_counter.inc()
@@ -216,8 +221,9 @@ class FeatureFlags:
         if flag_name not in cls.FLAG_DEFINITIONS:
             raise ValueError(f"Unknown feature flag: {flag_name}")
 
-        old = cls._flags.get(flag_name, False)  # type: ignore[assignment]
-        cls._flags[flag_name] = value  # type: ignore[index]
+        assert cls._flags is not None
+        old = cls._flags.get(flag_name, False)
+        cls._flags[flag_name] = value
 
         if flag_name in cls.FLAG_DEFINITIONS:
             setattr(cls, flag_name, value)
@@ -236,8 +242,10 @@ class FeatureFlags:
 
         cls._ensure_initialized()
         definition = cls.FLAG_DEFINITIONS[flag_name]
-        current_value = cls._flags.get(flag_name, False)  # type: ignore[assignment]
-        rollout = cls._rollout_percentages.get(flag_name, 100)  # type: ignore[union-attr]
+        assert cls._flags is not None
+        assert cls._rollout_percentages is not None
+        current_value = cls._flags.get(flag_name, False)
+        rollout = cls._rollout_percentages.get(flag_name, 100)
 
         return {
             "name": flag_name,

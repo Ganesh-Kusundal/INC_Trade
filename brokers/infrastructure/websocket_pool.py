@@ -219,7 +219,7 @@ class WebSocketConnection:
                 self._ws = None
             raise
 
-    def _on_open(self, ws) -> None:
+    def _on_open(self, ws: object) -> None:
         """Handle connection open event."""
         with self._lock:
             self._connection_state = "connected"
@@ -236,7 +236,7 @@ class WebSocketConnection:
         if self.on_open:
             self.on_open()
 
-    def _on_message(self, ws, message: str) -> None:
+    def _on_message(self, ws: object, message: str) -> None:
         """Handle incoming messages."""
         try:
             self.on_message(message)
@@ -246,7 +246,7 @@ class WebSocketConnection:
                 extra={"url": self.ws_url, "error": str(exc)},
             )
 
-    def _on_error(self, ws, error) -> None:
+    def _on_error(self, ws: object, error: Exception) -> None:
         """Handle WebSocket errors."""
         with self._lock:
             self._connection_state = "disconnected"
@@ -259,7 +259,7 @@ class WebSocketConnection:
                 extra={"url": self.ws_url, "error": str(error)},
             )
 
-    def _on_close(self, ws, close_status_code, close_msg) -> None:
+    def _on_close(self, ws: object, close_status_code: int, close_msg: str) -> None:
         """Handle connection close event."""
         with self._lock:
             self._connection_state = "disconnected"

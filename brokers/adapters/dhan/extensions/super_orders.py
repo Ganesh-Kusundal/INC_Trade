@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal
+from typing import Any
 
 from brokers.adapters.dhan.config import (
     ENDPOINTS,
@@ -103,7 +104,7 @@ class DhanSuperOrders:
 
         return errors
 
-    def _parse_super_order(self, data: dict) -> SuperOrder:
+    def _parse_super_order(self, data: dict[str, Any]) -> SuperOrder:
         legs_data = data.get("legDetails", [])
         legs = []
         for leg in legs_data:

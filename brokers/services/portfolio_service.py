@@ -1,50 +1,99 @@
-"""Portfolio service — application-level portfolio queries.
+"""Portfolio service — domain layer for portfolio management.
 
-Adds logging, PnL aggregation, and convenience methods on top of
-the raw PortfolioPort.
+This service provides business logic for fetching and analyzing portfolio
+data. It depends on the PortfolioPort abstraction, not on any specific
+broker implementation.
 """
 
 from __future__ import annotations
 
 import logging
-from decimal import Decimal
 
-from brokers.domain import Balance, Holding, Position, Trade
+from brokers.domain.entities import Balance, Holding, Position, Trade
 from brokers.ports.portfolio import PortfolioPort
 
 logger = logging.getLogger(__name__)
 
 
 class PortfolioService:
-    def __init__(self, portfolio: PortfolioPort):
-        self._portfolio = portfolio
+    """Domain service for portfolio management.
+
+    Encapsulates business rules for position analysis, risk management,
+    and performance tracking.
+    """
+
+    def __init__(self, portfolio_port: PortfolioPort):
+        """Initialize with a portfolio port.
+
+        Args:
+            portfolio_port: Broker-agnostic portfolio interface
+        """
+        self._portfolio_port = portfolio_port
 
     def positions(self) -> list[Position]:
-        return self._portfolio.positions()
+        """Get all open positions.
+
+        Returns:
+            List of Position objects
+        """
+        return self._portfolio_port.positions()
 
     def holdings(self) -> list[Holding]:
-        return self._portfolio.holdings()
+        """Get all holdings.
+
+        Returns:
+            List of Holding objects
+        """
+        return self._portfolio_port.holdings()
 
     def funds(self) -> Balance:
-        return self._portfolio.funds()
+        """Get account balance.
+
+        Returns:
+            Balance object
+        """
+        return self._portfolio_port.funds()
 
     def trades(self) -> list[Trade]:
-        return self._portfolio.trades()
+        """Get trade history.
 
-    def total_unrealized_pnl(self) -> Decimal:
-        return sum(
-            (p.unrealized_pnl for p in self._portfolio.positions()),
-            Decimal("0"),
-        )
+        Returns:
+            List of Trade objects
+        """
+        return self._portfolio_port.trades()
 
-    def total_realized_pnl(self) -> Decimal:
-        return sum(
-            (p.realized_pnl for p in self._portfolio.positions()),
-            Decimal("0"),
-        )
+    def get_net_position_value(self) -> float:
+        """Calculate net value of all positions.
 
-    def net_exposure(self) -> Decimal:
-        total = Decimal("0")
-        for pos in self._portfolio.positions():
-            total += pos.average_price * abs(pos.quantity)
-        return total
+        Returns:
+            Net position value in rupees
+        """
+        positions = self.positions()
+        return sum(p.market_value for p in positions if p.market_value is not None)  # type: ignore[attr-defined]
+
+    def total_unrealized_pnl(self) -> float:
+        """Calculate total unrealized P&L across all positions.
+
+        Returns:
+            Total unrealized profit/loss in rupees
+        """
+        positions = self.positions()
+        return sum(p.unrealized_pnl for p in positions)
+
+    def total_realized_pnl(self) -> float:
+        """Calculate total realized P&L from trades.
+
+        Returns:
+            Total realized profit/loss in rupees
+        """
+        trades = self.trades()
+        return sum(t.pnl for t in trades if t.pnl is not None)  # type: ignore[attr-defined]
+
+    def net_exposure(self) -> float:
+        """Calculate net exposure across all positions.
+
+        Returns:
+            Net exposure in rupees
+        """
+        positions = self.positions()
+        return sum(p.exposure for p in positions if p.exposure is not None)  # type: ignore[attr-defined]

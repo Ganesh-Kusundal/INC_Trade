@@ -14,19 +14,19 @@ class HttpClientPort(Protocol):
         """Client ID used for broker API identification."""
         ...
 
-    def get(self, endpoint: str, params: dict | None = None, **kwargs: Any) -> dict:
+    def get(self, endpoint: str, params: dict[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
         """Perform a GET request."""
         ...
 
-    def post(self, endpoint: str, json: dict | None = None, **kwargs: Any) -> dict:
+    def post(self, endpoint: str, json: dict[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
         """Perform a POST request."""
         ...
 
-    def put(self, endpoint: str, json: dict | None = None, **kwargs: Any) -> dict:
+    def put(self, endpoint: str, json: dict[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
         """Perform a PUT request."""
         ...
 
-    def delete(self, endpoint: str, params: dict | None = None, **kwargs: Any) -> dict:
+    def delete(self, endpoint: str, params: dict[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
         """Perform a DELETE request."""
         ...
 

@@ -162,6 +162,15 @@ class _FakeBroker:
     def streaming(self):
         return self._streaming
 
+    @property
+    def options(self):
+        return None
+
+    @property
+    def extensions(self):
+        from brokers.ports.extension_registry import DictExtensionRegistry
+        return DictExtensionRegistry()
+
     def close(self):
         pass
 

@@ -1,14 +1,21 @@
-"""Application services — use cases that orchestrate ports."""
+"""Domain services — application layer with business logic.
 
-from brokers.services.broker_facade import BrokerFacade
-from brokers.services.instrument_service import InstrumentService
+Services depend on ports (abstractions) and provide high-level
+functionality to clients. They encapsulate business rules, validation,
+and cross-cutting concerns.
+"""
+
+from brokers.services.broker_router import BrokerRouter
+from brokers.services.capability_discovery import CapabilityDiscovery
+from brokers.services.historical_service import HistoricalService
 from brokers.services.market_data_service import MarketDataService
 from brokers.services.order_service import OrderService
 from brokers.services.portfolio_service import PortfolioService
 
 __all__ = [
-    "BrokerFacade",
-    "InstrumentService",
+    "BrokerRouter",
+    "CapabilityDiscovery",
+    "HistoricalService",
     "MarketDataService",
     "OrderService",
     "PortfolioService",

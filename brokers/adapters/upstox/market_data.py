@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal
+from typing import Any
 
 from brokers.adapters.upstox.instruments import UpstoxInstruments, resolve_upstox_instrument_key
 from brokers.adapters.upstox.mapper import map_depth, map_quote, unwrap_data
@@ -28,20 +29,20 @@ class UpstoxMarketData:
     def _key(self, symbol: str, exchange: str) -> str:
         return resolve_upstox_instrument_key(symbol, exchange, self._instruments)
 
-    def _find_symbol_data(self, feed: dict, key: str, symbol: str) -> dict:
+    def _find_symbol_data(self, feed: dict[str, Any], key: str, symbol: str) -> dict[str, Any]:
         if not feed:
             return {}
         if key in feed:
-            return feed[key]
+            return feed[key]  # type: ignore[no-any-return]
         colon_key = key.replace("|", ":")
         if colon_key in feed:
-            return feed[colon_key]
+            return feed[colon_key]  # type: ignore[no-any-return]
         for k, val in feed.items():
             if val.get("instrument_token") == key:
-                return val
+                return val  # type: ignore[no-any-return]
             parts = k.split(":")
             if len(parts) > 1 and parts[1].upper() == symbol.upper():
-                return val
+                return val  # type: ignore[no-any-return]
         if len(feed) == 1:
             return next(iter(feed.values()))
         return {}

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Any
 
 from brokers.domain.enums import BrokerID
 
@@ -96,6 +97,22 @@ class BrokerCapabilities:
         if constraint is None:
             return False
         return lookback_days <= constraint.max_lookback_days
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert capabilities to a JSON-serializable dictionary for external consumers."""
+        return {
+            "broker_id": str(self.broker_id),
+            "supports": {
+                k.replace("supports_", ""): getattr(self, k)
+                for k in self.__dataclass_fields__
+                if k.startswith("supports_")
+            },
+            "latency_class": self.latency_class,
+            "reliability_class": self.reliability_class,
+            "max_batch_size": self.max_batch_size,
+            "product_types": list(self.product_types),
+            "order_types": list(self.order_types),
+        }
 
 
 @dataclass(frozen=True)

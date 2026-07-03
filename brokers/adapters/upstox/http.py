@@ -103,7 +103,7 @@ class UpstoxHttpClient(ResilientHttpClient):
                 return "write"
         return "admin"
 
-    def _handle_response(self, resp: requests.Response) -> dict:
+    def _handle_response(self, resp: requests.Response) -> dict[str, Any]:
         if resp.status_code in (401, 403):
             raise TokenRefreshSignal("Token expired or invalid")
         if resp.status_code == 429:
@@ -125,6 +125,6 @@ class UpstoxHttpClient(ResilientHttpClient):
                 msg = resp.text
             raise BrokerError(f"HTTP {resp.status_code}: {msg}", code=str(resp.status_code))
         try:
-            return resp.json()
+            return resp.json()  # type: ignore[no-any-return]
         except Exception:
             return {"data": resp.text}

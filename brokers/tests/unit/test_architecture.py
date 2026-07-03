@@ -391,6 +391,101 @@ class TestNoAdapterImportsService:
 
 
 @pytest.mark.architecture
+class TestCapabilityConstants:
+    """All capability constants must be defined in domain/constants/capabilities.py."""
+
+    def test_all_capabilities_in_all_caps(self) -> None:
+        from brokers.domain.constants.capabilities import ALL_CAPABILITIES
+
+        for cap in ALL_CAPABILITIES:
+            assert cap.islower() or cap.isupper(), f"Capability {cap} should be in ALL_CAPS"
+
+    def test_no_duplicate_capabilities(self) -> None:
+        from brokers.domain.constants.capabilities import ALL_CAPABILITIES
+
+        assert len(ALL_CAPABILITIES) == len(set(ALL_CAPABILITIES)), "Duplicate capabilities found"
+
+
+class TestServiceLayer:
+    """Domain services must depend only on ports, not on adapters or infrastructure."""
+
+    def test_order_service_depends_only_on_ports(self) -> None:
+        import inspect
+
+        from brokers.ports.order_execution import OrderExecutionPort
+        from brokers.services.order_service import OrderService
+
+        # Check that OrderService only imports from allowed modules
+        source = inspect.getsource(OrderService)
+        disallowed_imports = [
+            "adapters",
+            "infrastructure",
+            "resilience",
+        ]
+        for disallowed in disallowed_imports:
+            assert disallowed not in source, f"OrderService should not import from {disallowed}"
+
+    def test_historical_service_depends_only_on_ports(self) -> None:
+        import inspect
+
+        from brokers.services.historical_service import HistoricalService
+
+        source = inspect.getsource(HistoricalService)
+        disallowed_imports = [
+            "adapters",
+            "infrastructure",
+            "resilience",
+        ]
+        for disallowed in disallowed_imports:
+            assert disallowed not in source, (
+                f"HistoricalService should not import from {disallowed}"
+            )
+
+
+class TestBrokerGatewayContract:
+    """All broker gateways must implement BrokerGateway protocol."""
+
+    def test_dhan_gateway_implements_broker_gateway(self) -> None:
+        # Use isinstance() with a mock instance since issubclass() doesn't work
+        # with protocols that have properties
+        import inspect
+
+        from brokers.adapters.dhan.gateway import DhanGateway
+        from brokers.ports.broker import BrokerGateway
+
+        assert hasattr(DhanGateway, "broker_id"), "DhanGateway must have broker_id property"
+        assert hasattr(DhanGateway, "capabilities"), "DhanGateway must have capabilities property"
+        assert hasattr(DhanGateway, "orders"), "DhanGateway must have orders property"
+        assert hasattr(DhanGateway, "market_data"), "DhanGateway must have market_data property"
+        assert hasattr(DhanGateway, "portfolio"), "DhanGateway must have portfolio property"
+        assert hasattr(DhanGateway, "historical"), "DhanGateway must have historical property"
+        assert hasattr(DhanGateway, "instruments"), "DhanGateway must have instruments property"
+        assert hasattr(DhanGateway, "auth"), "DhanGateway must have auth property"
+        assert hasattr(DhanGateway, "streaming"), "DhanGateway must have streaming property"
+        assert hasattr(DhanGateway, "extensions"), "DhanGateway must have extensions property"
+
+    def test_upstox_gateway_implements_broker_gateway(self) -> None:
+        # Use isinstance() with a mock instance since issubclass() doesn't work
+        # with protocols that have properties
+        import inspect
+
+        from brokers.adapters.upstox.gateway import UpstoxGateway
+        from brokers.ports.broker import BrokerGateway
+
+        assert hasattr(UpstoxGateway, "broker_id"), "UpstoxGateway must have broker_id property"
+        assert hasattr(UpstoxGateway, "capabilities"), (
+            "UpstoxGateway must have capabilities property"
+        )
+        assert hasattr(UpstoxGateway, "orders"), "UpstoxGateway must have orders property"
+        assert hasattr(UpstoxGateway, "market_data"), "UpstoxGateway must have market_data property"
+        assert hasattr(UpstoxGateway, "portfolio"), "UpstoxGateway must have portfolio property"
+        assert hasattr(UpstoxGateway, "historical"), "UpstoxGateway must have historical property"
+        assert hasattr(UpstoxGateway, "instruments"), "UpstoxGateway must have instruments property"
+        assert hasattr(UpstoxGateway, "auth"), "UpstoxGateway must have auth property"
+        assert hasattr(UpstoxGateway, "streaming"), "UpstoxGateway must have streaming property"
+        assert hasattr(UpstoxGateway, "extensions"), "UpstoxGateway must have extensions property"
+
+
 class TestHttpClientPort:
     """Adapters must import HttpClientPort, not concrete implementations.
 

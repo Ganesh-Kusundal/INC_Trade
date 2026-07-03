@@ -47,7 +47,8 @@ class RetryPolicy:
         raise last_exc
 
     def _compute_delay(self, attempt: int) -> int:
-        delay = self._base_delay_ms * (2**attempt)
+        delay: int = self._base_delay_ms * (2**attempt)
         delay = min(delay, self._max_delay_ms)
-        jitter = random.randint(0, delay // 4)
-        return delay + jitter
+        jitter: int = random.randint(0, delay // 4)
+        result: int = delay + jitter
+        return result

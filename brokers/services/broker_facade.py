@@ -13,6 +13,7 @@ Usage::
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
@@ -31,6 +32,7 @@ from brokers.domain import (
 from brokers.domain.enums import BrokerID, OrderType, ProductType, Side, Validity
 from brokers.ports.broker import BrokerGateway
 from brokers.ports.extension_registry import ExtensionRegistryPort
+from brokers.services.historical_service import HistoricalService
 from brokers.services.instrument_service import InstrumentService
 from brokers.services.market_data_service import MarketDataService
 from brokers.services.order_service import OrderService
@@ -61,6 +63,7 @@ class BrokerFacade:
     ):
         self._gateway = gateway
         from brokers.ports.extension_registry import DictExtensionRegistry
+
         self._registry = extension_registry or DictExtensionRegistry()
         self._order_service = OrderService(
             gateway.orders,
@@ -69,6 +72,7 @@ class BrokerFacade:
         )
         self._market_data_service = MarketDataService(gateway.market_data)
         self._portfolio_service = PortfolioService(gateway.portfolio)
+        self._historical_service = HistoricalService(gateway.historical)
         self._instrument_service = InstrumentService(gateway.instruments)
 
     # --- Identity ---
@@ -76,22 +80,23 @@ class BrokerFacade:
     @property
     def broker_id(self) -> BrokerID:
         """Canonical broker identifier (e.g. 'dhan', 'upstox')."""
-        return self._gateway.broker_id
+        return BrokerID(self._gateway.broker_id)
 
     # --- Orders ---
 
     def place_order(
         self,
-        symbol: str,
-        exchange: str,
-        side: Side,
-        quantity: int,
+        symbol: str = "",
+        exchange: str = "",
+        side: Side = Side.BUY,
+        quantity: int = 0,
         order_type: OrderType = OrderType.MARKET,
         price: Decimal = Decimal("0"),
         product_type: ProductType = ProductType.INTRADAY,
         validity: Validity = Validity.DAY,
         trigger_price: Decimal = Decimal("0"),
         correlation_id: str = "",
+        request: Any | None = None,
     ) -> OrderResponse:
         """Place an order through the service layer."""
         return self._order_service.place_order(
@@ -105,6 +110,7 @@ class BrokerFacade:
             validity=validity,
             trigger_price=trigger_price,
             correlation_id=correlation_id,
+            request=request,
         )
 
     def modify_order(
@@ -150,6 +156,25 @@ class BrokerFacade:
         """Get last traded price."""
         return self._market_data_service.ltp(symbol, exchange)
 
+    # --- Historical Data ---
+
+    def get_historical_candles(
+        self,
+        symbol: str,
+        exchange: str,
+        start_time: datetime,
+        end_time: datetime,
+        resolution: str,
+    ) -> list[Candle]:
+        """Fetch historical candles through the service layer."""
+        return self._historical_service.fetch_candles(
+            symbol=symbol,
+            exchange=exchange,
+            start_time=start_time,
+            end_time=end_time,
+            resolution=resolution,
+        )
+
     def ltp_batch(self, symbols: list[str], exchange: str = "NSE") -> dict[str, Decimal]:
         """Get last traded prices for multiple symbols natively in bulk."""
         return self._market_data_service.ltp_batch(symbols, exchange)
@@ -188,7 +213,12 @@ class BrokerFacade:
         expiry: str | None = None,
     ) -> Any:
         """Get full option chain for a specific expiry via the gateway's options port."""
-        return self._gateway.options.get_option_chain(
+        options = self._gateway.options
+        if options is None:
+            from brokers.domain.exceptions import NotSupportedError
+
+            raise NotSupportedError("Options not supported by this broker")
+        return options.get_option_chain(
             underlying=underlying,
             exchange=exchange,
             expiry=expiry,
@@ -196,7 +226,12 @@ class BrokerFacade:
 
     def get_expiries(self, underlying: str, exchange: str = "NFO") -> list[str]:
         """Get available option expiries for an underlying."""
-        return self._gateway.options.get_expiries(
+        options = self._gateway.options
+        if options is None:
+            from brokers.domain.exceptions import NotSupportedError
+
+            raise NotSupportedError("Options not supported by this broker")
+        return options.get_expiries(
             underlying=underlying,
             exchange=exchange,
         )
@@ -234,7 +269,7 @@ class BrokerFacade:
 
     def capabilities(self) -> Any:
         """Get broker capability matrix."""
-        return self._gateway.capabilities()
+        return self._gateway.capabilities
 
     @property
     def extensions(self) -> ExtensionRegistryPort:

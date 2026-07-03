@@ -61,7 +61,7 @@ class AppConfig:
         Reads env vars with ``TRADEX_`` prefix first, then falls back to
         legacy names (APP_ENV, XV2_LOG_LEVEL, REDIS_URL, etc.).
         """
-        kwargs: dict[str, object] = {}
+        kwargs: dict[str, str | int | float | bool | list[str] | None] = {}
 
         kwargs["app_env"] = os.environ.get("TRADEX_APP_ENV", os.environ.get("APP_ENV", "dev"))
 
@@ -96,7 +96,7 @@ class AppConfig:
         rw_raw = os.environ.get("TRADEX_RATE_LIMIT_WINDOW_SECONDS", "60.0")
         kwargs["rate_limit_window_seconds"] = float(rw_raw)
 
-        return cls(**kwargs)
+        return cls(**kwargs)  # type: ignore[arg-type]
 
 
 @dataclass(frozen=True)

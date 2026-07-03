@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal
+from typing import Any
 
 from brokers.adapters.upstox.config import ORDER_TYPE_MAP, PRODUCT_TYPE_MAP, VALIDITY_MAP
 from brokers.adapters.upstox.instruments import UpstoxInstruments, resolve_upstox_instrument_key
@@ -124,7 +125,7 @@ class UpstoxOrders:
         if blocked is not None:
             return blocked
 
-        payload: dict = {"order_id": order_id}
+        payload: dict[str, Any] = {"order_id": order_id}
         if quantity is not None:
             payload["quantity"] = quantity
         if price is not None:

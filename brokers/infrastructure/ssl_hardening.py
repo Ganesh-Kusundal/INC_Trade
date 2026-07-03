@@ -7,6 +7,7 @@ cipher suite to prevent downgrade attacks and weak cipher exploitation.
 from __future__ import annotations
 
 import ssl
+from typing import Any, cast
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -33,13 +34,13 @@ def hardened_ssl_context() -> ssl.SSLContext:
 
 
 class HardenedHTTPSAdapter(HTTPAdapter):
-    def init_poolmanager(self, *args, **kwargs):
+    def init_poolmanager(self, *args: Any, **kwargs: Any) -> None:
         kwargs["ssl_context"] = hardened_ssl_context()
         super().init_poolmanager(*args, **kwargs)
 
-    def proxy_manager_for(self, proxy, **proxy_kwargs):
+    def proxy_manager_for(self, proxy: str, **proxy_kwargs: Any) -> HTTPAdapter:
         proxy_kwargs["ssl_context"] = hardened_ssl_context()
-        return super().proxy_manager_for(proxy, **proxy_kwargs)
+        return cast(HTTPAdapter, super().proxy_manager_for(proxy, **proxy_kwargs))
 
 
 def create_pinned_session() -> requests.Session:

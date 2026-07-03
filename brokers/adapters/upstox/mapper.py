@@ -6,6 +6,7 @@ Converts raw Upstox API responses into frozen domain value objects.
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Any, cast
 
 from brokers.domain import (
     Balance,
@@ -35,7 +36,7 @@ from brokers.adapters.upstox.config import (
 from brokers.utils.price import to_decimal
 
 
-def unwrap_data(response: dict, default=None):
+def unwrap_data(response: dict[str, Any], default: Any = None) -> Any:
     """Extract the 'data' field from an Upstox API response.
 
     Upstox wraps all responses in {"data": ...}. This helper
@@ -48,32 +49,32 @@ def unwrap_data(response: dict, default=None):
     return default
 
 
-def map_order(data: dict) -> Order:
+def map_order(data: dict[str, Any]) -> Order:
     status_raw = str(data.get("status", "")).upper()
     return Order(
         order_id=str(data.get("order_id", "")),
         symbol=data.get("trading_symbol", data.get("symbol", "")),
         exchange=data.get("exchange", ""),
-        side=_SIDE_MAP.get(str(data.get("transaction_type", "BUY")).upper(), Side.BUY),
+        side=cast(Side, _SIDE_MAP.get(str(data.get("transaction_type", "BUY")).upper(), Side.BUY)),
         quantity=int(data.get("quantity", 0)),
         filled_quantity=int(data.get("filled_quantity", 0)),
         price=to_decimal(data.get("price")),
         trigger_price=to_decimal(data.get("trigger_price")),
-        order_type=_ORDER_TYPE_MAP.get(
+        order_type=cast(OrderType, _ORDER_TYPE_MAP.get(
             str(data.get("order_type", "MARKET")).upper(), OrderType.MARKET
-        ),
-        product_type=_PRODUCT_MAP.get(
+        )),
+        product_type=cast(ProductType, _PRODUCT_MAP.get(
             str(data.get("product", "I")).upper(), ProductType.INTRADAY
-        ),
-        validity=_VALIDITY_MAP.get(
+        )),
+        validity=cast(Validity, _VALIDITY_MAP.get(
             str(data.get("validity", "DAY")).upper(), Validity.DAY
-        ),
-        status=_STATUS_MAP.get(status_raw, OrderStatus.OPEN),
+        )),
+        status=cast(OrderStatus, _STATUS_MAP.get(status_raw, OrderStatus.OPEN)),
         message=data.get("status_message", ""),
     )
 
 
-def map_order_response(data: dict) -> OrderResponse:
+def map_order_response(data: dict[str, Any]) -> OrderResponse:
     if isinstance(data, dict) and "data" in data:
         inner = data["data"]
         if isinstance(inner, dict):
@@ -106,7 +107,7 @@ def map_order_response(data: dict) -> OrderResponse:
     )
 
 
-def map_quote(symbol: str, data: dict) -> Quote:
+def map_quote(symbol: str, data: dict[str, Any]) -> Quote:
     ohlc = data.get("ohlc", {})
     return Quote(
         symbol=symbol,
@@ -119,7 +120,7 @@ def map_quote(symbol: str, data: dict) -> Quote:
     )
 
 
-def map_depth(symbol: str, data: dict) -> MarketDepth:
+def map_depth(symbol: str, data: dict[str, Any]) -> MarketDepth:
     depth = data.get("depth", {})
     bid_list = depth.get("buy", []) if isinstance(depth, dict) else []
     ask_list = depth.get("sell", []) if isinstance(depth, dict) else []
@@ -145,14 +146,14 @@ def map_depth(symbol: str, data: dict) -> MarketDepth:
     return MarketDepth(symbol=symbol, bids=bids, asks=asks)
 
 
-def map_position(data: dict) -> Position:
+def map_position(data: dict[str, Any]) -> Position:
     return Position(
         symbol=data.get("trading_symbol", data.get("symbol", "")),
         exchange=data.get("exchange", ""),
         quantity=int(data.get("net_quantity", data.get("quantity", 0))),
-        product_type=_PRODUCT_MAP.get(
+        product_type=cast(ProductType, _PRODUCT_MAP.get(
             str(data.get("product", "I")).upper(), ProductType.INTRADAY
-        ),
+        )),
         average_price=to_decimal(
             data.get("buy_average_price", data.get("average_price", 0))
         ),
@@ -161,7 +162,7 @@ def map_position(data: dict) -> Position:
     )
 
 
-def map_holding(data: dict) -> Holding:
+def map_holding(data: dict[str, Any]) -> Holding:
     return Holding(
         symbol=data.get("trading_symbol", data.get("symbol", "")),
         exchange=data.get("exchange", ""),
@@ -172,7 +173,7 @@ def map_holding(data: dict) -> Holding:
     )
 
 
-def map_balance(data: dict) -> Balance:
+def map_balance(data: dict[str, Any]) -> Balance:
     if "data" in data:
         inner = data["data"]
         if isinstance(inner, dict):
@@ -194,13 +195,13 @@ def map_balance(data: dict) -> Balance:
     )
 
 
-def map_trade(data: dict) -> Trade:
+def map_trade(data: dict[str, Any]) -> Trade:
     return Trade(
         trade_id=str(data.get("trade_id", "")),
         order_id=str(data.get("order_id", "")),
         symbol=data.get("trading_symbol", data.get("symbol", "")),
         exchange=data.get("exchange", ""),
-        side=_SIDE_MAP.get(str(data.get("transaction_type", "BUY")).upper(), Side.BUY),
+        side=cast(Side, _SIDE_MAP.get(str(data.get("transaction_type", "BUY")).upper(), Side.BUY)),
         quantity=int(data.get("quantity", data.get("traded_quantity", 0))),
         price=to_decimal(data.get("average_price", data.get("price", 0))),
     )

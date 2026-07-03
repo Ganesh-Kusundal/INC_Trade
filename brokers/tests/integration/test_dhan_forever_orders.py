@@ -29,13 +29,15 @@ def test_place_forever_order_single():
     adapter = DhanForeverOrders(client, resolver)
 
     order = adapter.place_forever_order(
-        symbol="RELIANCE",
-        exchange="NSE",
-        side=Side.BUY,
-        quantity=50,
-        price=Decimal("2500"),
-        trigger_price=Decimal("2510"),
-        order_flag="SINGLE",
+        {
+            "symbol": "RELIANCE",
+            "exchange": "NSE",
+            "side": Side.BUY,
+            "quantity": 50,
+            "price": Decimal("2500"),
+            "trigger_price": Decimal("2510"),
+            "order_flag": "SINGLE",
+        }
     )
 
     assert isinstance(order, ForeverOrder)

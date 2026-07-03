@@ -46,13 +46,13 @@ try:
 
     _HAS_OTEL = True
 except ImportError:
-    _otel_trace = None  # type: ignore[assignment]
+    _otel_trace = None
     _HAS_OTEL = False
 
 try:
     from brokers.infrastructure.observability.opentelemetry_setup import otel_available as _otel_active
 except ImportError:
-    _otel_active = False  # type: ignore[assignment]
+    _otel_active = False
 
 
 def _get_tracer() -> Any:

@@ -37,11 +37,13 @@ class ResilientHttpClient:
         rate_limits: dict[str, float],
         categorize_fn: Callable[[str], str],
         url_builder_fn: Callable[[str], str],
-        response_handler_fn: Callable[[requests.Response], dict],
+        response_handler_fn: Callable[[requests.Response], dict[str, Any]],
         timeout: float = 10.0,
         session_factory: Callable[[], requests.Session] | None = None,
         token_refresh_fn: Callable[[], str | None] | None = None,
+        client_id: str = "",
     ):
+        self._client_id = client_id
         self._timeout = timeout
         self._session = session_factory() if session_factory else requests.Session()
         self._categorize_fn = categorize_fn
@@ -92,17 +94,21 @@ class ResilientHttpClient:
     def _write_breaker(self, val: CircuitBreaker) -> None:
         self._circuit_breakers["write"] = val
 
-    def get(self, endpoint: str, params: dict | None = None) -> dict:
-        return self._request("GET", endpoint, params=params)
+    @property
+    def client_id(self) -> str:
+        return self._client_id
 
-    def post(self, endpoint: str, json: dict | None = None) -> dict:
-        return self._request("POST", endpoint, json=json)
+    def get(self, endpoint: str, params: dict[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
+        return self._request("GET", endpoint, params=params, **kwargs)
 
-    def put(self, endpoint: str, json: dict | None = None) -> dict:
-        return self._request("PUT", endpoint, json=json)
+    def post(self, endpoint: str, json: dict[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
+        return self._request("POST", endpoint, json=json, **kwargs)
 
-    def delete(self, endpoint: str, params: dict | None = None) -> dict:
-        return self._request("DELETE", endpoint, params=params)
+    def put(self, endpoint: str, json: dict[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
+        return self._request("PUT", endpoint, json=json, **kwargs)
+
+    def delete(self, endpoint: str, params: dict[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
+        return self._request("DELETE", endpoint, params=params, **kwargs)
         
     def update_token(self, new_token: str) -> None:
         if "access-token" in self._session.headers:
@@ -113,22 +119,22 @@ class ResilientHttpClient:
             # Default to Authorization if neither exists
             self._session.headers["Authorization"] = f"Bearer {new_token}"
 
-    def _request(self, method: str, endpoint: str, **kwargs: Any) -> dict:
+    def _request(self, method: str, endpoint: str, **kwargs: Any) -> dict[str, Any]:
         category = self._categorize_fn(endpoint)
         cb = self._circuit_breakers.get(category, self._circuit_breakers["admin"])
 
         self._apply_rate_limit(endpoint)
 
-        def _do_request() -> dict:
+        def _do_request() -> dict[str, Any]:
             url = self._url_builder_fn(endpoint)
             resp = self._session.request(method, url, timeout=self._timeout, **kwargs)
             return self._response_handler_fn(resp)
 
         try:
-            return cb.call(
+            return dict(cb.call(
                 lambda: self._retry.call(_do_request),
                 ignored_exceptions=(AuthenticationError, RateLimitError, BrokerError),
-            )
+            ))
         except TokenRefreshSignal:
             logger.debug("token_refreshed_retrying", extra={"endpoint": endpoint})
             
@@ -141,10 +147,10 @@ class ResilientHttpClient:
                     logger.warning("token_refresh_failed", extra={"error": str(exc)})
                     
             try:
-                return cb.call(
+                return dict(cb.call(
                     lambda: self._retry.call(_do_request),
                     ignored_exceptions=(AuthenticationError, RateLimitError, BrokerError),
-                )
+                ))
             except Exception as exc:
                 if isinstance(exc, BrokerError):
                     raise

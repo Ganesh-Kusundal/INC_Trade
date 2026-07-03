@@ -9,7 +9,8 @@ from __future__ import annotations
 import logging
 import threading
 
-from brokers.ports.instruments import InstrumentInfo, InstrumentPort
+from brokers.domain import InstrumentInfo
+from brokers.ports.instruments import InstrumentPort
 
 logger = logging.getLogger(__name__)
 

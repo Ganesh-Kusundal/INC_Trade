@@ -7,6 +7,7 @@ via the CorrelationFilter in infrastructure.logging.
 
 from __future__ import annotations
 
+import collections.abc
 import contextlib
 import contextvars
 import uuid
@@ -29,7 +30,7 @@ def set_current_correlation_id(cid: str) -> contextvars.Token[str]:
 
 
 @contextlib.contextmanager
-def with_correlation(correlation_id: str | None = None):
+def with_correlation(correlation_id: str | None = None) -> collections.abc.Iterator[str]:
     cid = correlation_id or generate_correlation_id()
     token = _correlation_id_var.set(cid)
     try:

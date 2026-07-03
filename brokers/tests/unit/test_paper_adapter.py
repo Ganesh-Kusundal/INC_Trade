@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-
 from brokers.adapters.paper.gateway import PaperGateway
 from brokers.domain import (
     Side,
@@ -15,7 +14,17 @@ from brokers.ports import BrokerGateway
 class TestPaperGateway:
     def test_satisfies_protocol(self):
         gw = PaperGateway()
-        assert isinstance(gw, BrokerGateway)
+        # Use hasattr checks instead of isinstance for protocols with properties
+        assert hasattr(gw, "broker_id")
+        assert hasattr(gw, "capabilities")
+        assert hasattr(gw, "orders")
+        assert hasattr(gw, "market_data")
+        assert hasattr(gw, "portfolio")
+        assert hasattr(gw, "historical")
+        assert hasattr(gw, "instruments")
+        assert hasattr(gw, "auth")
+        assert hasattr(gw, "streaming")
+        assert hasattr(gw, "extensions")
 
     def test_place_order_returns_success(self):
         gw = PaperGateway()

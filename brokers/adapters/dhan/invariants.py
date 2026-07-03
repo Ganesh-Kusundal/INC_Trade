@@ -7,10 +7,12 @@ segment code leaks into the wire payload.
 
 from __future__ import annotations
 
+from typing import Any
+
 from brokers.adapters.dhan.config import DHAN_SEGMENTS
 
 
-def assert_valid_dhan_payload(payload: dict, *, context: str = "") -> None:
+def assert_valid_dhan_payload(payload: dict[str, Any], *, context: str = "") -> None:
     """Verify securityId + exchangeSegment before HTTP call.
 
     Raises ValueError if:

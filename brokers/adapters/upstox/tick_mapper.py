@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Any
 
 from brokers.domain import Quote
 from brokers.utils.price import to_decimal
 
 
-def frame_to_quote(frame: dict) -> Quote | None:
+def frame_to_quote(frame: dict[str, Any]) -> Quote | None:
     if not isinstance(frame, dict):
         return None
     ltp_raw = frame.get("ltp", frame.get("last_price"))
@@ -27,7 +28,7 @@ def frame_to_quote(frame: dict) -> Quote | None:
     )
 
 
-def frame_to_tick_dict(frame: dict) -> dict | None:
+def frame_to_tick_dict(frame: dict[str, Any]) -> dict[str, Any] | None:
     """Legacy dict tick for callers expecting mapping shape."""
     quote = frame_to_quote(frame)
     if quote is None:

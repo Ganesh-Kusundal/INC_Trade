@@ -114,7 +114,7 @@ class DhanInstrumentResolver:
         logger.info("dhan_instruments_loaded", extra={"count": count})
 
     @staticmethod
-    def _row_to_ref(row: dict) -> DhanInstrumentRef | None:
+    def _row_to_ref(row: dict[str, str]) -> DhanInstrumentRef | None:
         symbol = (row.get("SEM_TRADING_SYMBOL") or "").strip()
         security_id = (row.get("SEM_SMST_SECURITY_ID") or "").strip()
         if not symbol or not security_id:

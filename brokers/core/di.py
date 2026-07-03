@@ -128,16 +128,16 @@ class Container:
             raise ServiceNotFoundError(f"Service '{name}' is not registered.")
 
         if scope == "singleton":
-            return self._resolve_singleton(name, factory)
+            return self._resolve_singleton(name, factory)  # type: ignore[arg-type]
         elif scope == "transient":
-            return self._resolve_transient(name, factory)
+            return self._resolve_transient(name, factory)  # type: ignore[arg-type]
         elif scope == "request":
-            return self._resolve_request(name, factory)
+            return self._resolve_request(name, factory)  # type: ignore[arg-type]
         else:
             # instance scope
             return self._singletons[name]
 
-    def _resolve_singleton(self, name: str, factory: Callable) -> Any:
+    def _resolve_singleton(self, name: str, factory: Callable[[], Any]) -> Any:
         """Resolve a singleton service."""
         with self._lock:
             if name in self._singletons:
@@ -163,7 +163,7 @@ class Container:
             self._singletons[name] = instance
         return instance
 
-    def _resolve_transient(self, name: str, factory: Callable) -> Any:
+    def _resolve_transient(self, name: str, factory: Callable[[], Any]) -> Any:
         """Resolve a transient service (new instance each time)."""
         with self._lock:
             if name in self._resolving:
@@ -182,7 +182,7 @@ class Container:
             with self._lock:
                 self._resolving.discard(name)
 
-    def _resolve_request(self, name: str, factory: Callable) -> Any:
+    def _resolve_request(self, name: str, factory: Callable[[], Any]) -> Any:
         """Resolve a request-scoped service."""
         return self._scope_manager.resolve(name, factory)
 
