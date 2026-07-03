@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+import urllib.parse
 from typing import Callable
 
 import requests
@@ -25,9 +26,37 @@ from brokers.domain.exceptions import (
     BrokerServerError,
     RateLimitError,
 )
+from brokers.resilience.circuit_breaker import CircuitBreaker
+from brokers.infrastructure.ssl_hardening import create_pinned_session
 from brokers.resilience.http_client import BaseResilientHttpClient, TokenRefreshSignal
 
 logger = logging.getLogger(__name__)
+
+
+# ── Circuit Breaker Categories ───────────────────────────────────────────
+# Dhan-specific circuit breaker factory with per-category thresholds
+ORDERS_FAILURE_THRESHOLD = 3
+DEFAULT_FAILURE_THRESHOLD = 5
+RECOVERY_TIMEOUT_MS = 30_000
+SUCCESS_THRESHOLD = 3
+
+
+def create_circuit_breakers() -> dict[str, CircuitBreaker]:
+    """Create all Dhan circuit breakers and return as a dict.
+
+    Returns:
+        Dict mapping category name to CircuitBreaker instance.
+        Keys: 'orders', 'market_data', 'portfolio', 'admin'
+    """
+    # CircuitBreaker expects positional args: (failure_threshold, recovery_timeout, success_threshold)
+    return {
+        "orders": CircuitBreaker(ORDERS_FAILURE_THRESHOLD, 30.0, SUCCESS_THRESHOLD),
+        "market_data": CircuitBreaker(
+            DEFAULT_FAILURE_THRESHOLD, 30.0, SUCCESS_THRESHOLD
+        ),
+        "portfolio": CircuitBreaker(DEFAULT_FAILURE_THRESHOLD, 30.0, SUCCESS_THRESHOLD),
+        "admin": CircuitBreaker(DEFAULT_FAILURE_THRESHOLD, 30.0, SUCCESS_THRESHOLD),
+    }
 
 
 class DhanHttpClient(BaseResilientHttpClient):
@@ -49,8 +78,8 @@ class DhanHttpClient(BaseResilientHttpClient):
 
     def __init__(
         self,
-        access_token: str,
         client_id: str,
+        access_token: str,
         base_url: str = "",
         timeout: float = 10.0,
         token_refresh_fn: Callable[[], str | None] | None = None,
@@ -58,7 +87,7 @@ class DhanHttpClient(BaseResilientHttpClient):
         refresh_cooldown_seconds: float = _REFRESH_COOLDOWN_SECONDS,
         rate_limit_backoff_seconds: float = _RATE_LIMIT_BACKOFF_SECONDS,
     ):
-        super().__init__(rate_limits=RATE_LIMITS, timeout=timeout)
+        super().__init__(rate_limits=RATE_LIMITS, timeout=timeout, session_factory=create_pinned_session)
         self._access_token = access_token
         self._client_id = client_id
         self._base_url = base_url or ENDPOINTS["orders"].rsplit("/orders", 1)[0]
@@ -103,11 +132,12 @@ class DhanHttpClient(BaseResilientHttpClient):
         logger.debug("http_client_token_updated")
 
     def _categorize(self, endpoint: str) -> str:
+        path = urllib.parse.urlparse(endpoint).path
         for prefix in READ_PREFIXES:
-            if endpoint.startswith(prefix):
+            if path.startswith(prefix):
                 return "read"
         for prefix in WRITE_PREFIXES:
-            if endpoint.startswith(prefix):
+            if path.startswith(prefix):
                 return "write"
         return "admin"
 

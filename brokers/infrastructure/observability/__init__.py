@@ -1,7 +1,7 @@
 """Observability layer -- health checks, audit logging, metrics, alerting, and tracing.
 
 This package provides:
-- :class:`HealthCheck`, :class:`HealthStatus`, :class:`HealthResult` -- health check primitives
+- :class:`HealthCheck`, :class:`CheckResult`, :class:`HealthResult` -- health check primitives
 - :class:`BrokerConnectivityHealthCheck` -- per-broker REST + WebSocket health
 - :class:`AuditLogger`, :class:`AuditEvent` -- structured audit events with correlation ID
 - :class:`EventMetrics` -- thread-safe event counters with Prometheus exposition
@@ -56,10 +56,10 @@ from brokers.infrastructure.observability.event_metrics import (
 )
 from brokers.infrastructure.observability.health_check import (
     BrokerConnectivityHealthCheck,
+    CheckResult,
     HealthCheck,
     HealthRegistry,
     HealthResult,
-    HealthStatus,
     health_registry,
     register_broker_health_check,
 )
@@ -77,10 +77,10 @@ from brokers.infrastructure.observability.tracing import (
 __all__ = [
     # Health checks
     "BrokerConnectivityHealthCheck",
+    "CheckResult",
     "HealthCheck",
     "HealthRegistry",
     "HealthResult",
-    "HealthStatus",
     "health_registry",
     "register_broker_health_check",
     # Audit

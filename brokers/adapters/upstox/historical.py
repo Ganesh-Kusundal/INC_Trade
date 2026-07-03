@@ -6,39 +6,31 @@ import logging
 from datetime import datetime
 from decimal import Decimal
 
-from brokers.adapters.upstox.config import EXCHANGE_TO_SEGMENT
+from brokers.adapters.upstox.config import _INTERVAL_MAP
 from brokers.adapters.upstox.http import UpstoxHttpClient
+from brokers.adapters.upstox.instruments import resolve_upstox_instrument_key
+from brokers.adapters.upstox.instruments import UpstoxInstruments
+from brokers.adapters.upstox.mapper import unwrap_data
+from brokers.config.endpoints import _UpstoxUrls
 from brokers.domain.entities import Candle
 
 logger = logging.getLogger(__name__)
 
-_INTERVAL_MAP = {
-    "1m": "minute",
-    "1M": "minute",
-    "1": "minute",
-    "5m": "5minute",
-    "5M": "5minute",
-    "5": "5minute",
-    "15m": "15minute",
-    "15M": "15minute",
-    "15": "15minute",
-    "30m": "30minute",
-    "30M": "30minute",
-    "30": "30minute",
-    "60m": "60minute",
-    "60M": "60minute",
-    "60": "60minute",
-    "1D": "day",
-    "D": "day",
-    "DAY": "day",
-    "1W": "week",
-    "W": "week",
-}
-
 
 class UpstoxHistorical:
-    def __init__(self, client: UpstoxHttpClient):
+    def __init__(
+        self,
+        client: UpstoxHttpClient,
+        *,
+        urls: _UpstoxUrls,
+        instruments: UpstoxInstruments | None = None,
+    ):
         self._client = client
+        self._urls = urls
+        self._instruments = instruments
+
+    def _instrument_key(self, symbol: str, exchange: str) -> str:
+        return resolve_upstox_instrument_key(symbol, exchange, self._instruments)
 
     def get_historical_candles(
         self,
@@ -48,8 +40,7 @@ class UpstoxHistorical:
         end_time: datetime,
         resolution: str,
     ) -> list[Candle]:
-        segment = EXCHANGE_TO_SEGMENT.get(exchange.upper(), exchange)
-        instrument_key = f"{segment}|{symbol}"
+        instrument_key = self._instrument_key(symbol, exchange)
         interval = _INTERVAL_MAP.get(resolution, resolution)
 
         from_date = start_time.strftime("%Y-%m-%d")
@@ -58,8 +49,31 @@ class UpstoxHistorical:
         endpoint = (
             f"/v2/historical-candle/{instrument_key}/{interval}/{to_date}/{from_date}"
         )
-        data = self._client.get(endpoint)
-        return self._parse(data, symbol)
+        try:
+            data = self._client.get(endpoint)
+            return self._parse(data, symbol)
+        except Exception as exc:
+            logger.warning("Historical fetch failed for %s: %s", symbol, exc)
+            return []
+
+    def get_intraday_candles_v3(
+        self,
+        symbol: str,
+        exchange: str,
+        unit: str,
+        interval: int,
+        to_date: str,
+    ) -> list[Candle]:
+        instrument_key = self._instrument_key(symbol, exchange)
+        url = self._urls.intraday_candle_v3_url(
+            instrument_key, unit, interval, to_date
+        )
+        try:
+            data = self._client.get(url)
+            return self._parse(data, symbol)
+        except Exception as exc:
+            logger.warning("V3 intraday fetch failed for %s: %s", symbol, exc)
+            return []
 
     def get_candles(
         self,
@@ -76,7 +90,7 @@ class UpstoxHistorical:
 
     @staticmethod
     def _parse(data: dict, symbol: str) -> list[Candle]:
-        inner = data.get("data", data) if isinstance(data, dict) else data
+        inner = unwrap_data(data, default=data)
         if isinstance(inner, dict):
             candles_raw = inner.get("candles", [])
         else:

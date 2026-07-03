@@ -7,7 +7,7 @@ import logging
 from decimal import Decimal
 from typing import Any, Callable
 
-from brokers.adapters.dhan.config import EXCHANGE_MAP
+from brokers.adapters.dhan.segments import resolve_segment
 from brokers.infrastructure.websocket_pool import (
     WebSocketConnection,
     WebSocketConnectionPool,
@@ -131,14 +131,14 @@ class PooledDhanStreaming:
 
     def subscribe(self, symbol: str, exchange: str = "NSE") -> None:
         """Subscribe to symbol."""
-        segment = EXCHANGE_MAP.get(exchange.upper(), exchange)
+        segment = resolve_segment(exchange)
         key = f"{segment}|{symbol}"
         conn = self._get_connection()
         conn.subscribe(key)
 
     def unsubscribe(self, symbol: str, exchange: str = "NSE") -> None:
         """Unsubscribe from symbol."""
-        segment = EXCHANGE_MAP.get(exchange.upper(), exchange)
+        segment = resolve_segment(exchange)
         key = f"{segment}|{symbol}"
         conn = self._get_connection()
         conn.unsubscribe(key)
@@ -251,14 +251,14 @@ class PooledDhanDepth20Stream:
 
     def subscribe(self, symbol: str, exchange: str = "NSE") -> None:
         """Subscribe to symbol."""
-        segment = EXCHANGE_MAP.get(exchange.upper(), exchange)
+        segment = resolve_segment(exchange)
         key = f"{segment}|{symbol}"
         conn = self._get_connection()
         conn.subscribe(key)
 
     def unsubscribe(self, symbol: str, exchange: str = "NSE") -> None:
         """Unsubscribe from symbol."""
-        segment = EXCHANGE_MAP.get(exchange.upper(), exchange)
+        segment = resolve_segment(exchange)
         key = f"{segment}|{symbol}"
         conn = self._get_connection()
         conn.unsubscribe(key)
@@ -373,14 +373,14 @@ class PooledDhanDepth200Stream:
 
     def subscribe(self, symbol: str, exchange: str = "NSE") -> None:
         """Subscribe to symbol."""
-        segment = EXCHANGE_MAP.get(exchange.upper(), exchange)
+        segment = resolve_segment(exchange)
         key = f"{segment}|{symbol}"
         conn = self._get_connection()
         conn.subscribe(key)
 
     def unsubscribe(self, symbol: str, exchange: str = "NSE") -> None:
         """Unsubscribe from symbol."""
-        segment = EXCHANGE_MAP.get(exchange.upper(), exchange)
+        segment = resolve_segment(exchange)
         key = f"{segment}|{symbol}"
         conn = self._get_connection()
         conn.unsubscribe(key)

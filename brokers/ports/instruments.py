@@ -6,27 +6,12 @@ implement this to provide symbol search and resolution.
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, runtime_checkable
+
+from brokers.domain.entities import InstrumentInfo
 
 
-class InstrumentInfo:
-    __slots__ = ("symbol", "exchange", "segment", "name", "lot_size")
-
-    def __init__(
-        self,
-        symbol: str,
-        exchange: str,
-        segment: str = "",
-        name: str = "",
-        lot_size: int = 1,
-    ):
-        self.symbol = symbol
-        self.exchange = exchange
-        self.segment = segment
-        self.name = name
-        self.lot_size = lot_size
-
-
+@runtime_checkable
 class InstrumentPort(Protocol):
     def search(self, query: str, limit: int = 10) -> list[InstrumentInfo]: ...
     def resolve(self, symbol: str, exchange: str = "NSE") -> InstrumentInfo | None: ...

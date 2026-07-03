@@ -184,6 +184,10 @@ class _PaperStreaming(StreamingPort):
     async def disconnect(self) -> None:
         pass
 
+    @property
+    def is_connected(self) -> bool:
+        return True
+
     async def subscribe_quotes(
         self,
         symbols: list[str],
@@ -219,6 +223,20 @@ class PaperGateway:
         self._auth = _PaperAuth()
         self._historical = _PaperHistorical()
         self._streaming = _PaperStreaming()
+
+    @property
+    def broker_id(self) -> str:
+        return "paper"
+
+    def capabilities(self) -> BrokerCapabilities:
+        from brokers.domain.capabilities import BrokerCapabilities
+        return BrokerCapabilities(
+            broker_id="paper",
+            supports_place_order=True,
+            supports_cancel_order=True,
+            supports_historical_data=True,
+            supports_live_market_data=True,
+        )
 
     @property
     def orders(self) -> _PaperOrders:

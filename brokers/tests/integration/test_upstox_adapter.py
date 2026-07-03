@@ -309,7 +309,11 @@ class TestUpstoxAuth:
         assert gw.auth.get_token() == "tok"
         gw.close()
 
-    def test_not_authenticated_without_token(self):
+    @patch(
+        "brokers.adapters.upstox.gateway.UpstoxSettingsLoader.from_env",
+        side_effect=ValueError("no env"),
+    )
+    def test_not_authenticated_without_token(self, _mock_env):
         gw = UpstoxGateway(access_token="")
         assert not gw.auth.is_authenticated()
         gw.close()

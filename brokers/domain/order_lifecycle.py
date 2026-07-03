@@ -7,9 +7,10 @@ in the table is considered invalid and should raise OrderStateError.
 from __future__ import annotations
 
 from brokers.domain.enums import OrderStatus
+from brokers.domain.exceptions import TradeXV2Error
 
 
-class OrderStateError(Exception):
+class OrderStateError(TradeXV2Error):
     """Raised when an illegal order status transition is attempted."""
 
 

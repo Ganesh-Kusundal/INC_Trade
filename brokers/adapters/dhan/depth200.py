@@ -1,160 +1,250 @@
-"""Dhan Depth 200 adapter — L3 Market Data via WebSocket."""
+"""Dhan Depth 200 adapter — L3 Market Data via WebSocket.
+
+Thin subclass of BinaryDepthFeed that preserves backward-compatible API for
+depth-200 feeds. See archived brokers.dhan.depth_200.DhanDepth200Feed for reference.
+
+Endpoint: wss://full-depth-api.dhan.co/twohundreddepth
+Max instruments: 1 per connection (Dhan API limitation)
+Header layout: num_rows at offset 8 (security_id is implicit per connection)
+
+IMPORTANT LIMITATION: Dhan's depth-200 API only supports ONE instrument per connection.
+Use Depth200ConnectionPool for managing multiple instruments.
+"""
 
 from __future__ import annotations
 
-import json
 import logging
-from typing import Callable, Any
+from threading import RLock
+from typing import TYPE_CHECKING, Dict, Tuple
 
-from brokers.adapters.base_streaming import BaseWebSocketStreaming
-from brokers.adapters.dhan.config import EXCHANGE_MAP
+from brokers.adapters.dhan.segments import resolve_segment
+from brokers.adapters.dhan.depth_feed_base import BinaryDepthFeed
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
+from brokers.adapters.dhan.resilience.websocket_rate_limiter_simple import (
+    get_dhan_ws_rate_limiter,
+)
+from brokers.config.endpoints import Dhan
+from brokers.domain import MarketDepth
+
+if TYPE_CHECKING:
+    from typing import TypeAlias
 
 logger = logging.getLogger(__name__)
 
-# 200-level market depth websocket URL
-WS_URL = "wss://full-depth-api.dhan.co/twohundreddepth"
+__all__ = ["DhanDepth200Stream", "Depth200ConnectionPool"]
+
+InstrumentKey: TypeAlias = Tuple[str, str]
 
 
-class DhanDepth200Stream(BaseWebSocketStreaming):
-    """Real-time Depth 200 (L3) market data via Dhan WebSocket."""
+class DhanDepth200Stream(BinaryDepthFeed):
+    """200-level market depth via WebSocket.
+
+    CRITICAL LIMITATION: Only 1 instrument per connection allowed.
+    """
+
+    name = "dhan.depth_200"
+    REQUEST_CODE = 23
+    DEPTH_TYPE = "DEPTH_200"
+    EVENT_NAME = "DEPTH_200"
 
     def __init__(
         self,
         access_token: str | Callable[[], str],
         client_id: str,
         resolver: DhanInstrumentResolver | None = None,
-        ws_url: str = WS_URL,
-        reconnect_delay: float = 5.0,
-        max_reconnect_delay: float = 60.0,
+        instrument: tuple[str, str] | None = None,
+        event_bus: Any = None,
     ):
         super().__init__(
-            ws_url=ws_url,
-            reconnect_delay=reconnect_delay,
-            max_reconnect_delay=max_reconnect_delay,
-            log_prefix="dhan_depth200",
+            client_id=client_id,
+            access_token=access_token if not callable(access_token) else access_token(),
+            endpoint=Dhan.WS_DEPTH_200,
+            request_code=self.REQUEST_CODE,
+            total_slots=200,
+            subs_per_connection=1,
+            depth_type="DEPTH_200",
+            name=self.name,
+            event_name="DEPTH_200",
+            header_carries_security_id=False,
+            event_bus=event_bus,
         )
-        self._access_token = access_token
-        self._client_id = client_id
+        self._access_token_fn = access_token if callable(access_token) else None
         self._resolver = resolver
 
-        self.on_depth_update: Callable[[dict], Any] | None = None
+        if instrument:
+            self.subscribe(instrument)
+
+    # ── Backward-compatible subscribe (single instrument) ───────────────────
 
     def subscribe(self, symbol: str, exchange: str = "NSE") -> None:
+        """Subscribe using symbol+exchange (backward compatible API)."""
         try:
             ref = self._resolver.resolve(symbol, exchange)
             if ref:
-                key = f"{ref.exchange_segment}|{ref.security_id}"
-                super().subscribe(key)
-                logger.info(
-                    f"Depth200 subscribed to {symbol} ({exchange}) as key {key}"
-                )
+                key = (ref.exchange_segment, ref.security_id)
+                super().subscribe([key])
+                logger.info(f"Depth200 subscribed to {symbol} ({exchange})")
             else:
-                segment = EXCHANGE_MAP.get(exchange.upper(), exchange)
-                super().subscribe(f"{segment}|{symbol}")
+                segment = resolve_segment(exchange)
+                super().subscribe([(segment, symbol)])
         except Exception as e:
             logger.error(
                 f"Depth200 failed to resolve/subscribe {symbol} on {exchange}: {e}"
             )
-            segment = EXCHANGE_MAP.get(exchange.upper(), exchange)
-            super().subscribe(f"{segment}|{symbol}")
+            segment = resolve_segment(exchange)
+            super().subscribe([(segment, symbol)])
 
     def unsubscribe(self, symbol: str, exchange: str = "NSE") -> None:
+        """Unsubscribe using symbol+exchange (backward compatible API)."""
         try:
             ref = self._resolver.resolve(symbol, exchange)
             if ref:
-                key = f"{ref.exchange_segment}|{ref.security_id}"
-                super().unsubscribe(key)
-                logger.info(
-                    f"Depth200 unsubscribed from {symbol} ({exchange}) as key {key}"
-                )
+                key = (ref.exchange_segment, ref.security_id)
+                super().unsubscribe([key])
+                logger.info(f"Depth200 unsubscribed from {symbol} ({exchange})")
         except Exception as e:
             logger.error(
                 f"Depth200 failed to resolve/unsubscribe {symbol} on {exchange}: {e}"
             )
-            segment = EXCHANGE_MAP.get(exchange.upper(), exchange)
-            super().unsubscribe(f"{segment}|{symbol}")
+
+    # ── Depth-200 specific lookup: single-instrument cache ─────────────────
+
+    def latest_depth(self) -> MarketDepth | None:
+        """Return the most-recent cached MarketDepth."""
+        with self._depth_cache_lock:
+            if not self._depth_cache:
+                return None
+            entry = next(iter(self._depth_cache.values()))
+            bids = list(entry.get("bids", []))
+            asks = list(entry.get("asks", []))
+        if not bids and not asks:
+            return None
+        sec_id = next(iter(self._depth_cache))
+        return MarketDepth(
+            symbol=self._sec_id_to_symbol.get(sec_id, ""),
+            bids=bids,
+            asks=asks,
+        )
 
     def update_token(self, new_token: str) -> None:
-        self._access_token = new_token
+        """Update token and reconnect with fresh auth."""
+        if self._access_token_fn:
+            self._access_token = new_token
+        super().update_token(new_token)
 
-    def _get_access_token(self) -> str:
-        if callable(self._access_token):
-            return self._access_token()
-        return self._access_token
 
-    def _get_ws_url(self) -> str:
-        token = self._get_access_token()
-        return f"{self._ws_url}?token={token}&clientId={self._client_id}&authType=2"
+# =============================================================================
+# Depth200ConnectionPool - Connection pooling for multiple instruments
+# =============================================================================
 
-    def _get_ws_headers(self) -> dict[str, str]:
-        # Auth handled via query parameters, no headers required
-        return {}
 
-    def _build_subscribe_message(self, keys: list[str]) -> str:
-        instrument_list = []
-        for key in keys:
-            parts = key.split("|")
-            if len(parts) == 2:
-                instrument_list.append(
-                    {"ExchangeSegment": parts[0], "SecurityId": parts[1]}
+class Depth200ConnectionPool:
+    """Connection pool for managing multiple Dhan depth-200 WebSocket connections.
+
+    Since Dhan's depth-200 API only supports 1 instrument per connection,
+    this pool creates and manages separate connections for each instrument.
+    """
+
+    def __init__(
+        self,
+        client_id: str,
+        access_token: str | Callable[[], str],
+        event_bus: Any = None,
+        resolver: DhanInstrumentResolver | None = None,
+        max_connections: int | None = None,
+    ):
+        self._client_id = client_id
+        self._access_token = access_token
+        self._event_bus = event_bus
+        self._resolver = resolver
+        self._max_connections = max_connections
+        self._feeds: Dict[Tuple[str, str], DhanDepth200Stream] = {}
+        self._lock = RLock()
+
+    def get_feed(self, instrument: InstrumentKey) -> DhanDepth200Stream:
+        """Get or create a feed for the given instrument."""
+        with self._lock:
+            if instrument in self._feeds:
+                return self._feeds[instrument]
+
+            # Check rate limiting for new connections
+            try:
+                ws_rate_limiter = get_dhan_ws_rate_limiter()
+                if not ws_rate_limiter.can_create_depth_200_connection():
+                    import time as time_module
+
+                    while not ws_rate_limiter.can_create_depth_200_connection():
+                        time_module.sleep(0.1)
+            except Exception:
+                pass  # Rate limiter not available, proceed
+
+            # Enforce max connections limit
+            if self._max_connections and len(self._feeds) >= self._max_connections:
+                oldest_key = next(iter(self._feeds))
+                self._feeds[oldest_key].stop()
+                del self._feeds[oldest_key]
+                logger.warning(
+                    "depth_200_pool_eviction",
+                    extra={
+                        "evicted_instrument": oldest_key,
+                        "new_instrument": instrument,
+                    },
                 )
 
-        # Dhan limits depth200 to 1 instrument per connection.
-        if instrument_list:
-            instrument_list = [instrument_list[0]]
+            feed = DhanDepth200Stream(
+                client_id=self._client_id,
+                access_token=self._access_token,
+                resolver=self._resolver,
+                instrument=instrument,
+                event_bus=self._event_bus,
+            )
+            self._feeds[instrument] = feed
+            logger.debug(
+                "depth_200_pool_feed_created",
+                extra={"instrument": instrument, "total_feeds": len(self._feeds)},
+            )
+            return feed
 
-        return json.dumps(
-            {
-                "RequestCode": 23,
-                "InstrumentCount": len(instrument_list),
-                "InstrumentList": instrument_list,
-            }
-        )
+    def has_feed(self, instrument: InstrumentKey) -> bool:
+        with self._lock:
+            return instrument in self._feeds
 
-    def _build_unsubscribe_message(self, keys: list[str]) -> str:
-        return json.dumps(
-            {"RequestCode": 24, "InstrumentCount": 0, "InstrumentList": []}
-        )
+    def remove_feed(self, instrument: InstrumentKey) -> bool:
+        with self._lock:
+            if instrument in self._feeds:
+                self._feeds[instrument].stop()
+                del self._feeds[instrument]
+                return True
+            return False
 
-    def _on_message(self, ws, message: str | bytes) -> None:
-        try:
-            if isinstance(message, bytes):
-                import struct
+    def get_all_feeds(self) -> list[DhanDepth200Stream]:
+        with self._lock:
+            return list(self._feeds.values())
 
-                # Binary structure parsing for depth200
-                if len(message) >= 12:
-                    header = struct.unpack("<HBBII", message[:12])
-                    response_code = header[1]
-                    num_rows = header[3]
+    def get_instruments(self) -> list[InstrumentKey]:
+        with self._lock:
+            return list(self._feeds.keys())
 
-                    levels = []
-                    for i in range(200):
-                        offset = 12 + (i * 16)
-                        if offset + 16 > len(message):
-                            break
-                        price, qty, orders = struct.unpack_from("<dII", message, offset)
-                        if qty > 0:
-                            levels.append(
-                                {
-                                    "price": round(price, 2),
-                                    "quantity": qty,
-                                    "orders": orders,
-                                }
-                            )
+    def close_all(self) -> None:
+        with self._lock:
+            for instrument, feed in list(self._feeds.items()):
+                try:
+                    feed.stop()
+                except Exception as e:
+                    logger.error(
+                        "depth_200_pool_feed_close_error",
+                        extra={"instrument": instrument, "error": str(e)},
+                    )
+            self._feeds.clear()
+        logger.info("depth_200_pool_all_closed")
 
-                    data = {
-                        "response_code": response_code,
-                        "side": "bids" if response_code == 41 else "asks",
-                        "num_rows": num_rows,
-                        "levels": levels,
-                        "is_binary": True,
-                    }
-                    if self.on_depth_update:
-                        self.on_depth_update(data)
-            else:
-                data = json.loads(message)
-                if self.on_depth_update:
-                    self.on_depth_update(data)
-        except Exception as e:
-            logger.warning(f"Failed to parse depth200 stream message: {e}")
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._feeds)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close_all()
+        return False

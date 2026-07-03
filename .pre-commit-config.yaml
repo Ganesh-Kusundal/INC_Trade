@@ -1,0 +1,26 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^brokers/
+      - id: ruff-format
+        files: ^brokers/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-requests]
+        files: ^brokers/(domain|ports|services)/
+        args: [--config-file=pyproject.toml]
+
+  - repo: local
+    hooks:
+      - id: architecture-boundaries
+        name: architecture boundary check
+        entry: python -m pytest brokers/tests/unit/test_architecture.py -x -q --no-header -k "test_boundary"
+        language: system
+        files: \.py$
+        pass_filenames: false

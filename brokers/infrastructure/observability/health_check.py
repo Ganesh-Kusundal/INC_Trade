@@ -35,8 +35,8 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-class HealthStatus(str, Enum):
-    """Health status enumeration.
+class CheckResult(str, Enum):
+    """Health check result enumeration.
 
     OK: Fully operational — all checks passing.
     DEGRADED: Partially operational — some checks failing or performance degraded.
@@ -62,7 +62,7 @@ class HealthResult:
         Optional dictionary with additional context about the check.
     """
 
-    status: HealthStatus
+    status: CheckResult
     message: str
     details: dict[str, Any] | None = None
 
@@ -146,7 +146,7 @@ class HealthRegistry:
                     extra={"name": name, "error": str(exc)},
                 )
                 results[name] = HealthResult(
-                    status=HealthStatus.DOWN,
+                    status=CheckResult.DOWN,
                     message=f"Health check failed: {type(exc).__name__}: {exc}",
                 )
         return results
@@ -202,7 +202,7 @@ class BrokerConnectivityHealthCheck(HealthCheck):
             details["instrument_count"] = desc.get("instrument_count", 0)
         except Exception as exc:
             return HealthResult(
-                status=HealthStatus.DOWN,
+                status=CheckResult.DOWN,
                 message=f"REST API unreachable: {type(exc).__name__}: {exc}",
                 details={"rest_api": f"error: {exc}"},
             )
@@ -226,7 +226,7 @@ class BrokerConnectivityHealthCheck(HealthCheck):
         # No WebSocket streams configured (analytics-only, paper, etc.)
         if not connection_status:
             return HealthResult(
-                status=HealthStatus.OK,
+                status=CheckResult.OK,
                 message="REST API reachable, no WebSocket streams configured",
                 details=details,
             )
@@ -237,13 +237,13 @@ class BrokerConnectivityHealthCheck(HealthCheck):
 
         if not disconnected:
             return HealthResult(
-                status=HealthStatus.OK,
+                status=CheckResult.OK,
                 message=f"All {len(connected)} stream(s) connected",
                 details=details,
             )
         elif connected:
             return HealthResult(
-                status=HealthStatus.DEGRADED,
+                status=CheckResult.DEGRADED,
                 message=(
                     f"{len(connected)}/{len(connection_status)} stream(s) connected; "
                     f"disconnected: {disconnected}"
@@ -252,7 +252,7 @@ class BrokerConnectivityHealthCheck(HealthCheck):
             )
         else:
             return HealthResult(
-                status=HealthStatus.DOWN,
+                status=CheckResult.DOWN,
                 message=f"All WebSocket streams disconnected: {list(connection_status.keys())}",
                 details=details,
             )
@@ -281,10 +281,10 @@ def register_broker_health_check(broker_id: str, gateway: Any) -> None:
 
 __all__ = [
     "BrokerConnectivityHealthCheck",
+    "CheckResult",
     "HealthCheck",
     "HealthRegistry",
     "HealthResult",
-    "HealthStatus",
     "health_registry",
     "register_broker_health_check",
 ]

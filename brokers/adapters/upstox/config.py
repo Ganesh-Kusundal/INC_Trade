@@ -1,46 +1,19 @@
-"""Upstox adapter configuration — endpoints, rate limits, and mapping tables."""
+"""Upstox adapter configuration — rate limits and mapping tables.
+
+REST URLs live in ``brokers.config.endpoints.Upstox`` — use ``urls.resolve_upstox_urls``.
+"""
 
 from __future__ import annotations
 
-V2_BASE = "https://api.upstox.com/v2"
-HFT_BASE = "https://api-hft.upstox.com/v3"
-
-ENDPOINTS = {
-    "place_order": f"{HFT_BASE}/orders/interactive",
-    "modify_order": f"{HFT_BASE}/orders/interactive",
-    "cancel_order": f"{HFT_BASE}/orders/interactive/{{order_id}}",
-    "order_book": f"{HFT_BASE}/orders",
-    "order_details": f"{HFT_BASE}/orders/{{order_id}}",
-    "trades": f"{HFT_BASE}/trades",
-    "ltp": f"{V2_BASE}/market/quote/ltp",
-    "quote": f"{V2_BASE}/market/quote",
-    "ohlc": f"{V2_BASE}/market/quote/ohlc",
-    "depth": f"{V2_BASE}/market/quote",
-    "positions": f"{V2_BASE}/portfolio/short-term-positions",
-    "holdings": f"{V2_BASE}/portfolio/long-term-holdings",
-    "funds": f"{V2_BASE}/user/get-funds-and-margin",
-    "instruments": f"{V2_BASE}/contracts/MASTER",
-    "profile": f"{V2_BASE}/user/profile",
-}
-
-CONTRACT_URLS = {
-    "NSE": f"{V2_BASE}/contracts/MASTER/NSE",
-    "BSE": f"{V2_BASE}/contracts/MASTER/BSE",
-    "NSE_FO": f"{V2_BASE}/contracts/MASTER/NSE_FO",
-    "BSE_FO": f"{V2_BASE}/contracts/MASTER/BSE_FO",
-    "MCX_FO": f"{V2_BASE}/contracts/MASTER/MCX_FO",
-    "NCD_FO": f"{V2_BASE}/contracts/MASTER/NCD_FO",
-}
-
 RATE_LIMITS = {
-    "/market/quote": 10.0,
+    "/market-quote": 10.0,
     "/orders": 25.0,
     "/portfolio": 5.0,
     "/user": 5.0,
 }
 
 READ_PREFIXES = (
-    "/market/quote",
+    "/market-quote",
     "/portfolio",
     "/user",
     "/contracts",
@@ -95,4 +68,45 @@ INSTRUMENT_CSV_COLUMNS = {
     "instrument_type": "instrument",
     "lot_size": "lot_size",
     "tick_size": "tick_size",
+}
+
+_INTERVAL_MAP = {
+    "1m": "minute",
+    "1M": "minute",
+    "1": "minute",
+    "5m": "5minute",
+    "5M": "5minute",
+    "5": "5minute",
+    "15m": "15minute",
+    "15M": "15minute",
+    "15": "15minute",
+    "30m": "30minute",
+    "30M": "30minute",
+    "30": "30minute",
+    "60m": "60minute",
+    "60M": "60minute",
+    "60": "60minute",
+    "1D": "day",
+    "D": "day",
+    "DAY": "day",
+    "1W": "week",
+    "W": "week",
+}
+
+ORDER_TYPE_MAP_REVERSE = {
+    "MARKET": "MARKET", "MKT": "MARKET", "LIMIT": "LIMIT", "LMT": "LIMIT",
+    "SL": "STOP_LOSS", "STOP_LOSS": "STOP_LOSS", "SL-M": "STOP_LOSS_MARKET", "SLM": "STOP_LOSS_MARKET",
+}
+PRODUCT_MAP_REVERSE = {
+    "I": "INTRADAY", "D": "DELIVERY", "MTF": "DELIVERY",
+}
+SIDE_MAP_REVERSE = {
+    "BUY": "BUY", "SELL": "SELL",
+}
+VALIDITY_MAP_REVERSE = {
+    "DAY": "DAY", "IOC": "IOC",
+}
+STATUS_MAP = {
+    "OPEN": "OPEN", "COMPLETE": "FILLED", "CANCELED": "CANCELLED", "CANCELLED": "CANCELLED",
+    "REJECTED": "REJECTED", "MODIFY_PENDING": "PENDING", "OPEN_PENDING": "PENDING", "TRIGGER_PENDING": "PENDING",
 }

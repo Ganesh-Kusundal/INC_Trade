@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
 
 from brokers.adapters.dhan.http import DhanHttpClient
@@ -12,10 +12,11 @@ from brokers.adapters.dhan.identity import DhanInstrumentRef, DhanInstrumentReso
 
 logger = logging.getLogger(__name__)
 
-# Dhan futures symbol format in CSV: "SILVER-03Jul2026-FUT", "NIFTY-31Jul2026-FUT"
-# MCX options: "SILVER-28Jul2026-272000-CE"
+# Dhan futures symbol formats:
+#   "NIFTY-31Jul2026-FUT" (day+month+year)
+#   "NIFTY-Aug2026-FUT"   (month+year only)
 _EXPIRY_PATTERN = re.compile(
-    r"^(?P<underlying>.+?)-(?P<expiry>\d{2}[A-Za-z]{3}\d{4})-",
+    r"^(?P<underlying>.+?)-(?P<expiry>\d{2}[A-Za-z]{3}\d{4}|[A-Za-z]{3}\d{4})-",
     re.IGNORECASE,
 )
 
@@ -36,11 +37,16 @@ def _parse_expiry(symbol: str) -> datetime | None:
     m = _EXPIRY_PATTERN.match(symbol)
     if not m:
         return None
-    expiry_str = m.group("expiry")  # e.g. "03Jul2026"
+    expiry_str = m.group("expiry")
     try:
-        day = int(expiry_str[:2])
-        month_abbr = expiry_str[2:5].lower()
-        year = int(expiry_str[5:])
+        if expiry_str[0].isdigit():
+            day = int(expiry_str[:2])
+            month_abbr = expiry_str[2:5].lower()
+            year = int(expiry_str[5:])
+        else:
+            day = 1
+            month_abbr = expiry_str[:3].lower()
+            year = int(expiry_str[3:])
         month = _MONTH_MAP.get(month_abbr)
         if month is None:
             return None
@@ -64,6 +70,22 @@ class DhanFutures:
         self._client = client
         self._resolver = resolver
 
+    def _iter_futures_refs(self, underlying: str) -> list[DhanInstrumentRef]:
+        """Scan loaded instruments for futures matching *underlying* prefix."""
+        query = underlying.strip().upper()
+        if not self._resolver._loaded:
+            self._resolver.load()
+        prefix = f"{query}-"
+        matches: list[DhanInstrumentRef] = []
+        with self._resolver._lock:
+            for ref in self._resolver._by_security_id.values():
+                if ref.instrument_type not in FUTURES_INSTRUMENT_TYPES:
+                    continue
+                sym = ref.symbol.upper()
+                if sym == query or sym.startswith(prefix):
+                    matches.append(ref)
+        return matches
+
     def get_contract(
         self,
         underlying: str,
@@ -86,22 +108,13 @@ class DhanFutures:
         DhanInstrumentRef | None
             The resolved futures instrument reference, or None if not found.
         """
-        query = underlying.strip().upper()
-        results = self._resolver.search(query, limit=500)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
-        # Filter to futures only matching the underlying prefix
         futures_with_expiry: list[tuple[datetime, DhanInstrumentRef]] = []
-        now = datetime.utcnow()
-
-        for ref in results:
-            if ref.instrument_type not in FUTURES_INSTRUMENT_TYPES:
-                continue
-            if not ref.symbol.upper().startswith(query):
-                continue
+        for ref in self._iter_futures_refs(underlying):
             expiry = _parse_expiry(ref.symbol)
             if expiry is None:
                 continue
-            # Only include active (non-expired) contracts
             if expiry < now:
                 continue
             futures_with_expiry.append((expiry, ref))
@@ -113,7 +126,6 @@ class DhanFutures:
             )
             return None
 
-        # Sort by expiry date ascending: nearest first
         futures_with_expiry.sort(key=lambda x: x[0])
 
         index_map = {"CURRENT": 0, "NEXT": 1, "FAR": 2}
@@ -147,30 +159,12 @@ class DhanFutures:
         underlying: str,
         exchange: str,
     ) -> list[DhanInstrumentRef]:
-        """Return all active futures contracts for an underlying, sorted by expiry.
-
-        Parameters
-        ----------
-        underlying : str
-            Underlying symbol (e.g., "NIFTY", "SILVER").
-        exchange : str
-            Exchange code (e.g., "NSE", "MCX").
-
-        Returns
-        -------
-        list[DhanInstrumentRef]
-            Active futures contracts sorted nearest expiry first.
-        """
-        query = underlying.strip().upper()
-        results = self._resolver.search(query, limit=500)
-        now = datetime.utcnow()
+        """Return all active futures contracts for an underlying, sorted by expiry."""
+        del exchange  # segment resolved via instrument refs
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         futures_with_expiry: list[tuple[datetime, DhanInstrumentRef]] = []
-        for ref in results:
-            if ref.instrument_type not in FUTURES_INSTRUMENT_TYPES:
-                continue
-            if not ref.symbol.upper().startswith(query):
-                continue
+        for ref in self._iter_futures_refs(underlying):
             expiry = _parse_expiry(ref.symbol)
             if expiry is None:
                 continue

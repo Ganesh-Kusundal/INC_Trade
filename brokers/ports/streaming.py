@@ -2,26 +2,32 @@
 
 from __future__ import annotations
 
-import abc
-from typing import Any, Callable
+from typing import Any, Callable, Protocol, runtime_checkable
 
-from brokers.domain.entities import Quote
+from brokers.domain.entities import MarketDepth, Quote
 
 
-class StreamingPort(abc.ABC):
-    """Abstract port for real-time WebSocket streaming."""
+@runtime_checkable
+class StreamingPort(Protocol):
+    """Protocol for real-time WebSocket streaming.
 
-    @abc.abstractmethod
+    Provides both market data streaming and order/portfolio streaming.
+    All implementations must map broker-native ticks to canonical domain models.
+    """
+
     async def connect(self) -> None:
         """Establish the WebSocket connection."""
         ...
 
-    @abc.abstractmethod
     async def disconnect(self) -> None:
         """Close the WebSocket connection."""
         ...
 
-    @abc.abstractmethod
+    @property
+    def is_connected(self) -> bool:
+        """Return connection status."""
+        ...
+
     async def subscribe_quotes(
         self,
         symbols: list[str],
@@ -41,7 +47,6 @@ class StreamingPort(abc.ABC):
         """
         ...
 
-    @abc.abstractmethod
     async def unsubscribe_quotes(
         self,
         symbols: list[str],

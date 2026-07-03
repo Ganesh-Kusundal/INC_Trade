@@ -6,7 +6,7 @@ infrastructure, frameworks, or external packages.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 
@@ -17,6 +17,7 @@ from brokers.domain.enums import (
     Side,
     Validity,
 )
+from brokers.domain.error_codes import IDEMPOTENCY_CONFLICT, LIVE_ORDERS_DISABLED
 
 
 @dataclass(frozen=True)
@@ -61,7 +62,7 @@ class OrderResponse:
         return cls(
             success=False,
             message="Live order submission is disabled",
-            error_code="LIVE_ORDERS_DISABLED",
+            error_code=LIVE_ORDERS_DISABLED,
         )
 
     @classmethod
@@ -70,7 +71,7 @@ class OrderResponse:
             order_id=order_id,
             success=False,
             message="Order already executed (idempotency conflict)",
-            error_code="IDEMPOTENCY_CONFLICT",
+            error_code=IDEMPOTENCY_CONFLICT,
         )
 
 
@@ -158,6 +159,31 @@ class Balance:
 
 
 @dataclass(frozen=True)
+class InstrumentInfo:
+    symbol: str
+    exchange: str
+    segment: str = ""
+    name: str = ""
+    lot_size: int = 1
+
+
+@dataclass(frozen=True)
+class RiskCheckRequest:
+    symbol: str
+    exchange: str
+    side: Side
+    quantity: int
+    price: Decimal = Decimal("0")
+    order_type: OrderType = OrderType.MARKET
+
+
+@dataclass(frozen=True)
+class RiskCheckResult:
+    allowed: bool
+    reason: str = ""
+
+
+@dataclass(frozen=True)
 class Candle:
     symbol: str
     timestamp: datetime
@@ -166,3 +192,58 @@ class Candle:
     low: Decimal
     close: Decimal
     volume: int
+
+
+@dataclass(frozen=True)
+class UserProfile:
+    user_id: str = ""
+    name: str = ""
+    email: str = ""
+    mobile: str = ""
+    broker: str = ""
+    raw: dict = field(default_factory=dict, repr=False)
+
+
+@dataclass(frozen=True)
+class IpoInfo:
+    company_name: str = ""
+    symbol: str = ""
+    status: str = ""
+    price_min: Decimal = Decimal("0")
+    price_max: Decimal = Decimal("0")
+    raw: dict = field(default_factory=dict, repr=False)
+
+
+@dataclass(frozen=True)
+class MutualFundHolding:
+    name: str = ""
+    units: Decimal = Decimal("0")
+    current_value: Decimal = Decimal("0")
+    raw: dict = field(default_factory=dict, repr=False)
+
+
+@dataclass(frozen=True)
+class OptionChainEntry:
+    strike_price: Decimal = Decimal("0")
+    option_type: str = ""
+    last_price: Decimal = Decimal("0")
+    oi: int = 0
+    volume: int = 0
+    raw: dict = field(default_factory=dict, repr=False)
+
+
+@dataclass(frozen=True)
+class OptionChain:
+    underlying: str = ""
+    expiry: str = ""
+    entries: tuple[OptionChainEntry, ...] = ()
+    raw: dict = field(default_factory=dict, repr=False)
+
+
+@dataclass(frozen=True)
+class NewsItem:
+    headline: str = ""
+    summary: str = ""
+    source: str = ""
+    timestamp: datetime | None = None
+    raw: dict = field(default_factory=dict, repr=False)

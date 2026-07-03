@@ -192,11 +192,13 @@ class TestUpstoxStreaming:
         assert not s.is_connected
 
     def test_parse_tick(self):
-        tick = UpstoxStreaming._parse_tick(
+        from brokers.adapters.upstox.tick_mapper import frame_to_tick_dict
+
+        tick = frame_to_tick_dict(
             {
                 "symbol": "RELIANCE",
                 "exchange": "NSE",
-                "last_price": 2500.50,
+                "ltp": 2500.50,
                 "volume": 100000,
             }
         )

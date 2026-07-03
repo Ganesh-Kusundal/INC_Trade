@@ -7,13 +7,16 @@ and optional persistence.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import threading
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from brokers.adapters.dhan.alerts import DhanAlerts
 from brokers.adapters.dhan.auth import DhanAuth
+from brokers.adapters.dhan.capabilities import dhan_capabilities
 from brokers.adapters.dhan.conditional_triggers import DhanConditionalTriggers
 from brokers.adapters.dhan.depth20 import DhanDepth20Stream
 from brokers.adapters.dhan.depth200 import DhanDepth200Stream
@@ -25,25 +28,29 @@ from brokers.adapters.dhan.extensions.super_orders import DhanSuperOrders
 from brokers.adapters.dhan.futures import DhanFutures
 from brokers.adapters.dhan.historical import DhanHistorical
 from brokers.adapters.dhan.http import DhanHttpClient
-from brokers.adapters.dhan.identity import DhanInstrumentResolver
+from brokers.adapters.dhan.identity import DhanInstrumentRef, DhanInstrumentResolver
 from brokers.adapters.dhan.instruments import DhanInstruments
 from brokers.adapters.dhan.ip_management import DhanIpManagement
 from brokers.adapters.dhan.ledger import DhanLedger
 from brokers.adapters.dhan.market_data import DhanMarketData
 from brokers.adapters.dhan.mtf import DhanMTF
 from brokers.adapters.dhan.options import DhanOptions
-from brokers.adapters.dhan.orders import DhanOrders
 from brokers.adapters.dhan.order_stream import DhanOrderStream
+from brokers.adapters.dhan.orders import DhanOrders
 from brokers.adapters.dhan.portfolio import DhanPortfolio
 from brokers.adapters.dhan.reconciliation import DhanReconciliation
 from brokers.adapters.dhan.streaming import DhanStreaming
 from brokers.adapters.dhan.symbol_validator import DhanSymbolValidator
 from brokers.adapters.dhan.token_broadcast import TokenBroadcast
 from brokers.adapters.dhan.user_profile import DhanUserProfile
+from brokers.domain import MarketDepth
+from brokers.domain.capabilities import BrokerCapabilities
+from brokers.infrastructure.event_bus import EventBus
 from brokers.infrastructure.token_persistence import (
     JsonTokenStateStore,
     update_env_token,
 )
+from brokers.ports.risk_manager import RiskManagerPort
 from brokers.ports.streaming import StreamingPort
 from brokers.resilience.token_scheduler import TokenRefreshScheduler
 
@@ -75,6 +82,17 @@ class DhanGateway:
         lifecycle: Optional lifecycle manager to register scheduler with.
     """
 
+    _broker_id: str = "dhan"
+
+    @property
+    def broker_id(self) -> str:
+        """Canonical broker identifier."""
+        return self._broker_id
+
+    def capabilities(self) -> BrokersCapabilities:
+        """Return Dhan broker capability matrix."""
+        return dhan_capabilities()
+
     def __init__(
         self,
         access_token: str | None = None,
@@ -88,6 +106,8 @@ class DhanGateway:
         refresh_interval_seconds: int = 60,
         refresh_buffer_seconds: float = 300.0,
         lifecycle: Any | None = None,
+        event_bus: EventBus | None = None,
+        risk_manager: RiskManagerPort | None = None,
     ):
         self._env_path = env_path
         self._token_state_dir = token_state_dir
@@ -112,15 +132,19 @@ class DhanGateway:
 
         token = self._auth.get_token()
         self._client = DhanHttpClient(
-            access_token=token,
             client_id=client_id or "",
+            access_token=token,
             token_refresh_fn=self._refresh_token_for_http,
             refresh_lock=self._refresh_lock,
         )
 
         self._resolver = DhanInstrumentResolver()
         self._orders = DhanOrders(
-            self._client, self._resolver, allow_live_orders=allow_live_orders
+            self._client,
+            self._resolver,
+            allow_live_orders=allow_live_orders,
+            event_bus=event_bus,
+            risk_manager=risk_manager,
         )
         self._market_data = DhanMarketData(self._client, self._resolver)
         self._portfolio = DhanPortfolio(self._client)
@@ -141,7 +165,7 @@ class DhanGateway:
         self._alerts = DhanAlerts(self._client)
         self._ip_management = DhanIpManagement(self._client)
         self._user_profile = DhanUserProfile(self._client)
-        self._reconciliation = DhanReconciliation(self._portfolio)
+        self._reconciliation = DhanReconciliation(self._orders, self._portfolio)
         self._symbol_validator = DhanSymbolValidator(self._resolver)
 
         self._streaming = DhanStreaming(
@@ -230,6 +254,72 @@ class DhanGateway:
                 update_env_token(self._env_path, token)
             except Exception as exc:
                 logger.warning("env_token_persist_failed", extra={"error": str(exc)})
+
+    @property
+    def resolver(self) -> DhanInstrumentResolver:
+        return self._resolver
+
+    def resolve_ref(
+        self,
+        symbol: str,
+        exchange: str,
+        *,
+        expected_segment: str | None = None,
+    ) -> DhanInstrumentRef:
+        return self._resolver.resolve(
+            symbol, exchange, expected_segment=expected_segment
+        )
+
+    def depth_20_snapshot(
+        self,
+        symbol: str,
+        exchange: str = "NSE",
+        on_depth: Callable[[MarketDepth], Any] | None = None,
+    ) -> MarketDepth:
+        """Subscribe depth-20 feed and return merged REST/WS snapshot."""
+        ref = self._resolver.resolve(symbol, exchange)
+        sid = ref.security_id_int()
+        feed = self._depth20_stream
+        if on_depth is not None:
+            feed.on_depth(on_depth)
+        feed.subscribe(symbol, exchange)
+        feed.register_symbol(sid, symbol)
+        if not getattr(feed, "is_connected", getattr(feed, "_is_connected", False)):
+            feed.start()
+        cached = feed.latest_depth(sid)
+        if cached is not None and cached.bids and cached.asks:
+            return cached
+        rest = self._market_data.depth(symbol, exchange)
+        if cached is None:
+            return rest
+        bids = cached.bids if cached.bids else rest.bids
+        asks = cached.asks if cached.asks else rest.asks
+        return MarketDepth(
+            symbol=symbol,
+            bids=list(bids),
+            asks=list(asks),
+            timestamp=cached.timestamp or rest.timestamp,
+        )
+
+    def stream_market(
+        self,
+        symbol: str,
+        exchange: str = "NSE",
+        mode: str = "LTP",
+        on_tick: Callable[[dict], Any] | None = None,
+    ) -> None:
+        """Subscribe to live market feed in LTP, QUOTE, or FULL mode."""
+        self._streaming.set_mode(mode)
+        if on_tick is not None:
+            self._streaming.register_tick_handler(symbol, exchange, on_tick)
+        self._streaming.subscribe(symbol, exchange)
+        if not self._streaming.is_connected:
+            self._streaming.start()
+
+    def unstream_market(self, symbol: str, exchange: str = "NSE") -> None:
+        """Unsubscribe and stop the market feed for one symbol."""
+        self._streaming.unsubscribe(symbol, exchange)
+        self._streaming.stop()
 
     @property
     def orders(self) -> DhanOrders:
@@ -349,15 +439,85 @@ class DhanGateway:
             "auth_valid": self._auth.is_valid(),
             "scheduler": self._scheduler.health() if self._scheduler else None,
             "broadcast": self._broadcast.token_refresh_metrics,
+            "connections": self.get_connection_status(),
+            "circuit_breakers": self.get_circuit_breaker_states(),
         }
         return result
+
+    def get_connection_status(self) -> dict[str, bool]:
+        """Per-feed WebSocket connection status (ObservabilityProvider parity)."""
+        return {
+            "market_feed": self._streaming.is_connected,
+            "order_stream": self._order_stream.is_connected,
+            "depth_20": self._feed_connected(self._depth20_stream),
+            "depth_200": self._feed_connected(self._depth200_stream),
+            "has_active_subscriptions": bool(
+                getattr(self._streaming, "_subscriptions", None)
+                and len(self._streaming._subscriptions) > 0
+            ),
+        }
+
+    @staticmethod
+    def _feed_connected(feed: Any) -> bool:
+        connected = getattr(feed, "is_connected", None)
+        if callable(connected):
+            return bool(connected())
+        if connected is not None:
+            return bool(connected)
+        return bool(getattr(feed, "_is_connected", False))
+
+    def get_connection_metadata(self) -> dict[str, Any]:
+        """Non-bool diagnostic metadata for feeds."""
+        metadata: dict[str, Any] = {}
+        with contextlib.suppress(Exception):
+            if hasattr(self._streaming, "health"):
+                health = self._streaming.health()
+                metrics = getattr(health, "metrics", None) or {}
+                metadata["market_feed_stale"] = bool(metrics.get("is_stale", False))
+        return metadata
+
+    def get_circuit_breaker_states(self) -> dict[str, int]:
+        """Circuit breaker states: 0=CLOSED, 1=OPEN, 2=HALF_OPEN."""
+        return self._client.circuit_breaker_states()
+
+    def get_token_refresh_metrics(self) -> dict[str, int]:
+        """Token refresh counters from broadcast + scheduler."""
+        metrics = dict(self._broadcast.token_refresh_metrics)
+        if self._scheduler is not None:
+            sched = self._scheduler.health()
+            if isinstance(sched, dict):
+                metrics["scheduler_restarts"] = int(sched.get("restart_count", 0))
+        return metrics
 
     def close(self) -> None:
         """Stop scheduler, streaming, and close HTTP client."""
         if self._scheduler is not None:
             self._scheduler.stop()
-        self._streaming.stop()
-        self._order_stream.stop()
-        self._depth20_stream.stop()
-        self._depth200_stream.stop()
+
+        pool = getattr(self, "_depth_200_pool", None)
+        if pool is None:
+            pool = getattr(self._depth200_stream, "_pool", None)
+        if pool is not None:
+            with contextlib.suppress(Exception):
+                pool.close_all()
+
+        for feed in (
+            self._streaming,
+            self._order_stream,
+            self._depth20_stream,
+            self._depth200_stream,
+        ):
+            self._stop_feed(feed)
+
         self._client.close()
+
+    @staticmethod
+    def _stop_feed(feed: Any) -> None:
+        stop = getattr(feed, "stop", None)
+        if stop is not None:
+            with contextlib.suppress(Exception):
+                stop()
+        admission = getattr(feed, "_admission", None)
+        if admission is not None:
+            with contextlib.suppress(Exception):
+                admission.release()

@@ -7,7 +7,9 @@ Circuit Breakers, and Retries uniformly.
 from __future__ import annotations
 
 import logging
+import urllib.parse
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from typing import Any
 
 import requests
@@ -22,11 +24,6 @@ from brokers.resilience.circuit_breaker import CircuitBreaker
 from brokers.resilience.rate_limiter import TokenBucketRateLimiter
 from brokers.resilience.retry import RetryPolicy
 
-try:
-    from brokers.infrastructure.ssl_hardening import create_pinned_session
-except ImportError:
-    create_pinned_session = None  # type: ignore[assignment]
-
 logger = logging.getLogger(__name__)
 
 
@@ -39,12 +36,10 @@ class BaseResilientHttpClient(ABC):
         self,
         rate_limits: dict[str, float],
         timeout: float = 10.0,
+        session_factory: Callable[[], requests.Session] | None = None,
     ):
         self._timeout = timeout
-        if create_pinned_session is not None:
-            self._session = create_pinned_session()
-        else:
-            self._session = requests.Session()
+        self._session = session_factory() if session_factory else requests.Session()
 
         self._rate_limiters: dict[str, TokenBucketRateLimiter] = {}
         for endpoint, rate in rate_limits.items():
@@ -65,6 +60,7 @@ class BaseResilientHttpClient(ABC):
             retryable_exceptions=(
                 requests.exceptions.RequestException,
                 BrokerServerError,
+                RateLimitError,
             ),
         )
 
@@ -129,9 +125,10 @@ class BaseResilientHttpClient(ABC):
             raise BrokerError(str(exc)) from exc
 
     def _apply_rate_limit(self, endpoint: str) -> None:
+        path = urllib.parse.urlparse(endpoint).path
         matched = None
         for prefix, limiter in self._rate_limiters.items():
-            if endpoint.startswith(prefix):
+            if path.startswith(prefix):
                 matched = limiter
                 break
         if matched:
@@ -139,6 +136,20 @@ class BaseResilientHttpClient(ABC):
 
     def close(self) -> None:
         self._session.close()
+
+    def circuit_breaker_states(self) -> dict[str, int]:
+        """Map breaker states to ints: 0=CLOSED, 1=OPEN, 2=HALF_OPEN."""
+        from brokers.resilience.circuit_breaker import CircuitState
+
+        mapping = {
+            CircuitState.CLOSED: 0,
+            CircuitState.OPEN: 1,
+            CircuitState.HALF_OPEN: 2,
+        }
+        return {
+            name: mapping[breaker.state]
+            for name, breaker in self._circuit_breakers.items()
+        }
 
     @abstractmethod
     def _categorize(self, endpoint: str) -> str:

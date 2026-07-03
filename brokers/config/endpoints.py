@@ -182,6 +182,19 @@ class _UpstoxUrls:
     def place_order_v3_url(self) -> str:
         return f"{self._hft()}/order/place"
 
+    def orders_interactive_url(self) -> str:
+        """HFT interactive order place/modify endpoint."""
+        return f"{self._hft()}/orders/interactive"
+
+    def cancel_order_interactive_url(self, order_id: str) -> str:
+        return f"{self._hft()}/orders/interactive/{order_id}"
+
+    def order_details_interactive_url(self, order_id: str) -> str:
+        return f"{self._hft()}/orders/{order_id}"
+
+    def orders_book_interactive_url(self) -> str:
+        return f"{self._hft()}/orders"
+
     def modify_order_v3_url(self) -> str:
         return f"{self._hft()}/order/modify"
 

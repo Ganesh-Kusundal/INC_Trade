@@ -7,12 +7,13 @@ implement this to provide order placement, cancellation, and queries.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from brokers.domain.entities import Order, OrderResponse
 from brokers.domain.enums import OrderType, ProductType, Side, Validity
 
 
+@runtime_checkable
 class OrderExecutionPort(Protocol):
     def place_order(
         self,

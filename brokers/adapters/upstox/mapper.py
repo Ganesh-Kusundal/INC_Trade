@@ -25,42 +25,27 @@ from brokers.domain.enums import (
     Side,
     Validity,
 )
+from brokers.adapters.upstox.config import (
+    ORDER_TYPE_MAP_REVERSE as _ORDER_TYPE_MAP,
+    PRODUCT_MAP_REVERSE as _PRODUCT_MAP,
+    SIDE_MAP_REVERSE as _SIDE_MAP,
+    STATUS_MAP as _STATUS_MAP,
+    VALIDITY_MAP_REVERSE as _VALIDITY_MAP,
+)
 from brokers.utils.price import to_decimal
 
-_STATUS_MAP = {
-    "OPEN": OrderStatus.OPEN,
-    "COMPLETE": OrderStatus.FILLED,
-    "CANCELED": OrderStatus.CANCELLED,
-    "CANCELLED": OrderStatus.CANCELLED,
-    "REJECTED": OrderStatus.REJECTED,
-    "MODIFY_PENDING": OrderStatus.PENDING,
-    "OPEN_PENDING": OrderStatus.PENDING,
-    "TRIGGER_PENDING": OrderStatus.PENDING,
-}
 
-_ORDER_TYPE_MAP = {
-    "MARKET": OrderType.MARKET,
-    "MKT": OrderType.MARKET,
-    "LIMIT": OrderType.LIMIT,
-    "LMT": OrderType.LIMIT,
-    "SL": OrderType.STOP_LOSS,
-    "STOP_LOSS": OrderType.STOP_LOSS,
-    "SL-M": OrderType.STOP_LOSS_MARKET,
-    "SLM": OrderType.STOP_LOSS_MARKET,
-}
+def unwrap_data(response: dict, default=None):
+    """Extract the 'data' field from an Upstox API response.
 
-_SIDE_MAP = {"BUY": Side.BUY, "SELL": Side.SELL}
-
-_PRODUCT_MAP = {
-    "I": ProductType.INTRADAY,
-    "D": ProductType.DELIVERY,
-    "MTF": ProductType.DELIVERY,
-}
-
-_VALIDITY_MAP = {
-    "DAY": Validity.DAY,
-    "IOC": Validity.IOC,
-}
+    Upstox wraps all responses in {"data": ...}. This helper
+    unwraps that envelope, returning `default` if missing.
+    """
+    if default is None:
+        default = []
+    if isinstance(response, dict):
+        return response.get("data", default)
+    return default
 
 
 def map_order(data: dict) -> Order:

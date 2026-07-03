@@ -1,0 +1,74 @@
+[project]
+name = "inc-trade"
+version = "0.1.0"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["brokers"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B", "SIM", "TCH", "RUF"]
+ignore = ["E501", "B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["brokers"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "brokers.adapters.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+module = "brokers.infrastructure.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+module = "brokers.config.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+module = "brokers.tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["brokers/tests"]
+addopts = ["--strict-markers", "--tb=short", "-q"]
+markers = [
+    "integration: live or integration tests requiring broker credentials",
+    "upstox: Upstox broker integration tests",
+    "dhan: Dhan broker integration tests",
+    "sandbox: sandbox environment tests",
+    "performance: latency and performance benchmarks",
+    "regression: regression suite tests",
+    "off_market_safe: safe to run outside market hours",
+    "market_hours: requires NSE market hours",
+    "architecture: architecture boundary and invariant tests",
+]
+
+[tool.coverage.run]
+source = ["brokers"]
+branch = true
+omit = ["brokers/tests/*", "brokers/scripts/*", "brokers/adapters/proto/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 90
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "if __name__ == .__main__.", "raise NotImplementedError", "@overload"]

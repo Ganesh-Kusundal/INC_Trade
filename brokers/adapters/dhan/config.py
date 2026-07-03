@@ -2,36 +2,17 @@
 
 from __future__ import annotations
 
+from brokers.adapters.dhan.endpoints import ENDPOINTS, REST_BASE
 
-REST_BASE = "https://api.dhan.co/v2"
-
-ENDPOINTS = {
-    "generate_token": "https://auth.dhan.co/app/generateAccessToken",
-    "orders": f"{REST_BASE}/orders",
-    "order_by_id": f"{REST_BASE}/orders/{{order_id}}",
-    "modify_order": f"{REST_BASE}/orders",
-    "cancel_order": f"{REST_BASE}/orders/{{order_id}}",
-    "orderbook": f"{REST_BASE}/orders",
-    "tradebook": f"{REST_BASE}/tradebook",
-    "positions": f"{REST_BASE}/positions",
-    "holdings": f"{REST_BASE}/holdings",
-    "fund_limit": f"{REST_BASE}/fundlimit",
-    "quote": f"{REST_BASE}/marketfeed/quote",
-    "ltp": f"{REST_BASE}/marketfeed/ltp",
-    "ohlc": f"{REST_BASE}/marketfeed/ohlc",
-    "option_chain": f"{REST_BASE}/optionchain",
-    "historical": f"{REST_BASE}/charts/historical",
-    "instruments": "https://images.dhan.co/api-data/api-scrip-master.csv",
-    "slice_order": f"{REST_BASE}/orders/slice",
-}
+EQUITY_ONLY_PRODUCTS: frozenset[str] = frozenset({"DELIVERY", "CNC"})
 
 RATE_LIMITS = {
     "/marketfeed/quote": 1.0,  # 1 req/s
-    "/marketfeed/ltp": 0.15,  # ~6.7 req/s (documented 10 req/s)
-    "/marketfeed/ohlc": 0.15,  # ~6.7 req/s (documented 10 req/s)
-    "/optionchain": 0.35,  # ~2.9 req/s (documented 3 req/s)
-    "/charts/": 0.15,  # ~6.7 req/s (documented 10 req/s)
-    "/orders": 0.04,  # 25 req/s
+    "/marketfeed/ltp": 6.67,  # ~6.7 req/s (documented 10 req/s)
+    "/marketfeed/ohlc": 6.67,  # ~6.7 req/s (documented 10 req/s)
+    "/optionchain": 2.85,  # ~2.9 req/s (documented 3 req/s)
+    "/charts/": 6.67,  # ~6.7 req/s (documented 10 req/s)
+    "/orders": 25.0,  # 25 req/s
 }
 
 READ_PREFIXES = (

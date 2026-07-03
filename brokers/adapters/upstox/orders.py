@@ -1,35 +1,53 @@
-"""Upstox orders adapter — place, cancel, query orders."""
+"""Upstox orders adapter — place, cancel, query orders with production safety guards."""
 
 from __future__ import annotations
 
 import logging
 from decimal import Decimal
 
-from brokers.adapters.upstox.config import (
-    ENDPOINTS,
-    EXCHANGE_TO_SEGMENT,
-    ORDER_TYPE_MAP,
-    PRODUCT_TYPE_MAP,
-    VALIDITY_MAP,
-)
+from brokers.adapters.upstox.config import ORDER_TYPE_MAP, PRODUCT_TYPE_MAP, VALIDITY_MAP
 from brokers.adapters.upstox.http import UpstoxHttpClient
-from brokers.adapters.upstox.mapper import map_order, map_order_response
+from brokers.adapters.upstox.idempotency import InMemoryIdempotencyCache
+from brokers.adapters.upstox.instruments import resolve_upstox_instrument_key
+from brokers.adapters.upstox.instruments import UpstoxInstruments
+from brokers.adapters.upstox.mapper import map_order, map_order_response, unwrap_data
+from brokers.config.endpoints import _UpstoxUrls
 from brokers.domain import Order, OrderResponse
-from brokers.domain.enums import OrderType, ProductType, Side, Validity
+from brokers.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
 from brokers.utils.price import to_wire_float
 
 logger = logging.getLogger(__name__)
 
 
-def _instrument_key(symbol: str, exchange: str) -> str:
-    segment = EXCHANGE_TO_SEGMENT.get(exchange.upper(), exchange)
-    return f"{segment}|{symbol}"
-
-
 class UpstoxOrders:
-    def __init__(self, client: UpstoxHttpClient, allow_live_orders: bool = True):
+    def __init__(
+        self,
+        client: UpstoxHttpClient,
+        urls: _UpstoxUrls,
+        allow_live_orders: bool = True,
+        analytics_only: bool = False,
+        idempotency_cache: InMemoryIdempotencyCache[OrderResponse] | None = None,
+        instruments: UpstoxInstruments | None = None,
+    ):
         self._client = client
+        self._urls = urls
         self._allow_live_orders = allow_live_orders
+        self._analytics_only = analytics_only
+        self._idempotency_cache = idempotency_cache or InMemoryIdempotencyCache()
+        self._instruments = instruments
+
+    def _resolve_key(self, symbol: str, exchange: str) -> str:
+        return resolve_upstox_instrument_key(symbol, exchange, self._instruments)
+
+    def _guard_live_order(self) -> OrderResponse | None:
+        if self._analytics_only:
+            return OrderResponse.fail(
+                "Analytics-only token cannot place or modify live orders",
+                error_code="ANALYTICS_ONLY",
+            )
+        if not self._allow_live_orders:
+            return OrderResponse.live_orders_disabled()
+        return None
 
     def place_order(
         self,
@@ -42,15 +60,19 @@ class UpstoxOrders:
         product_type: ProductType = ProductType.INTRADAY,
         validity: Validity = Validity.DAY,
         trigger_price: Decimal = Decimal("0"),
+        correlation_id: str = "",
+        is_amo: bool = False,
     ) -> OrderResponse:
-        if not self._allow_live_orders:
-            logger.warning(
-                "Live orders disabled — rejecting place_order for %s", symbol
-            )
-            raise PermissionError(
-                "Live orders disabled. Set allow_live_orders=True to enable."
-            )
-        instrument_token = _instrument_key(symbol, exchange)
+        blocked = self._guard_live_order()
+        if blocked is not None:
+            return blocked
+
+        if correlation_id:
+            cached = self._idempotency_cache.get(correlation_id)
+            if cached is not None:
+                return cached
+
+        instrument_token = self._resolve_key(symbol, exchange)
         payload = {
             "quantity": quantity,
             "product": PRODUCT_TYPE_MAP.get(product_type.value, "I"),
@@ -61,19 +83,39 @@ class UpstoxOrders:
             "transaction_type": side.value,
             "disclosed_quantity": 0,
             "trigger_price": to_wire_float(trigger_price) if trigger_price > 0 else 0.0,
-            "is_amo": False,
+            "is_amo": is_amo,
         }
-        data = self._client.post(ENDPOINTS["place_order"], json=payload)
-        return map_order_response(data)
+        if correlation_id:
+            payload["tag"] = correlation_id
+
+        data = self._client.post(self._urls.orders_interactive_url(), json=payload)
+        response = map_order_response(data)
+        if correlation_id and response.success:
+            self._idempotency_cache.put(correlation_id, response)
+        return response
 
     def cancel_order(self, order_id: str) -> OrderResponse:
-        endpoint = ENDPOINTS["cancel_order"].format(order_id=order_id)
+        blocked = self._guard_live_order()
+        if blocked is not None:
+            return blocked
+
+        endpoint = self._urls.cancel_order_interactive_url(order_id)
         data = self._client.delete(endpoint)
-        if isinstance(data, dict):
-            status = str(data.get("status", "")).lower()
-            if status in ("success", "ok"):
-                return OrderResponse(order_id=order_id, success=True)
-        return OrderResponse(order_id=order_id, success=True)
+        response = map_order_response(data) if isinstance(data, dict) else None
+        if response is None or not response.success:
+            response = OrderResponse(order_id=order_id, success=True)
+
+        if response.success:
+            order = self.get_order(order_id)
+            if order and order.status == OrderStatus.FILLED:
+                return OrderResponse(
+                    order_id=order_id,
+                    success=False,
+                    message="Order was already filled before cancel completed",
+                    error_code="ALREADY_EXECUTED",
+                    status=OrderStatus.FILLED,
+                )
+        return response
 
     def modify_order(
         self,
@@ -83,15 +125,11 @@ class UpstoxOrders:
         order_type: OrderType | None = None,
         validity: Validity | None = None,
     ) -> OrderResponse:
-        if not self._allow_live_orders:
-            logger.warning(
-                "Live orders disabled — rejecting modify_order for %s", order_id
-            )
-            raise PermissionError(
-                "Live orders disabled. Set allow_live_orders=True to enable."
-            )
-        endpoint = ENDPOINTS["modify_order"].format(order_id=order_id)
-        payload: dict = {}
+        blocked = self._guard_live_order()
+        if blocked is not None:
+            return blocked
+
+        payload: dict = {"order_id": order_id}
         if quantity is not None:
             payload["quantity"] = quantity
         if price is not None:
@@ -101,12 +139,11 @@ class UpstoxOrders:
         if validity is not None:
             payload["validity"] = VALIDITY_MAP.get(validity.value, "DAY")
 
-        data = self._client.put(endpoint, json=payload)
+        data = self._client.put(self._urls.orders_interactive_url(), json=payload)
         return map_order_response(data)
 
     def get_order(self, order_id: str) -> Order | None:
-        endpoint = ENDPOINTS["order_details"].format(order_id=order_id)
-        data = self._client.get(endpoint)
+        data = self._client.get(self._urls.order_details_interactive_url(order_id))
         if isinstance(data, dict) and "data" in data:
             inner = data["data"]
             if isinstance(inner, list) and inner:
@@ -116,8 +153,8 @@ class UpstoxOrders:
         return None
 
     def get_orderbook(self) -> list[Order]:
-        data = self._client.get(ENDPOINTS["order_book"])
-        orders_data = data.get("data", [])
+        data = self._client.get(self._urls.orders_book_interactive_url())
+        orders_data = unwrap_data(data)
         if isinstance(orders_data, list):
             return [map_order(o) for o in orders_data]
         return []

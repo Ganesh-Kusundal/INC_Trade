@@ -7,11 +7,12 @@ implement this to provide LTP, quotes, depth, and historical data.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from brokers.domain.entities import MarketDepth, Quote
 
 
+@runtime_checkable
 class MarketDataPort(Protocol):
     def ltp(self, symbol: str, exchange: str = "NSE") -> Decimal: ...
     def quote(self, symbol: str, exchange: str = "NSE") -> Quote: ...

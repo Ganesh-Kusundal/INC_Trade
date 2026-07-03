@@ -11,6 +11,14 @@ from brokers.domain.exceptions import AuthenticationError, TokenRateLimitError
 from brokers.infrastructure.token_persistence import TokenSource
 
 
+@pytest.fixture(autouse=True)
+def _mock_totp_cooldown(monkeypatch):
+    from brokers.infrastructure.totp_cooldown import TOTPCooldown
+    monkeypatch.setattr(TOTPCooldown, "check_allowed", lambda self: None)
+    monkeypatch.setattr(TOTPCooldown, "remaining_cooldown_seconds", lambda self: 0.0)
+    TOTPCooldown._instances.clear()
+
+
 class TestDhanAuth:
     def test_init_with_static_token(self):
         auth = DhanAuth(access_token="test-token", client_id="test-client")

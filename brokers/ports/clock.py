@@ -7,9 +7,10 @@ to control time deterministically.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 
+@runtime_checkable
 class ClockPort(Protocol):
     def now(self) -> datetime: ...
 

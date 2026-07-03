@@ -13,9 +13,12 @@ from typing import Any
 from brokers.domain.error_codes import (
     AUTH_ERROR,
     BROKER_DEGRADED,
+    BROKER_SERVER,
     CIRCUIT_OPEN,
     INSTRUMENT_NOT_FOUND,
+    NETWORK_ERROR,
     NOT_SUPPORTED,
+    ORDER_REJECTED,
     RATE_LIMITED,
 )
 
@@ -55,15 +58,21 @@ class NonRetryableError(BrokerError):
 class NetworkError(RetryableError):
     """Transport-level failure (connection reset, timeout, DNS)."""
 
+    def __init__(self, message: str, code: str = NETWORK_ERROR) -> None:
+        super().__init__(message, code=code)
+
 
 class BrokerServerError(BrokerError):
     """HTTP 5xx or unexpected server response."""
+
+    def __init__(self, message: str, code: str = BROKER_SERVER) -> None:
+        super().__init__(message, code=code)
 
 
 class OrderRejectedError(BrokerError):
     """Order rejected by validation or broker."""
 
-    def __init__(self, message: str, order_id: str = "", code: str = "") -> None:
+    def __init__(self, message: str, order_id: str = "", code: str = ORDER_REJECTED) -> None:
         self.order_id = order_id
         super().__init__(message, code=code)
 

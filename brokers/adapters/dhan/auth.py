@@ -19,6 +19,7 @@ from brokers.infrastructure.token_persistence import (
     TokenState,
     compute_token_expiry,
 )
+from brokers.infrastructure.totp_cooldown import TOTPCooldown, TotpRateLimitError
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ class DhanAuth:
         totp_secret: str | None = None,
         token_lifetime_seconds: int = 86400,
         token_store: Any | None = None,
+        totp_cooldown: TOTPCooldown | None = None,
     ):
         self._client_id = client_id or ""
         self._pin = pin
@@ -72,6 +74,7 @@ class DhanAuth:
         self._token_lifetime_seconds = token_lifetime_seconds
         self._state: TokenState | None = None
         self._token_store = token_store
+        self._totp_cooldown = totp_cooldown or TOTPCooldown.for_broker("dhan")
 
         if access_token:
             # Use provided token
@@ -137,6 +140,13 @@ class DhanAuth:
                 "pin and totp_secret are required to generate token"
             )
 
+        try:
+            self._totp_cooldown.check_allowed()
+        except TotpRateLimitError as exc:
+            raise TokenRateLimitError(str(exc)) from exc
+
+        self._totp_cooldown.record_attempt()
+
         import pyotp
         from urllib.parse import urlencode
 
@@ -162,6 +172,7 @@ class DhanAuth:
         status = body.get("status", "")
 
         if "once every 2 minutes" in message:
+            self._totp_cooldown.record_rate_limited()
             raise TokenRateLimitError(f"Dhan token rate limit: {message}")
 
         if status == "error":
@@ -172,6 +183,7 @@ class DhanAuth:
         if resp.status_code != 200:
             body_text = resp.text
             if "once every" in body_text.lower() or "rate limit" in body_text.lower():
+                self._totp_cooldown.record_rate_limited()
                 raise TokenRateLimitError(f"Dhan token rate limit: {body_text}")
             raise AuthenticationError(
                 f"Token generation failed: HTTP {resp.status_code}"
@@ -192,6 +204,7 @@ class DhanAuth:
             expires_at=compute_token_expiry(self._token_lifetime_seconds),
         )
         self._access_token = token
+        self._totp_cooldown.record_success()
         logger.info("dhan_token_generated", extra={"client_id": self._client_id})
         return token
 

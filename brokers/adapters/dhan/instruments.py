@@ -17,8 +17,8 @@ class DhanInstruments:
     def __init__(self, resolver: DhanInstrumentResolver) -> None:
         self._resolver = resolver
 
-    def load(self) -> None:
-        self._resolver.load()
+    def load(self, force_refresh: bool = False) -> None:
+        self._resolver.load(force_refresh=force_refresh)
 
     def search(self, query: str, limit: int = 10) -> list[InstrumentInfo]:
         refs = self._resolver.search(query, limit=limit)

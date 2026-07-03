@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from brokers.domain.capabilities import BrokerCapabilities
 from brokers.ports.auth import AuthPort
 from brokers.ports.historical import HistoricalPort
 from brokers.ports.instruments import InstrumentPort
@@ -28,6 +29,11 @@ from brokers.ports.streaming import StreamingPort
 
 @runtime_checkable
 class BrokerGateway(Protocol):
+    @property
+    def broker_id(self) -> str: ...
+
+    """Canonical broker identifier (e.g., 'dhan', 'upstox')."""
+
     @property
     def orders(self) -> OrderExecutionPort: ...
 
@@ -48,5 +54,9 @@ class BrokerGateway(Protocol):
 
     @property
     def streaming(self) -> StreamingPort: ...
+
+    def capabilities(self) -> BrokerCapabilities: ...
+
+    """Return broker capability matrix for feature discovery."""
 
     def close(self) -> None: ...

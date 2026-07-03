@@ -36,8 +36,12 @@ class RetryPolicy:
             except self._retryable as exc:
                 last_exc = exc
                 if attempt < self._max_retries:
-                    delay = self._compute_delay(attempt)
-                    time.sleep(delay / 1000.0)
+                    retry_after = getattr(exc, "retry_after", None)
+                    if retry_after is not None:
+                        time.sleep(float(retry_after))
+                    else:
+                        delay = self._compute_delay(attempt)
+                        time.sleep(delay / 1000.0)
 
         assert last_exc is not None
         raise last_exc

@@ -13,12 +13,17 @@ from decimal import Decimal
 from typing import Callable
 
 from brokers.adapters.base_streaming import BaseWebSocketStreaming
-from brokers.adapters.dhan.config import EXCHANGE_MAP, SEGMENT_TO_EXCHANGE
+from brokers.adapters.dhan.config import SEGMENT_TO_EXCHANGE
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
+from brokers.adapters.dhan.segments import resolve_segment
 
 logger = logging.getLogger(__name__)
 
 WS_URL = "wss://api-feed.dhan.co"
+
+# Dhan v2 WebSocket subscribe request codes (dhanhq MarketFeed constants).
+MODE_SUBSCRIBE_CODE: dict[str, int] = {"LTP": 15, "QUOTE": 17, "FULL": 21}
+MODE_UNSUBSCRIBE_CODE: dict[str, int] = {"LTP": 16, "QUOTE": 18, "FULL": 22}
 
 
 class DhanStreaming(BaseWebSocketStreaming):
@@ -60,24 +65,43 @@ class DhanStreaming(BaseWebSocketStreaming):
         self._access_token = access_token
         self._client_id = client_id
         self._resolver = resolver
+        self._feed_mode = "QUOTE"
+
+    def set_mode(self, mode: str) -> None:
+        """Set subscription packet mode: LTP, QUOTE, or FULL."""
+        self._feed_mode = mode.strip().upper()
+
+    @property
+    def feed_mode(self) -> str:
+        return self._feed_mode
 
     def subscribe(self, symbol: str, exchange: str = "NSE") -> None:
         try:
             ref = self._resolver.resolve(symbol, exchange)
-            if ref:
-                key = f"{ref.exchange_segment}|{ref.security_id}"
-                super().subscribe(key)
-                logger.info(f"Subscribed to {symbol} ({exchange}) as key {key}")
-            else:
-                logger.warning(f"Resolver returned None for {symbol} on {exchange}")
+            key = f"{ref.exchange_segment}|{ref.security_id}"
+            super().subscribe(key)
+            logger.info(f"Subscribed to {symbol} ({exchange}) as key {key}")
         except Exception as e:
             logger.error(
                 f"Failed to resolve and subscribe to {symbol} on {exchange}: {e}"
             )
-            # Fallback
-            segment = EXCHANGE_MAP.get(exchange.upper(), exchange)
+            segment = resolve_segment(exchange)
             key = f"{segment}|{symbol}"
             super().subscribe(key)
+
+    def register_tick_handler(
+        self, symbol: str, exchange: str, handler: Callable[[dict], None]
+    ) -> str:
+        """Register a callback for ticks on a specific symbol without clobbering on_tick."""
+        ref = self._resolver.resolve(symbol, exchange)
+        key = f"{ref.exchange_segment}|{ref.security_id}"
+        self.register_tick_handler_for_key(key, handler)
+        return key
+
+    def register_tick_handler_for_key(
+        self, key: str, handler: Callable[[dict], None]
+    ) -> None:
+        super().register_tick_handler(key, handler)
 
     def unsubscribe(self, symbol: str, exchange: str = "NSE") -> None:
         try:
@@ -90,7 +114,7 @@ class DhanStreaming(BaseWebSocketStreaming):
             logger.error(
                 f"Failed to resolve and unsubscribe from {symbol} on {exchange}: {e}"
             )
-            segment = EXCHANGE_MAP.get(exchange.upper(), exchange)
+            segment = resolve_segment(exchange)
             key = f"{segment}|{symbol}"
             super().unsubscribe(key)
 
@@ -125,9 +149,10 @@ class DhanStreaming(BaseWebSocketStreaming):
                 instrument_list.append(
                     {"ExchangeSegment": parts[0], "SecurityId": parts[1]}
                 )
+        request_code = MODE_SUBSCRIBE_CODE.get(self._feed_mode, 17)
         return json.dumps(
             {
-                "RequestCode": 17,  # 17 for Quote packet (LTP, open, high, low, close, volume)
+                "RequestCode": request_code,
                 "InstrumentCount": len(instrument_list),
                 "InstrumentList": instrument_list,
             }
@@ -141,9 +166,10 @@ class DhanStreaming(BaseWebSocketStreaming):
                 instrument_list.append(
                     {"ExchangeSegment": parts[0], "SecurityId": parts[1]}
                 )
+        request_code = MODE_UNSUBSCRIBE_CODE.get(self._feed_mode, 18)
         return json.dumps(
             {
-                "RequestCode": 18,  # RequestCode + 1 for unsubscribe
+                "RequestCode": request_code,
                 "InstrumentCount": len(instrument_list),
                 "InstrumentList": instrument_list,
             }
@@ -154,8 +180,14 @@ class DhanStreaming(BaseWebSocketStreaming):
         if isinstance(message, bytes):
             try:
                 tick = self._parse_binary_message(message)
-                if tick and self._on_tick:
-                    self._on_tick(tick)
+                if tick:
+                    sid = tick.get("raw", {}).get("security_id")
+                    ref = self._resolver.get_by_security_id(str(sid)) if sid else None
+                    if ref:
+                        tick["subscription_key"] = f"{ref.exchange_segment}|{ref.security_id}"
+                    self._dispatch_tick(
+                        tick, tick.get("subscription_key")
+                    )
             except Exception as e:
                 logger.warning(f"Failed to parse binary tick: {e}", exc_info=True)
         else:

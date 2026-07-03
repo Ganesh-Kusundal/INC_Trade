@@ -115,13 +115,13 @@ class TestOrderValidation:
     """Edge cases for order validation via payload assertions."""
 
     def test_limit_order_without_price(self, orders_adapter):
-        # We assume placing limit order with 0 price might trigger error in adapter or wire.
-        with pytest.raises(Exception):
-            orders_adapter.place_order(
-                symbol="RELIANCE",
-                exchange="NSE",
-                side=Side.BUY,
-                quantity=10,
-                order_type=OrderType.LIMIT,
-                product_type=ProductType.INTRADAY,
-            )
+        resp = orders_adapter.place_order(
+            symbol="RELIANCE",
+            exchange="NSE",
+            side=Side.BUY,
+            quantity=10,
+            order_type=OrderType.LIMIT,
+            product_type=ProductType.INTRADAY,
+        )
+        assert not resp.success
+        assert resp.error_code == "VALIDATION_FAILED"

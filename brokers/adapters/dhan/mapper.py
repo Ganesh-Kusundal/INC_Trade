@@ -108,6 +108,31 @@ def map_quote(symbol: str, data: dict) -> Quote:
 
 
 def map_depth(symbol: str, data: dict) -> MarketDepth:
+    depth_block = data.get("depth", {}) if isinstance(data.get("depth"), dict) else {}
+    buy_levels = depth_block.get("buy", [])
+    sell_levels = depth_block.get("sell", [])
+
+    if buy_levels or sell_levels:
+        bids = [
+            DepthLevel(
+                price=to_decimal(level.get("price", 0)),
+                quantity=int(level.get("quantity") or 0),
+                orders=int(level.get("orders") or 0),
+            )
+            for level in buy_levels[:20]
+            if isinstance(level, dict)
+        ]
+        asks = [
+            DepthLevel(
+                price=to_decimal(level.get("price", 0)),
+                quantity=int(level.get("quantity") or 0),
+                orders=int(level.get("orders") or 0),
+            )
+            for level in sell_levels[:20]
+            if isinstance(level, dict)
+        ]
+        return MarketDepth(symbol=symbol, bids=bids, asks=asks)
+
     bids = []
     asks = []
     for i in range(20):

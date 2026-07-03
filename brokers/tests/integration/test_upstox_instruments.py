@@ -1,23 +1,34 @@
 from unittest.mock import Mock, patch
 
+from brokers.adapters.upstox.instrument_definition import UpstoxInstrumentDefinition
 from brokers.adapters.upstox.instruments import UpstoxInstruments
 from brokers.ports.instruments import InstrumentInfo
 
 
-@patch("brokers.adapters.upstox.instruments.requests")
+@patch("brokers.adapters.upstox.instrument_loader.requests")
 def test_upstox_instruments_load_and_resolve(mock_requests):
     mock_resp = Mock()
-    mock_resp.text = (
-        "instrument_key,exchange_token,tradingsymbol,name,last_price,expiry,strike,tick_size,lot_size,instrument_type,option_type,exchange\n"
-        "NSE_EQ|11536,11536,RELIANCE,RELIANCE INDUSTRIES LTD,2500,2023-11-20,,0.05,1,EQUITY,,NSE\n"
-    )
+    mock_resp.raise_for_status = Mock()
+    mock_resp.iter_content = lambda chunk_size: [b"line"]
+    mock_requests.get.return_value.__enter__ = Mock(return_value=mock_resp)
+    mock_requests.get.return_value.__exit__ = Mock(return_value=False)
 
-    mock_requests.get.return_value = mock_resp
+    defs = [
+        UpstoxInstrumentDefinition(
+            instrument_key="NSE_EQ|RELIANCE",
+            symbol="RELIANCE",
+            trading_symbol="RELIANCE",
+            exchange="NSE",
+            exchange_segment="NSE_EQ",
+            name="RELIANCE INDUSTRIES LTD",
+            lot_size=1,
+        )
+    ]
 
     instruments = UpstoxInstruments()
-    instruments.load("NSE")
-
-    mock_requests.get.assert_called_once()
+    with patch.object(instruments._loader, "download", return_value=instruments._cache_path):
+        with patch.object(instruments._loader, "load", return_value=defs):
+            instruments.load()
 
     info = instruments.resolve("RELIANCE", "NSE")
     assert isinstance(info, InstrumentInfo)
@@ -28,10 +39,17 @@ def test_upstox_instruments_load_and_resolve(mock_requests):
 
 def test_upstox_instruments_search():
     instruments = UpstoxInstruments()
-    instruments._instruments = [
-        InstrumentInfo(symbol="RELIANCE", exchange="NSE", lot_size=1),
-        InstrumentInfo(symbol="HDFC", exchange="NSE", lot_size=1),
-    ]
+    d = UpstoxInstrumentDefinition(
+        instrument_key="NSE_EQ|RELIANCE",
+        symbol="RELIANCE",
+        trading_symbol="RELIANCE",
+        exchange="NSE",
+        exchange_segment="NSE_EQ",
+        name="RELIANCE INDUSTRIES",
+        lot_size=1,
+    )
+    instruments._by_key[d.instrument_key] = d
+    instruments._by_symbol_segment[("RELIANCE", "NSE_EQ")] = d
 
     results = instruments.search("REL")
     assert len(results) == 1

@@ -17,6 +17,10 @@ from brokers.adapters.upstox.auth.holders import (
     UpstoxStaticTokenHolder,
     UpstoxTokenHolder,
 )
+from brokers.adapters.upstox.auth.config import (
+    UpstoxConnectionSettings,
+    UpstoxSettingsLoader,
+)
 from brokers.adapters.upstox.auth.json_token_store import JsonTokenStateStore
 from brokers.adapters.upstox.auth.oauth_client import TokenResponse, UpstoxOAuthClient
 from brokers.adapters.upstox.auth.pkce import PkcePair, UpstoxPkceUtil
@@ -49,40 +53,27 @@ class UpstoxAuth:
         token_state_file: Any = None,
         refresh_buffer_minutes: int = 30,
         redirect_uri: str = "",
+        analytics_only: bool = False,
+        settings: UpstoxConnectionSettings | None = None,
     ) -> None:
-
-        class _Settings:
-            pass
-
-        s = _Settings()
-        s.client_id = client_id
-        s.client_secret = client_secret
-        s.access_token = access_token
-        s.refresh_token = refresh_token
-        s.mobile = mobile
-        s.pin = pin
-        s.totp_secret = totp_secret
-        s.auth_mode = auth_mode.upper()
-        s.environment = environment.upper()
-        s.analytics_only = False
-        s.extended_token = ""
-        s.analytics_token = ""
-        s.redirect_uri = redirect_uri or "http://localhost:18080"
-        s.token_state_file = token_state_file
-        s.refresh_buffer_minutes = refresh_buffer_minutes
-        s.is_sandbox = s.environment == "SANDBOX"
-        s.is_static = s.auth_mode == "STATIC"
-        s.is_oauth = s.auth_mode == "OAUTH"
-        s.is_totp = s.auth_mode == "TOTP"
-        s.is_extended = s.auth_mode == "EXTENDED"
-        s.is_interactive = s.auth_mode == "INTERACTIVE"
-        s.is_webhook = s.auth_mode == "WEBHOOK"
-        if s.is_sandbox:
-            s.base_v2 = "https://sandbox-api.upstox.com"
-            s.base_hft = "https://sandbox-api-hft.upstox.com"
+        if settings is not None:
+            s = settings
         else:
-            s.base_v2 = "https://api.upstox.com"
-            s.base_hft = "https://api-hft.upstox.com"
+            s = UpstoxConnectionSettings(
+                client_id=client_id or "default",
+                client_secret=client_secret,
+                access_token=access_token,
+                refresh_token=refresh_token,
+                mobile=mobile,
+                pin=pin,
+                totp_secret=totp_secret,
+                auth_mode=auth_mode.upper(),
+                environment=environment.upper(),
+                analytics_only=analytics_only,
+                redirect_uri=redirect_uri or "http://localhost:18080",
+                token_state_file=token_state_file,
+                refresh_buffer_minutes=refresh_buffer_minutes,
+            )
 
         self._settings = s
         self._manager = UpstoxTokenManager(s)
@@ -90,6 +81,9 @@ class UpstoxAuth:
 
     def get_token(self) -> str:
         return self._manager.bearer_token()
+
+    def try_refresh_on_401(self) -> bool:
+        return self._manager.try_refresh_on_401()
 
     def refresh_token(self) -> str:
         result = self._manager.force_refresh()
@@ -130,6 +124,14 @@ class UpstoxAuth:
 
         return datetime.fromtimestamp(exp_ms / 1000, tz=timezone.utc)
 
+    @property
+    def analytics_only(self) -> bool:
+        return bool(getattr(self._settings, "analytics_only", False))
+
+    @property
+    def settings(self):
+        return self._settings
+
     def on_token_change(self, callback) -> None:
         self._token_change_callbacks.append(callback)
 
@@ -158,4 +160,6 @@ __all__ = [
     "UpstoxTokenManager",
     "UpstoxTotpClient",
     "TotpRefreshScheduler",
+    "UpstoxConnectionSettings",
+    "UpstoxSettingsLoader",
 ]

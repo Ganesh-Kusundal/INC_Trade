@@ -7,7 +7,7 @@ from functools import wraps
 from time import perf_counter
 from typing import Any, Callable
 
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Gauge, Histogram
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,25 @@ DHAN_REQUEST_ERRORS = Counter(
 
 DHAN_REQUEST_DURATION = Histogram(
     "dhan_request_duration_seconds", "Duration of Dhan API requests", ["method", "path"]
+)
+
+# WebSocket metrics
+dhan_ws_reconnect_total = Counter(
+    "dhan_ws_reconnect_total", "Total WebSocket reconnect attempts", ["feed_type"]
+)
+
+dhan_ws_ticks_total = Counter(
+    "dhan_ws_ticks_total", "Total ticks published via WebSocket", []
+)
+
+dhan_ws_dropped_ticks_total = Counter(
+    "dhan_ws_dropped_ticks_total", "Total dropped ticks (non-compliant)", []
+)
+
+dhan_ws_callbacks = Gauge("dhan_ws_callbacks", "Current number of active callbacks", [])
+
+dhan_ws_subscriptions = Gauge(
+    "dhan_ws_subscriptions", "Current number of active subscriptions", []
 )
 
 

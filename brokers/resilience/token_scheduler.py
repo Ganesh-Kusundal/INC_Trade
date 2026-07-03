@@ -9,12 +9,17 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import TYPE_CHECKING, Callable
+from typing import Callable, Protocol, runtime_checkable
 
 from brokers.domain.exceptions import TokenRateLimitError
 
-if TYPE_CHECKING:
-    from brokers.adapters.dhan.auth import DhanAuth
+
+@runtime_checkable
+class TokenRefreshable(Protocol):
+    def generate_token(self) -> str: ...
+
+    @property
+    def state(self) -> object: ...
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +46,7 @@ class TokenRefreshScheduler:
 
     def __init__(
         self,
-        auth: DhanAuth,
+        auth: TokenRefreshable,
         interval_seconds: int = _DEFAULT_INTERVAL_SECONDS,
         buffer_seconds: float = _DEFAULT_BUFFER_SECONDS,
         refresh_lock: threading.Lock | None = None,

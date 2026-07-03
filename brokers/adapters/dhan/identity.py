@@ -15,22 +15,22 @@ import io
 import logging
 import threading
 from dataclasses import dataclass
-
-import requests
+from decimal import Decimal
 
 from brokers.adapters.dhan.config import (
     CSV_EXCHANGE_TO_SEGMENT,
+    DERIVATIVE_SEGMENTS,
     DHAN_SEGMENTS,
-    ENDPOINTS,
     EXCHANGE_MAP,
     INSTRUMENT_TO_SEGMENT,
     INSTRUMENT_TYPE_MAP,
 )
+from brokers.adapters.dhan.instrument_loader import InstrumentLoader
+from brokers.config.indices import get_index_entry, is_index
 from brokers.domain.exceptions import InstrumentNotFoundError
+from brokers.domain.symbols import normalize_symbol
 
 logger = logging.getLogger(__name__)
-
-_CSV_URL = ENDPOINTS["instruments"]
 
 
 @dataclass(frozen=True)
@@ -47,6 +47,7 @@ class DhanInstrumentRef:
     exchange_segment: str
     instrument_type: str = "EQUITY"
     lot_size: int = 1
+    tick_size: Decimal = Decimal("0.05")
 
     def __post_init__(self) -> None:
         if not self.symbol or not self.symbol.strip():
@@ -79,21 +80,24 @@ class DhanInstrumentResolver:
     def __init__(self) -> None:
         self._by_symbol: dict[tuple[str, str], DhanInstrumentRef] = {}
         self._by_security_id: dict[str, DhanInstrumentRef] = {}
+        self._by_underlying: dict[tuple[str, str], list[DhanInstrumentRef]] = {}
         self._loaded = False
         self._lock = threading.RLock()
 
-    def load(self) -> None:
-        """Fetch and parse the Dhan master CSV."""
+    def load(self, force_refresh: bool = False) -> None:
+        """Fetch and parse the Dhan master CSV (disk-cached via InstrumentLoader)."""
         with self._lock:
-            if self._loaded:
+            if self._loaded and not force_refresh:
                 return
-            self._do_load()
+            csv_text = InstrumentLoader.load_csv_text(force_refresh=force_refresh)
+            self._parse_csv_text(csv_text)
             self._loaded = True
 
-    def _do_load(self) -> None:
-        resp = requests.get(_CSV_URL, timeout=30)
-        resp.raise_for_status()
-        reader = csv.DictReader(io.StringIO(resp.text))
+    def _parse_csv_text(self, csv_text: str) -> None:
+        self._by_symbol.clear()
+        self._by_security_id.clear()
+        self._by_underlying.clear()
+        reader = csv.DictReader(io.StringIO(csv_text))
         count = 0
         for row in reader:
             ref = self._row_to_ref(row)
@@ -102,6 +106,10 @@ class DhanInstrumentResolver:
             key = (ref.symbol.upper(), ref.exchange_segment)
             self._by_symbol[key] = ref
             self._by_security_id[ref.security_id] = ref
+            underlying = (row.get("SM_SYMBOL_NAME") or row.get("SEM_SYMBOL_NAME") or "").strip().upper()
+            if underlying and ref.instrument_type.startswith(("FUT", "OPT")):
+                ukey = (underlying, ref.exchange_segment)
+                self._by_underlying.setdefault(ukey, []).append(ref)
             count += 1
         logger.info("dhan_instruments_loaded", extra={"count": count})
 
@@ -138,6 +146,12 @@ class DhanInstrumentResolver:
         except (TypeError, ValueError):
             lot_size = 1
 
+        tick_raw = row.get("SEM_TICK_SIZE") or "0.05"
+        try:
+            tick_size = Decimal(str(float(tick_raw)))
+        except (TypeError, ValueError):
+            tick_size = Decimal("0.05")
+
         try:
             return DhanInstrumentRef(
                 symbol=symbol,
@@ -145,16 +159,26 @@ class DhanInstrumentResolver:
                 exchange_segment=segment,
                 instrument_type=instrument_type,
                 lot_size=max(lot_size, 1),
+                tick_size=tick_size,
             )
         except ValueError:
             return None
 
-    def resolve(self, symbol: str, exchange: str) -> DhanInstrumentRef:
+    def resolve(
+        self,
+        symbol: str,
+        exchange: str,
+        *,
+        expected_segment: str | None = None,
+    ) -> DhanInstrumentRef:
         """Resolve symbol+exchange to a DhanInstrumentRef.
 
         Accepts user-facing exchange names ("NSE", "NFO", "MCX", "BSE", "BFO")
         or direct segment codes ("NSE_EQ", "NSE_FNO", "MCX_COMM").
         Raises InstrumentNotFoundError if not found.
+
+        When ``expected_segment`` is set, rejects index fallback for derivative
+        queries (PR-C) and fails if the resolved segment does not match.
         """
         if not self._loaded:
             self.load()
@@ -164,24 +188,123 @@ class DhanInstrumentResolver:
             raise InstrumentNotFoundError(symbol)
 
         exchange_upper = exchange.strip().upper()
-        # Translate user-facing exchange alias → segment code
         segment = EXCHANGE_MAP.get(exchange_upper, exchange_upper)
 
-        key = (symbol_upper, segment)
-        with self._lock:
-            ref = self._by_symbol.get(key)
+        ref = self._lookup(symbol_upper, segment, expected_segment=expected_segment)
         if ref is not None:
             return ref
 
-        # Broader scan: match symbol across all segments within the exchange family
-        # e.g. user asks ("NIFTY", "NSE") but it lives in NSE_FNO
-        exchange_prefix = exchange_upper.split("_")[0]  # "NSE_FNO" → "NSE"
+        exchange_prefix = exchange_upper.split("_")[0]
         with self._lock:
             for (sym, seg), candidate in self._by_symbol.items():
                 if sym == symbol_upper and seg.startswith(exchange_prefix):
-                    return candidate
+                    return self._finalize_ref(
+                        candidate, expected_segment, source="prefix_scan"
+                    )
 
         raise InstrumentNotFoundError(symbol)
+
+    def _lookup(
+        self,
+        symbol: str,
+        segment: str,
+        *,
+        expected_segment: str | None = None,
+    ) -> DhanInstrumentRef | None:
+        """Progressive symbol lookup — archive resolver parity."""
+        keys = self._symbol_lookup_keys(normalize_symbol(symbol))
+        with self._lock:
+            for key_sym in keys:
+                ref = self._by_symbol.get((key_sym, segment))
+                if ref is not None:
+                    return self._finalize_ref(ref, expected_segment, source="direct")
+
+            if is_index(keys[0]) and segment != "IDX_I":
+                for key_sym in keys:
+                    ref = self._by_symbol.get((key_sym, "IDX_I"))
+                    if ref is not None:
+                        return self._finalize_ref(
+                            ref, expected_segment, source="index_exchange_fallback"
+                        )
+
+        if is_index(keys[0]):
+            entry = get_index_entry(keys[0])
+            if entry and entry.dhan_security_id:
+                synthetic = DhanInstrumentRef(
+                    symbol=keys[0],
+                    security_id=entry.dhan_security_id,
+                    exchange_segment="IDX_I",
+                    instrument_type="EQUITY",
+                )
+                logger.info(
+                    "index_resolved_via_hardcoded_id",
+                    extra={
+                        "symbol": keys[0],
+                        "security_id": entry.dhan_security_id,
+                        "canonical_name": entry.canonical_name,
+                    },
+                )
+                return self._finalize_ref(
+                    synthetic, expected_segment, source="hardcoded_index"
+                )
+        return None
+
+    @staticmethod
+    def _symbol_lookup_keys(clean: str) -> list[str]:
+        """Generate progressive lookup keys (stripped, CALL→CE, PUT→PE)."""
+        keys: list[str] = [clean]
+        stripped = clean.replace(" ", "").replace("-", "").replace("_", "")
+        if stripped != clean:
+            keys.append(stripped)
+        if clean.endswith("CALL"):
+            ce = clean[:-4] + "CE"
+            keys.append(ce)
+            stripped_ce = ce.replace(" ", "").replace("-", "").replace("_", "")
+            if stripped_ce != ce:
+                keys.append(stripped_ce)
+        elif clean.endswith("PUT"):
+            pe = clean[:-3] + "PE"
+            keys.append(pe)
+            stripped_pe = pe.replace(" ", "").replace("-", "").replace("_", "")
+            if stripped_pe != pe:
+                keys.append(stripped_pe)
+        seen: set[str] = set()
+        ordered: list[str] = []
+        for key in keys:
+            if key not in seen:
+                seen.add(key)
+                ordered.append(key)
+        return ordered
+
+    def _finalize_ref(
+        self,
+        ref: DhanInstrumentRef,
+        expected_segment: str | None,
+        *,
+        source: str,
+    ) -> DhanInstrumentRef:
+        """Apply expected_segment guard and emit audit log."""
+        if expected_segment in DERIVATIVE_SEGMENTS and ref.exchange_segment == "IDX_I":
+            raise InstrumentNotFoundError(
+                f"{ref.symbol}: resolved to index segment IDX_I but caller expected "
+                f"derivative segment {expected_segment!r}"
+            )
+        if expected_segment is not None and ref.exchange_segment != expected_segment:
+            raise InstrumentNotFoundError(
+                f"{ref.symbol}: resolved to segment {ref.exchange_segment!r} but "
+                f"caller required {expected_segment!r}"
+            )
+        logger.info(
+            "security_id_issued",
+            extra={
+                "symbol": ref.symbol,
+                "security_id": ref.security_id,
+                "exchange_segment": ref.exchange_segment,
+                "source": source,
+                "expected_segment": expected_segment,
+            },
+        )
+        return ref
 
     def get_by_security_id(self, security_id: str) -> DhanInstrumentRef | None:
         """Reverse lookup by security_id."""
@@ -206,20 +329,25 @@ class DhanInstrumentResolver:
                         break
         return results
 
+    def get_futures(self, underlying: str, exchange: str) -> list[DhanInstrumentRef]:
+        """Return futures contracts for an underlying, sorted by symbol."""
+        if not self._loaded:
+            self.load()
+        segment = EXCHANGE_MAP.get(exchange.strip().upper(), exchange.strip().upper())
+        key = (underlying.strip().upper(), segment)
+        with self._lock:
+            refs = list(self._by_underlying.get(key, []))
+        return sorted(
+            (r for r in refs if r.instrument_type.startswith("FUT")),
+            key=lambda r: r.symbol,
+        )
+
     def load_from_csv_text(self, csv_text: str) -> None:
         """Load from a CSV string (for testing)."""
         with self._lock:
-            self._by_symbol.clear()
-            self._by_security_id.clear()
-            reader = csv.DictReader(io.StringIO(csv_text))
-            count = 0
-            for row in reader:
-                ref = self._row_to_ref(row)
-                if ref is None:
-                    continue
-                key = (ref.symbol.upper(), ref.exchange_segment)
-                self._by_symbol[key] = ref
-                self._by_security_id[ref.security_id] = ref
-                count += 1
+            self._parse_csv_text(csv_text)
             self._loaded = True
-            logger.info("dhan_instruments_loaded_from_text", extra={"count": count})
+            logger.info(
+                "dhan_instruments_loaded_from_text",
+                extra={"count": len(self._by_security_id)},
+            )

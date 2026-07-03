@@ -4,21 +4,6 @@
     "ast_hash": "402296987e16425c8f5087ca260df759",
     "semantic_hash": ""
   },
-  ".autoresearch/brokers_review.py": {
-    "mtime": 1782968079.727641,
-    "ast_hash": "a9dd67a8fe5a599570195a1ec180ac87",
-    "semantic_hash": ""
-  },
-  ".autoresearch/config.json": {
-    "mtime": 1782967691.6580956,
-    "ast_hash": "1ef8c88b015b6fc7f8d4db9be42db611",
-    "semantic_hash": ""
-  },
-  ".autoresearch/harness_runner.py": {
-    "mtime": 1782967708.8962083,
-    "ast_hash": "2288a453221340671f89a5f78b6a5bec",
-    "semantic_hash": ""
-  },
   ".mcp.json": {
     "mtime": 1782968552.8632972,
     "ast_hash": "8d4bf6d1fc1237d7521e786b3c737ac5",
@@ -4435,8 +4420,8 @@
     "semantic_hash": ""
   },
   "brokers/adapters/base_streaming.py": {
-    "mtime": 1783055961.3582635,
-    "ast_hash": "68e1d00ba70f675c47b030df7d23b2b9",
+    "mtime": 1783062244.9684207,
+    "ast_hash": "ff57f582856343e456a40966aa543041",
     "semantic_hash": ""
   },
   "brokers/adapters/dhan/__init__.py": {
@@ -4470,13 +4455,13 @@
     "semantic_hash": ""
   },
   "brokers/adapters/dhan/depth20.py": {
-    "mtime": 1783060244.8045313,
-    "ast_hash": "db50598d46aa68d4e64bbc29a3509493",
+    "mtime": 1783062020.5596778,
+    "ast_hash": "a918ac7e44f09a2e236ba6149e2aa221",
     "semantic_hash": ""
   },
   "brokers/adapters/dhan/depth200.py": {
-    "mtime": 1783060247.790939,
-    "ast_hash": "1a94a05b431db74ac45a520f87ef65d9",
+    "mtime": 1783062055.5964699,
+    "ast_hash": "2147f8610d34d0169345189b4f533e38",
     "semantic_hash": ""
   },
   "brokers/adapters/dhan/edis.py": {
@@ -4485,8 +4470,8 @@
     "semantic_hash": ""
   },
   "brokers/adapters/dhan/exceptions.py": {
-    "mtime": 1783020386.2591794,
-    "ast_hash": "2514e0ca49bf982405135b46c19077a3",
+    "mtime": 1783062440.7187884,
+    "ast_hash": "c2f9834a48dac2a5d662032c4375311a",
     "semantic_hash": ""
   },
   "brokers/adapters/dhan/exit_all.py": {
@@ -4535,8 +4520,8 @@
     "semantic_hash": ""
   },
   "brokers/adapters/dhan/http.py": {
-    "mtime": 1783044137.5235143,
-    "ast_hash": "9ba3899b7e9449c2d8c909d132f1457b",
+    "mtime": 1783062320.347239,
+    "ast_hash": "e5b664e97827b65efac8dbe0f95e893b",
     "semantic_hash": ""
   },
   "brokers/adapters/dhan/identity.py": {
@@ -4575,8 +4560,8 @@
     "semantic_hash": ""
   },
   "brokers/adapters/dhan/metrics.py": {
-    "mtime": 1783056435.035151,
-    "ast_hash": "29debeb1932871fbbe6845ff0ff7da01",
+    "mtime": 1783062343.837213,
+    "ast_hash": "4436305d03cd127b2f731e21a27d3af2",
     "semantic_hash": ""
   },
   "brokers/adapters/dhan/mtf.py": {
@@ -4645,8 +4630,8 @@
     "semantic_hash": ""
   },
   "brokers/adapters/upstox/auth/__init__.py": {
-    "mtime": 1783049446.431597,
-    "ast_hash": "aa256f3b9c3c58ec7cf86f07a264d105",
+    "mtime": 1783061889.8361225,
+    "ast_hash": "d6b1c8a7fd63ce4914150ae3a57c3cab",
     "semantic_hash": ""
   },
   "brokers/adapters/upstox/auth/exceptions.py": {
@@ -4655,8 +4640,8 @@
     "semantic_hash": ""
   },
   "brokers/adapters/upstox/auth/holders.py": {
-    "mtime": 1783049341.316697,
-    "ast_hash": "b698e10b42690fc81408f90b26c01735",
+    "mtime": 1783061747.7076712,
+    "ast_hash": "cb312bc18a62603ebdf0713f50eef642",
     "semantic_hash": ""
   },
   "brokers/adapters/upstox/auth/json_token_store.py": {
@@ -4665,8 +4650,8 @@
     "semantic_hash": ""
   },
   "brokers/adapters/upstox/auth/oauth_client.py": {
-    "mtime": 1783049341.4266233,
-    "ast_hash": "eeb7066d7348cf1acf033e084fbe7eb4",
+    "mtime": 1783061754.2551963,
+    "ast_hash": "8f0fff00ea7907f2eb7b2d495d14bb14",
     "semantic_hash": ""
   },
   "brokers/adapters/upstox/auth/pkce.py": {
@@ -4680,13 +4665,13 @@
     "semantic_hash": ""
   },
   "brokers/adapters/upstox/config.py": {
-    "mtime": 1783000224.2619717,
-    "ast_hash": "85b1b0c3d3d8d06695431587c564cc8e",
+    "mtime": 1783062355.556922,
+    "ast_hash": "1fe23af06b0e30db14690c20009d39c1",
     "semantic_hash": ""
   },
   "brokers/adapters/upstox/gateway.py": {
-    "mtime": 1783015358.8179326,
-    "ast_hash": "807d1c7272f2bc9b1720b304235ad3b3",
+    "mtime": 1783062175.6484306,
+    "ast_hash": "c03f894d9a51f753b5a249945afcac0a",
     "semantic_hash": ""
   },
   "brokers/adapters/upstox/historical.py": {
@@ -4695,8 +4680,8 @@
     "semantic_hash": ""
   },
   "brokers/adapters/upstox/http.py": {
-    "mtime": 1783011007.3165784,
-    "ast_hash": "bb5678d469ac80ea1e14377439a101cf",
+    "mtime": 1783061805.334205,
+    "ast_hash": "2b84e50efd5fe58673afd938f775dbdf",
     "semantic_hash": ""
   },
   "brokers/adapters/upstox/instruments.py": {
@@ -4710,8 +4695,8 @@
     "semantic_hash": ""
   },
   "brokers/adapters/upstox/market_data.py": {
-    "mtime": 1782993703.1159885,
-    "ast_hash": "326f6ec65083fcd9efc9f4a9724ccf2a",
+    "mtime": 1783062475.8791695,
+    "ast_hash": "53ac57cb64d71286e21940b45109cd52",
     "semantic_hash": ""
   },
   "brokers/adapters/upstox/orders.py": {
@@ -4927,26 +4912,6 @@
   "brokers/infrastructure/registry.py": {
     "mtime": 1783047744.2057252,
     "ast_hash": "5c98b71149c20ea7bc224d5c85f5d09c",
-    "semantic_hash": ""
-  },
-  "brokers/infrastructure/resilience/__init__.py": {
-    "mtime": 1783020407.351155,
-    "ast_hash": "9a427890b4e2ea029bed0172b8a9dbf7",
-    "semantic_hash": ""
-  },
-  "brokers/infrastructure/resilience/circuit_breaker.py": {
-    "mtime": 1783056446.0114515,
-    "ast_hash": "25944d1d9a3cf659e54caea3098c130e",
-    "semantic_hash": ""
-  },
-  "brokers/infrastructure/resilience/rate_limiter.py": {
-    "mtime": 1783044137.523821,
-    "ast_hash": "73d0be7abbc149190e957021ece8fdbe",
-    "semantic_hash": ""
-  },
-  "brokers/infrastructure/resilience/retry_executor.py": {
-    "mtime": 1783044137.5238802,
-    "ast_hash": "05c18bfae0d907ddb958429a39809c88",
     "semantic_hash": ""
   },
   "brokers/infrastructure/ssl_hardening.py": {
@@ -5180,8 +5145,8 @@
     "semantic_hash": ""
   },
   "brokers/tests/unit/adapters/dhan/test_circuit_breaker_regression.py": {
-    "mtime": 1783056517.3834357,
-    "ast_hash": "04361f2cb27df98575e77c14141b9566",
+    "mtime": 1783062733.982628,
+    "ast_hash": "5dca2c3a33f897623487cb290e271270",
     "semantic_hash": ""
   },
   "brokers/tests/unit/adapters/dhan/test_dhan_cross_cutting.py": {
@@ -5319,19 +5284,14 @@
     "ast_hash": "ff6c77ad17960cb0d690903dfef261ed",
     "semantic_hash": ""
   },
-  "real_historical_data.py": {
-    "mtime": 1783046058.5791059,
-    "ast_hash": "670cd42e1b5772998ae028559545fc98",
-    "semantic_hash": ""
-  },
   "runtime/dhan-token-state.json": {
     "mtime": 1783051174.2700033,
     "ast_hash": "64e5768690fcca56271e1442a384c6c6",
     "semantic_hash": ""
   },
   "runtime/parity_test-totp-cooldown.json": {
-    "mtime": 1783048356.504421,
-    "ast_hash": "df56dd9f4914670eb3e182e86c4fb0ac",
+    "mtime": 1783062475.0298367,
+    "ast_hash": "bb85ad8fd37b884bfa6ae5fbe2301fdb",
     "semantic_hash": ""
   },
   "runtime/test-totp-cooldown.json": {
@@ -5340,48 +5300,13 @@
     "semantic_hash": ""
   },
   "runtime/test_unit_2-totp-cooldown.json": {
-    "mtime": 1783060901.2314541,
-    "ast_hash": "8caa5f8b939cbe5cb2a3c48b39e816ad",
+    "mtime": 1783062759.769785,
+    "ast_hash": "40d5069a73c7af20e466a44a1a5b4247",
     "semantic_hash": ""
   },
   "runtime/test_unit_3-totp-cooldown.json": {
-    "mtime": 1783060901.232066,
-    "ast_hash": "19cccae097233f2005942b1b21cf6ab9",
-    "semantic_hash": ""
-  },
-  ".agents/rules/graphify.md": {
-    "mtime": 1782975219.566939,
-    "ast_hash": "f1e53ecc9194573d3c28fc116c743a2e",
-    "semantic_hash": ""
-  },
-  ".agents/workflows/graphify.md": {
-    "mtime": 1782975219.5677137,
-    "ast_hash": "0bc020d491fca99550c1ea3de0a5f862",
-    "semantic_hash": ""
-  },
-  ".autoresearch/README.md": {
-    "mtime": 1782967697.0207982,
-    "ast_hash": "e90085efa2feaafb938a7dd3d5c3c8e8",
-    "semantic_hash": ""
-  },
-  ".autoresearch/brokers_review_report.md": {
-    "mtime": 1782968083.1085308,
-    "ast_hash": "92cc7ca267c79761ff17595669d6c70d",
-    "semantic_hash": ""
-  },
-  ".autoresearch/brokers_static_analysis_report.md": {
-    "mtime": 1782968480.4541254,
-    "ast_hash": "ce2d4462560d208c9d338ecd572f25b0",
-    "semantic_hash": ""
-  },
-  ".autoresearch/dead_code_registry.md": {
-    "mtime": 1782969357.3000512,
-    "ast_hash": "8ef1dda605084c85368fbf7061835cc7",
-    "semantic_hash": ""
-  },
-  ".autoresearch/objective.md": {
-    "mtime": 1782967699.9148424,
-    "ast_hash": "d44f76dc76e59743a7446f70f3185270",
+    "mtime": 1783062759.7703407,
+    "ast_hash": "8faa67e5cb0af64b7753997409e204c4",
     "semantic_hash": ""
   },
   ".github/workflows/repo-graph-validate.yml": {
@@ -6324,21 +6249,6 @@
     "ast_hash": "204f114b01386f4a0a8e6c7784266369",
     "semantic_hash": ""
   },
-  ".tradexv2/websocket-singleton-fix-plan.md": {
-    "mtime": 1783055967.1485298,
-    "ast_hash": "25c5915d7daaeb55e51cedf4b1c458d5",
-    "semantic_hash": ""
-  },
-  "PHASE0_CHECKLIST.md": {
-    "mtime": 1783048514.3665907,
-    "ast_hash": "b3abeda812e2c02c56547558a209d548",
-    "semantic_hash": ""
-  },
-  "Phase_0_Foundation_Behavior_Specification.md": {
-    "mtime": 1783050260.3723514,
-    "ast_hash": "7078e365b08369546639d74a27d934ef",
-    "semantic_hash": ""
-  },
   "archive/CLAUDE.md": {
     "mtime": 1782968552.863701,
     "ast_hash": "fe8ba3857ed3c3fb4e2bbb28f02451e9",
@@ -6377,11 +6287,6 @@
   "archive/requirements.txt": {
     "mtime": 1782965758.4736712,
     "ast_hash": "b566cdb1cc9703ed936322dadfbecebe",
-    "semantic_hash": ""
-  },
-  "heg_stream_data.txt": {
-    "mtime": 1783060709.1213048,
-    "ast_hash": "1d5ca06d4d561702a15e022023b6f6ae",
     "semantic_hash": ""
   },
   "review/PHASE_3_8_RESILIENCE_AUDIT.md": {
@@ -6797,6 +6702,136 @@
   ".qoder/skills/trading-visualization/trade_markers.png": {
     "mtime": 1782965747.0331552,
     "ast_hash": "fef103e699e5acdfe296cdfdc71129da",
+    "semantic_hash": ""
+  },
+  "brokers/adapters/dhan/connection_admission.py": {
+    "mtime": 1783061855.8317864,
+    "ast_hash": "ee84c3838c55a8ae3b7f881203cade23",
+    "semantic_hash": ""
+  },
+  "brokers/adapters/dhan/connection_lifecycle.py": {
+    "mtime": 1783062122.5660641,
+    "ast_hash": "669c55ded36ff0a30d30758cbda535d4",
+    "semantic_hash": ""
+  },
+  "brokers/adapters/dhan/depth_feed_base.py": {
+    "mtime": 1783062112.6670249,
+    "ast_hash": "856ad182c1a580468ce1bc4a9d0479b0",
+    "semantic_hash": ""
+  },
+  "brokers/adapters/dhan/reconnecting_service.py": {
+    "mtime": 1783062325.1851351,
+    "ast_hash": "7da48a6b8829957f8950d0d0d6353d83",
+    "semantic_hash": ""
+  },
+  "brokers/adapters/dhan/resilience/websocket_rate_limiter_simple.py": {
+    "mtime": 1783062094.723783,
+    "ast_hash": "33482e9116b0f88373ea98f7edd8fada",
+    "semantic_hash": ""
+  },
+  "brokers/adapters/dhan/subscription_engine.py": {
+    "mtime": 1783062159.3179066,
+    "ast_hash": "35d22482b50e6c0986645f54e3a05ab7",
+    "semantic_hash": ""
+  },
+  "brokers/adapters/upstox/auth/config.py": {
+    "mtime": 1783061876.504718,
+    "ast_hash": "b8b30592bdfc4c6cd997e8d80b23956b",
+    "semantic_hash": ""
+  },
+  "brokers/adapters/upstox/auth/login.py": {
+    "mtime": 1783061933.638047,
+    "ast_hash": "f2abe59f8fad1696fdaac978ecf8c954",
+    "semantic_hash": ""
+  },
+  "brokers/adapters/upstox/auth/redirect_server.py": {
+    "mtime": 1783061815.848809,
+    "ast_hash": "c8cabb04db99e9a3fd6781f24244a701",
+    "semantic_hash": ""
+  },
+  "brokers/adapters/upstox/auth/totp_scheduler.py": {
+    "mtime": 1783061835.801692,
+    "ast_hash": "77dbd4b10c4aa331176e048714bc015d",
+    "semantic_hash": ""
+  },
+  "brokers/tests/unit/adapters/upstox/test_gateway.py": {
+    "mtime": 1783062046.6362464,
+    "ast_hash": "2ac6154f8456540aaf74b04ac737987b",
+    "semantic_hash": ""
+  },
+  "brokers/tests/unit/adapters/upstox/test_holders.py": {
+    "mtime": 1783061850.7985892,
+    "ast_hash": "235da42a499a0e47623de86eca9f7ddc",
+    "semantic_hash": ""
+  },
+  "brokers/tests/unit/adapters/upstox/test_login.py": {
+    "mtime": 1783062004.4547234,
+    "ast_hash": "98785c3ace7f1831798b856702114284",
+    "semantic_hash": ""
+  },
+  "brokers/tests/unit/adapters/upstox/test_oauth_client.py": {
+    "mtime": 1783061950.1136274,
+    "ast_hash": "6549361134aaf4a3b7ef3f5fc91076c8",
+    "semantic_hash": ""
+  },
+  "brokers/tests/unit/adapters/upstox/test_pkce.py": {
+    "mtime": 1783061895.571284,
+    "ast_hash": "968f2e9084264c7fd3e04802efd165c9",
+    "semantic_hash": ""
+  },
+  "brokers/tests/unit/adapters/upstox/test_redirect_server.py": {
+    "mtime": 1783062010.9618342,
+    "ast_hash": "e3c30544cec46c53189f38a7744f1433",
+    "semantic_hash": ""
+  },
+  "brokers/tests/unit/adapters/upstox/test_token_manager.py": {
+    "mtime": 1783061961.599722,
+    "ast_hash": "1c23ea1f3528acd1239ea1c521c23680",
+    "semantic_hash": ""
+  },
+  "brokers/tests/unit/adapters/upstox/test_totp_bootstrap.py": {
+    "mtime": 1783061974.2994075,
+    "ast_hash": "75fe0958fe12abc90d8bd8ceee1c393c",
+    "semantic_hash": ""
+  },
+  "brokers/tests/unit/adapters/upstox/test_totp_scheduler.py": {
+    "mtime": 1783061918.2245915,
+    "ast_hash": "5db96c4852d234066c291611085678cc",
+    "semantic_hash": ""
+  },
+  "runtime/upstox-token-state.json": {
+    "mtime": 1783062317.7444143,
+    "ast_hash": "796e6491328ed10b4639fad7cdfd9de2",
+    "semantic_hash": ""
+  },
+  "scripts/real_historical_data.py": {
+    "mtime": 1783046058.5791059,
+    "ast_hash": "670cd42e1b5772998ae028559545fc98",
+    "semantic_hash": ""
+  },
+  ".poolside/settings.local.yaml": {
+    "mtime": 1783061706.630683,
+    "ast_hash": "2596a626d60b495d26ca7b5879d9cb3c",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1783061856.6147373,
+    "ast_hash": "fe8ba3857ed3c3fb4e2bbb28f02451e9",
+    "semantic_hash": ""
+  },
+  "archive/docs/PHASE0_CHECKLIST.md": {
+    "mtime": 1783048514.3665907,
+    "ast_hash": "b3abeda812e2c02c56547558a209d548",
+    "semantic_hash": ""
+  },
+  "archive/docs/Phase_0_Foundation_Behavior_Specification.md": {
+    "mtime": 1783050260.3723514,
+    "ast_hash": "7078e365b08369546639d74a27d934ef",
+    "semantic_hash": ""
+  },
+  "review/UPSTOX_PHASE_0_1_AUTH_AUDIT.md": {
+    "mtime": 1783061691.7946188,
+    "ast_hash": "c78f3464e643f10adf9f74ecc181fd8a",
     "semantic_hash": ""
   }
 }

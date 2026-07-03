@@ -110,6 +110,8 @@ class ReconnectingServiceMixin(Generic[_CallbackT]):
 
     def _emit_reconnect_metric(self) -> None:
         try:
+            import prometheus_client
+
             from brokers.adapters.dhan.metrics import dhan_ws_reconnect_total
 
             dhan_ws_reconnect_total.inc()

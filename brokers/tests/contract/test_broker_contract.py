@@ -106,6 +106,10 @@ class _FakeStreaming:
     async def disconnect(self):
         pass
 
+    @property
+    def is_connected(self):
+        return True
+
     async def subscribe_quotes(self, symbols, exchange, callback):
         pass
 
@@ -122,6 +126,13 @@ class _FakeBroker:
         self._auth = _FakeAuth()
         self._historical = _FakeHistorical()
         self._streaming = _FakeStreaming()
+
+    @property
+    def broker_id(self):
+        return "fake"
+
+    def capabilities(self):
+        return None
 
     @property
     def orders(self):

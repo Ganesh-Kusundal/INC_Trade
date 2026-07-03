@@ -9,14 +9,12 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 
+from brokers.domain.constants.exchanges import DERIVATIVE_EXCHANGES
 from brokers.domain.enums import OrderType, ProductType
 from brokers.domain.exceptions import OrderRejectedError
 from brokers.utils.price import is_tick_aligned
 
 logger = logging.getLogger(__name__)
-
-_EQUITY_EXCHANGES = {"NSE", "BSE"}
-_DERIVATIVE_EXCHANGES = {"NFO", "BFO", "MCX", "CDS", "BCD"}
 
 _EQUITY_PRODUCTS = {ProductType.INTRADAY, ProductType.DELIVERY}
 
@@ -65,7 +63,7 @@ def validate_tick_alignment(
 
 
 def validate_product_segment(product_type: ProductType, exchange: str) -> None:
-    if exchange in _DERIVATIVE_EXCHANGES and product_type in _EQUITY_PRODUCTS:
+    if exchange in DERIVATIVE_EXCHANGES and product_type in _EQUITY_PRODUCTS:
         if product_type == ProductType.DELIVERY:
             raise OrderRejectedError(
                 f"DELIVERY product is not valid for derivative exchange {exchange}"

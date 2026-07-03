@@ -103,7 +103,7 @@ class TestDhanOrdersSecurityId:
         mock_session_cls.return_value = mock_session
 
         gw = _make_gateway_with_csv()
-        gw.orders.place_order("CRUDEOIL 26 JUN FUT", "MCX", Side.BUY, 1)
+        gw.orders.place_order("CRUDEOIL 26 JUN FUT", "MCX", Side.BUY, 100)
 
         payload = _get_sent_payload(mock_session)
         assert payload["securityId"] == "44772"

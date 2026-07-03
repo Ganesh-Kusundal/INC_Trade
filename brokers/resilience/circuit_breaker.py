@@ -56,7 +56,7 @@ class CircuitBreaker:
         self,
         failure_threshold: int | str = 5,
         recovery_timeout: CircuitBreakerConfig | float = 30.0,
-        success_threshold: int = 1,
+        success_threshold: int = 3,
     ):
         self._lock = threading.Lock()
         self.metrics = CircuitBreakerMetrics()

@@ -10,9 +10,12 @@ Thread-safe.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
+from typing import Any
 
 import requests
 
+from brokers.domain.constants.timeouts import DEFAULT_HTTP_TIMEOUT_SECONDS
 from brokers.adapters.upstox.config import (
     RATE_LIMITS,
     READ_PREFIXES,
@@ -24,6 +27,7 @@ from brokers.domain.exceptions import (
     BrokerServerError,
     RateLimitError,
 )
+from brokers.infrastructure.ssl_hardening import create_pinned_session
 from brokers.resilience.http_client import BaseResilientHttpClient
 
 logger = logging.getLogger(__name__)
@@ -35,10 +39,10 @@ class UpstoxHttpClient(BaseResilientHttpClient):
         access_token: str | Callable[[], str],
         base_url_v2: str = "",
         base_url_hft: str = "",
-        timeout: float = 10.0,
-        token_refresh_fn: Callable[[], str | None] | None = None,
+        timeout: float = DEFAULT_HTTP_TIMEOUT_SECONDS,
+        token_refresh_fn: Callable[[], bool] | None = None,
     ):
-        super().__init__(rate_limits=RATE_LIMITS, timeout=timeout)
+        super().__init__(rate_limits=RATE_LIMITS, timeout=timeout, session_factory=create_pinned_session)
         self._token_refresh_fn = token_refresh_fn
         if callable(access_token):
             self._token_provider = access_token
@@ -89,11 +93,12 @@ class UpstoxHttpClient(BaseResilientHttpClient):
         return f"{self._base_v2}{endpoint}"
 
     def _handle_response(self, resp: requests.Response) -> dict:
-        if resp.status_code == 401:
+        if resp.status_code in (401, 403):
             if self._token_refresh_fn is not None:
-                new_token = self._token_refresh_fn()
-                if new_token:
-                    self.update_token(new_token)
+                if self._token_refresh_fn():
+                    token = self._token_provider()
+                    if token:
+                        self.update_token(token)
                     from brokers.resilience.http_client import TokenRefreshSignal
 
                     raise TokenRefreshSignal("Token refreshed, retrying request")

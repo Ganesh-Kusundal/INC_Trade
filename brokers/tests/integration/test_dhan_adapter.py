@@ -10,7 +10,33 @@ import pytest
 from brokers.adapters.dhan.gateway import DhanGateway
 from brokers.adapters.dhan.identity import DhanInstrumentRef
 from brokers.domain import Side
+from brokers.infrastructure.totp_cooldown import TOTPCooldown
 from brokers.ports import BrokerGateway
+
+
+@pytest.fixture(autouse=True)
+def _isolated_totp_cooldown(tmp_path, monkeypatch):
+    TOTPCooldown._instances.clear()
+    runtime_state = (
+        __import__("pathlib").Path(__file__).resolve().parents[3]
+        / "runtime"
+        / "dhan-totp-cooldown.json"
+    )
+    if runtime_state.exists():
+        runtime_state.unlink()
+
+    def _for_broker(broker: str, cooldown_seconds: float | None = None):
+        return TOTPCooldown(
+            broker,
+            cooldown_seconds=cooldown_seconds,
+            state_path=tmp_path / f"{broker}-totp-cooldown.json",
+        )
+
+    monkeypatch.setattr(
+        "brokers.adapters.dhan.auth.TOTPCooldown.for_broker", _for_broker
+    )
+    yield
+    TOTPCooldown._instances.clear()
 
 
 def _mock_response(json_data, status_code=200):
@@ -83,13 +109,18 @@ class TestDhanOrders:
     @patch("brokers.adapters.dhan.http.requests.Session")
     def test_cancel_order(self, mock_session_cls):
         mock_session = MagicMock()
-        mock_session.request.return_value = _mock_response({})
+        mock_session.request.return_value = _mock_response(
+            {"status": "success", "message": "cancelled"}
+        )
         mock_session.headers = {}
         mock_session_cls.return_value = mock_session
 
         gw = DhanGateway(access_token="tok", client_id="cid", allow_live_orders=True)
+        gw.orders.get_order = MagicMock(return_value=None)  # type: ignore[method-assign]
         resp = gw.orders.cancel_order("12345")
         assert resp.success
+        methods = [c[0][0] for c in mock_session.request.call_args_list]
+        assert "DELETE" in methods
         gw.close()
 
     @patch("brokers.adapters.dhan.http.requests.Session")
@@ -275,6 +306,7 @@ class TestDhanAuth:
         assert gw.auth.get_token() == "generated-token-1"
 
         token = gw.auth.refresh_token()
-        assert token == "generated-token-2"
-        assert gw.auth.get_token() == "generated-token-2"
+        assert token == "generated-token-1"
+        assert mock_post.call_count == 1
+        assert gw.auth.get_token() == "generated-token-1"
         gw.close()
