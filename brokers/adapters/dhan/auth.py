@@ -42,8 +42,6 @@ def _prefer_ipv4():
         socket._dhan_ipv4_patched = True
 
 
-_prefer_ipv4()
-
 
 class DhanAuth:
     """Dhan authentication with token state tracking.
@@ -146,6 +144,7 @@ class DhanAuth:
             raise TokenRateLimitError(str(exc)) from exc
 
         self._totp_cooldown.record_attempt()
+        _prefer_ipv4()
 
         import pyotp
         from urllib.parse import urlencode
@@ -157,7 +156,7 @@ class DhanAuth:
         url = f"{ENDPOINTS['generate_token']}?{urlencode(params)}"
 
         try:
-            resp = requests.post(url, timeout=15)
+            resp = requests.post(url, timeout=15)  # Intentional: TOTP token generation uses raw requests to avoid DhanHttpClient's rate limiter for this one-shot endpoint
         except requests.RequestException as exc:
             raise AuthenticationError(
                 f"Token generation request failed: {exc}"

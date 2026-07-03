@@ -48,5 +48,5 @@ class DhanLedger:
 
             return data
         except Exception as e:
-            logger.error(f"Failed to fetch ledger: {e}")
+            logger.error("Failed to fetch ledger: %s", e, exc_info=True)
             return []

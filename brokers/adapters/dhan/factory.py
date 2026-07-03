@@ -36,7 +36,8 @@ class DhanBrokerFactory:
         **kwargs: Any,
     ) -> DhanCompatibilityGateway:
         """Return a compatibility facade, reusing one gateway per ``client_id``."""
-        del kwargs
+        if kwargs:
+            logger.warning("Unknown kwargs ignored: %s", list(kwargs.keys()))
         resolved_client_id = (client_id or access_token or "default")[:64]
 
         def _build() -> DhanCompatibilityGateway:

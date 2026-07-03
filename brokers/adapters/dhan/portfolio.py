@@ -47,6 +47,8 @@ class DhanPortfolio:
         return Balance(available_cash=Decimal("0"))
 
     def trades(self) -> list[Trade]:
+        """Fetch today's trades. Duplicates DhanOrders.trades() because
+        PortfolioPort and OrderExecutionPort are separate ports."""
         data = self._client.get(ENDPOINTS["tradebook"])
         items = data.get("data", [])
         if isinstance(items, list):

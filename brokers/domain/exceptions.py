@@ -15,7 +15,10 @@ from brokers.domain.error_codes import (
     BROKER_DEGRADED,
     BROKER_SERVER,
     CIRCUIT_OPEN,
+    IDEMPOTENCY_CONFLICT,
     INSTRUMENT_NOT_FOUND,
+    INVALID_INPUT,
+    LIVE_ORDERS_DISABLED,
     NETWORK_ERROR,
     NOT_SUPPORTED,
     ORDER_REJECTED,
@@ -129,3 +132,24 @@ class BrokerDegradedError(BrokerError):
     ) -> None:
         self.health_status = health_status or {}
         super().__init__(message, code=BROKER_DEGRADED)
+
+
+class InvalidInputError(BrokerError):
+    """Invalid input provided to broker API."""
+
+    def __init__(self, message: str = "Invalid input") -> None:
+        super().__init__(message, code=INVALID_INPUT)
+
+
+class IdempotencyConflictError(BrokerError):
+    """Duplicate order detected — idempotency key already used."""
+
+    def __init__(self, message: str = "Idempotency conflict") -> None:
+        super().__init__(message, code=IDEMPOTENCY_CONFLICT)
+
+
+class LiveOrdersDisabledError(BrokerError):
+    """Live orders are disabled for this broker or session."""
+
+    def __init__(self, message: str = "Live orders disabled") -> None:
+        super().__init__(message, code=LIVE_ORDERS_DISABLED)

@@ -160,7 +160,6 @@ class DhanFutures:
         exchange: str,
     ) -> list[DhanInstrumentRef]:
         """Return all active futures contracts for an underlying, sorted by expiry."""
-        del exchange  # segment resolved via instrument refs
         now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         futures_with_expiry: list[tuple[datetime, DhanInstrumentRef]] = []

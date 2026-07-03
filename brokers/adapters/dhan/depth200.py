@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 from threading import RLock
-from typing import TYPE_CHECKING, Dict, Tuple
+from typing import Any, TYPE_CHECKING, Dict, Tuple
 
 from brokers.adapters.dhan.segments import resolve_segment
 from brokers.adapters.dhan.depth_feed_base import BinaryDepthFeed

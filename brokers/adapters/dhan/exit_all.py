@@ -49,7 +49,7 @@ class DhanExitAll:
             square_off_payloads.append(payload)
 
         results = []
-        with ThreadPoolExecutor() as executor:
+        with ThreadPoolExecutor(max_workers=10) as executor:
             future_to_payload = {
                 executor.submit(
                     self._client.post, ENDPOINTS.get("orders", "/orders"), json=p
@@ -79,7 +79,7 @@ class DhanExitAll:
 
         cancel_futures = []
         active_statuses = {"PENDING", "TRANSIT", "OPEN", "PARTIALLY_FILLED"}
-        with ThreadPoolExecutor() as executor:
+        with ThreadPoolExecutor(max_workers=10) as executor:
             for order in orders:
                 if order.get("orderStatus") in active_statuses:
                     order_id = order.get("orderId")

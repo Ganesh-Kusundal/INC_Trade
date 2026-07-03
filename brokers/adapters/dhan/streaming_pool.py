@@ -22,6 +22,111 @@ WS_DEPTH200_URL = "wss://full-depth-api.dhan.co/twohundreddepth"
 WS_ORDER_URL = "wss://api-order-update.dhan.co"
 
 
+class Depth20Connection(WebSocketConnection):
+    """Custom connection class for Depth20 message format."""
+
+    def _send_subscribe(self, keys: list[str]) -> None:
+        instrument_list = []
+        for key in keys:
+            parts = key.split("|")
+            if len(parts) == 2:
+                instrument_list.append(
+                    {"ExchangeSegment": parts[0], "SecurityId": parts[1]}
+                )
+
+        if self._ws and instrument_list:
+            msg = json.dumps(
+                {
+                    "RequestCode": 23,
+                    "InstrumentCount": len(instrument_list),
+                    "InstrumentList": instrument_list,
+                }
+            )
+            self._ws.send(msg)
+
+    def _send_unsubscribe(self, keys: list[str]) -> None:
+        self._send_subscribe(keys)
+
+
+class Depth200Connection(WebSocketConnection):
+    """Custom connection class for Depth200 message format."""
+
+    def _send_subscribe(self, keys: list[str]) -> None:
+        instrument_list = []
+        for key in keys:
+            parts = key.split("|")
+            if len(parts) == 2:
+                instrument_list.append(
+                    {"ExchangeSegment": parts[0], "SecurityId": parts[1]}
+                )
+
+        # Dhan limits depth200 to 1 instrument per connection
+        if instrument_list:
+            instrument_list = [instrument_list[0]]
+
+        if self._ws and instrument_list:
+            msg = json.dumps(
+                {
+                    "RequestCode": 23,
+                    "InstrumentCount": len(instrument_list),
+                    "InstrumentList": instrument_list,
+                }
+            )
+            self._ws.send(msg)
+
+    def _send_unsubscribe(self, keys: list[str]) -> None:
+        self._send_subscribe(keys)
+
+
+class OrderStreamConnection(WebSocketConnection):
+    """Custom connection class for order stream format."""
+
+    def __init__(
+        self,
+        ws_url: str,
+        headers: dict[str, str],
+        on_message: Callable[[str], None],
+        on_open: Callable[[], None] | None = None,
+        on_close: Callable[[int, str], None] | None = None,
+        on_error: Callable[[Exception], None] | None = None,
+        reconnect_delay: float = 5.0,
+        max_reconnect_delay: float = 60.0,
+        *,
+        access_token: str | Callable[[], str] = "",
+        client_id: str = "",
+    ) -> None:
+        super().__init__(
+            ws_url, headers, on_message, on_open, on_close, on_error,
+            reconnect_delay, max_reconnect_delay,
+        )
+        self._access_token = access_token
+        self._client_id = client_id
+
+    def _send_subscribe(self, keys: list[str]) -> None:
+        access_token = (
+            self._access_token()
+            if callable(self._access_token)
+            else self._access_token
+        )
+        if self._ws:
+            msg = json.dumps(
+                {
+                    "LoginReq": {
+                        "MsgCode": 42,
+                        "ClientId": self._client_id,
+                        "Token": access_token,
+                    },
+                    "UserType": "SELF",
+                }
+            )
+            self._ws.send(msg)
+
+    def _send_unsubscribe(self, keys: list[str]) -> None:
+        if self._ws:
+            msg = json.dumps({"type": "unsubscribe", "channel": "orders"})
+            self._ws.send(msg)
+
+
 class PooledDhanStreaming:
     """Dhan market data streaming using connection pool."""
 
@@ -192,31 +297,6 @@ class PooledDhanDepth20Stream:
             def on_message(message: str) -> None:
                 self._handle_message(message)
 
-            # Use custom connection class for Depth20 message format
-            class Depth20Connection(WebSocketConnection):
-                def _send_subscribe(self, keys: list[str]) -> None:
-                    instrument_list = []
-                    for key in keys:
-                        parts = key.split("|")
-                        if len(parts) == 2:
-                            instrument_list.append(
-                                {"ExchangeSegment": parts[0], "SecurityId": parts[1]}
-                            )
-
-                    if self._ws and instrument_list:
-                        msg = json.dumps(
-                            {
-                                "RequestCode": 23,
-                                "InstrumentCount": len(instrument_list),
-                                "InstrumentList": instrument_list,
-                            }
-                        )
-                        self._ws.send(msg)
-
-                def _send_unsubscribe(self, keys: list[str]) -> None:
-                    # Depth20 uses same format for unsubscribe
-                    self._send_subscribe(keys)  # Actually sends unsubscribe format
-
             self._connection = WebSocketConnectionPool.get_connection(
                 WS_DEPTH20_URL,
                 headers,
@@ -310,35 +390,6 @@ class PooledDhanDepth200Stream:
             def on_message(message: str) -> None:
                 self._handle_message(message)
 
-            # Use custom connection class for Depth200 message format
-            class Depth200Connection(WebSocketConnection):
-                def _send_subscribe(self, keys: list[str]) -> None:
-                    instrument_list = []
-                    for key in keys:
-                        parts = key.split("|")
-                        if len(parts) == 2:
-                            instrument_list.append(
-                                {"ExchangeSegment": parts[0], "SecurityId": parts[1]}
-                            )
-
-                    # Dhan limits depth200 to 1 instrument per connection
-                    if instrument_list:
-                        instrument_list = [instrument_list[0]]
-
-                    if self._ws and instrument_list:
-                        msg = json.dumps(
-                            {
-                                "RequestCode": 23,
-                                "InstrumentCount": len(instrument_list),
-                                "InstrumentList": instrument_list,
-                            }
-                        )
-                        self._ws.send(msg)
-
-                def _send_unsubscribe(self, keys: list[str]) -> None:
-                    # Depth200 uses same format
-                    self._send_subscribe(keys)
-
             self._connection = WebSocketConnectionPool.get_connection(
                 WS_DEPTH200_URL,
                 headers,
@@ -427,38 +478,28 @@ class PooledDhanOrderStream:
             def on_message(message: str) -> None:
                 self._handle_message(message)
 
-            # Use custom connection class for order stream format
-            class OrderStreamConnection(WebSocketConnection):
-                def _send_subscribe(self, keys: list[str]) -> None:
-                    # Order stream sends auth message on connect
-                    access_token = (
-                        self._access_token()
-                        if callable(self._access_token)
-                        else self._access_token
-                    )
-                    if self._ws:
-                        msg = json.dumps(
-                            {
-                                "LoginReq": {
-                                    "MsgCode": 42,
-                                    "ClientId": self._client_id,
-                                    "Token": access_token,
-                                },
-                                "UserType": "SELF",
-                            }
-                        )
-                        self._ws.send(msg)
-
-                def _send_unsubscribe(self, keys: list[str]) -> None:
-                    if self._ws:
-                        msg = json.dumps({"type": "unsubscribe", "channel": "orders"})
-                        self._ws.send(msg)
+            def _factory(
+                ws_url: str,
+                hdrs: dict[str, str],
+                msg_handler: Callable[[str], None],
+                on_open: Callable[[], None] | None = None,
+                on_close: Callable[[int, str], None] | None = None,
+                on_error: Callable[[Exception], None] | None = None,
+                reconnect_delay: float = 5.0,
+                max_reconnect_delay: float = 60.0,
+            ) -> OrderStreamConnection:
+                return OrderStreamConnection(
+                    ws_url, hdrs, msg_handler, on_open, on_close, on_error,
+                    reconnect_delay, max_reconnect_delay,
+                    access_token=self._access_token,
+                    client_id=self._client_id,
+                )
 
             self._connection = WebSocketConnectionPool.get_connection(
                 WS_ORDER_URL,
                 headers,
                 on_message,
-                connection_factory=OrderStreamConnection,
+                connection_factory=_factory,
             )
         return self._connection
 

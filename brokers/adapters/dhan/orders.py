@@ -215,6 +215,7 @@ class DhanOrders:
         return [map_order(o) for o in orders_data if isinstance(o, dict)]
 
     def get_trade_book(self) -> list[Trade]:
+        """Protocol-compatibility alias. Prefer trades()."""
         return self.trades()
 
     def trades(self) -> list[Trade]:
@@ -301,7 +302,7 @@ class DhanOrders:
             trigger_price=trigger_price,
             correlation_id=correlation_id,
         )
-        validation_error = self._place_order_uc._validate(ref, request)
+        validation_error = self._place_order_uc.validate(ref, request)
         if validation_error:
             return OrderResponse.fail(
                 f"Order validation failed: {validation_error}",

@@ -108,7 +108,7 @@ class PlaceOrderUseCase:
             except InstrumentNotFoundError as exc:
                 return OrderResponse.fail(str(exc), error_code="INSTRUMENT_NOT_FOUND"), None
 
-            validation_error = self._validate(ref, request)
+            validation_error = self.validate(ref, request)
             if validation_error:
                 logger.warning(
                     "order_validation_failed",
@@ -201,7 +201,7 @@ class PlaceOrderUseCase:
                 )
             return response, placed
 
-    def _validate(self, ref: Any, request: PlaceOrderRequest) -> str | None:
+    def validate(self, ref: Any, request: PlaceOrderRequest) -> str | None:
         if request.order_type == OrderType.LIMIT and request.price <= 0:
             return "Limit order requires price > 0"
         if request.order_type == OrderType.STOP_LOSS and (

@@ -183,7 +183,7 @@ class DhanOptions:
             ref = self._resolver.resolve(underlying, exchange)
             return ref.security_id, ref.exchange_segment
         except Exception:
-            pass
+            logger.debug("resolve_direct_failed: %s %s", underlying, exchange)
 
         # For index underlyings: NSE indices live under IDX_I segment
         # Try resolving against INDEX exchange alias
@@ -191,7 +191,7 @@ class DhanOptions:
             ref = self._resolver.resolve(underlying, "INDEX")
             return ref.security_id, ref.exchange_segment
         except Exception:
-            pass
+            logger.debug("resolve_index_failed: %s", underlying)
 
         # Search broadly
         results = self._resolver.search(underlying.upper(), limit=50)

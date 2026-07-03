@@ -24,6 +24,7 @@ from brokers.domain.enums import (
     Side,
     Validity,
 )
+from brokers.adapters.dhan.config import SEGMENT_TO_EXCHANGE
 from brokers.utils.price import to_decimal
 
 _STATUS_MAP = {
@@ -214,13 +215,4 @@ def map_trade(data: dict) -> Trade:
 
 def _normalize_exchange(segment: str) -> str:
     segment = str(segment).upper()
-    mapping = {
-        "NSE_EQ": "NSE",
-        "NSE_FNO": "NFO",
-        "BSE_EQ": "BSE",
-        "BSE_FNO": "BFO",
-        "MCX_COMM": "MCX",
-        "NSE_CD": "CUR",
-        "IDX_I": "INDEX",
-    }
-    return mapping.get(segment, segment)
+    return SEGMENT_TO_EXCHANGE.get(segment, segment)

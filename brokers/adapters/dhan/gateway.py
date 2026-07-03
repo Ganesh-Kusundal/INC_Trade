@@ -46,6 +46,7 @@ from brokers.adapters.dhan.user_profile import DhanUserProfile
 from brokers.domain import MarketDepth
 from brokers.domain.capabilities import BrokerCapabilities
 from brokers.infrastructure.event_bus import EventBus
+from brokers.infrastructure.lifecycle import LifecycleManager
 from brokers.infrastructure.token_persistence import (
     JsonTokenStateStore,
     update_env_token,
@@ -89,7 +90,7 @@ class DhanGateway:
         """Canonical broker identifier."""
         return self._broker_id
 
-    def capabilities(self) -> BrokersCapabilities:
+    def capabilities(self) -> BrokerCapabilities:
         """Return Dhan broker capability matrix."""
         return dhan_capabilities()
 
@@ -105,7 +106,7 @@ class DhanGateway:
         auto_refresh: bool = True,
         refresh_interval_seconds: int = 60,
         refresh_buffer_seconds: float = 300.0,
-        lifecycle: Any | None = None,
+        lifecycle: LifecycleManager | None = None,
         event_bus: EventBus | None = None,
         risk_manager: RiskManagerPort | None = None,
     ):
@@ -114,17 +115,17 @@ class DhanGateway:
         self._auto_refresh = auto_refresh
 
         # Create token store if directory provided
-        token_store = None
+        self._token_store = None
         if token_state_dir:
             token_state_dir.mkdir(parents=True, exist_ok=True)
-            token_store = JsonTokenStateStore(token_state_dir / "dhan-token-state.json")
+            self._token_store = JsonTokenStateStore(token_state_dir / "dhan-token-state.json")
 
         self._auth = DhanAuth(
             access_token=access_token,
             client_id=client_id,
             pin=pin,
             totp_secret=totp_secret,
-            token_store=token_store,
+            token_store=self._token_store,
         )
 
         self._refresh_lock = threading.Lock()
@@ -160,7 +161,7 @@ class DhanGateway:
             self._client, self._resolver
         )
         self._exit_all = DhanExitAll(self._client)
-        self._edis = DhanEDIS(self._client, self._resolver)
+        self._edis = DhanEDIS(self._client)
         self._ledger = DhanLedger(self._client)
         self._alerts = DhanAlerts(self._client)
         self._ip_management = DhanIpManagement(self._client)
@@ -238,14 +239,11 @@ class DhanGateway:
 
     def _persist_token(self, token: str) -> None:
         """Persist token to JSON store and/or .env file."""
-        if self._token_state_dir is not None:
+        if self._token_store is not None:
             try:
-                store = JsonTokenStateStore(
-                    self._token_state_dir / "dhan-token-state.json"
-                )
                 state = self._auth.state
                 if state is not None:
-                    store.save(state)
+                    self._token_store.save(state)
             except Exception as exc:
                 logger.warning("token_state_persist_failed", extra={"error": str(exc)})
 

@@ -64,24 +64,34 @@ class MetricsRegistry:
         DHAN_REQUEST_DURATION.labels(method=method, path=path).observe(duration)
 
 
-def observe_metrics(func: Callable) -> Callable:
+def observe_metrics(path: str | None = None) -> Callable:
     """Decorator to observe HTTP request metrics."""
 
-    @wraps(func)
-    def wrapper(self, *args, **kwargs) -> Any:
-        start = perf_counter()
-        try:
-            result = func(self, *args, **kwargs)
-            MetricsRegistry.inc_request("HTTP", "dhan_api", 200)
-            return result
-        except Exception as e:
-            MetricsRegistry.inc_error("HTTP", "dhan_api", type(e).__name__)
-            raise
-        finally:
-            duration = perf_counter() - start
-            MetricsRegistry.observe_duration("HTTP", "dhan_api", duration)
+    def decorator(func: Callable) -> Callable:
+        metric_path = path or func.__qualname__
 
-    return wrapper
+        @wraps(func)
+        def wrapper(self, *args, **kwargs) -> Any:
+            start = perf_counter()
+            try:
+                result = func(self, *args, **kwargs)
+                MetricsRegistry.inc_request("HTTP", metric_path, 200)
+                return result
+            except Exception as e:
+                MetricsRegistry.inc_error("HTTP", metric_path, type(e).__name__)
+                raise
+            finally:
+                duration = perf_counter() - start
+                MetricsRegistry.observe_duration("HTTP", metric_path, duration)
+
+        return wrapper
+
+    if callable(path):
+        func = path
+        path = None
+        return decorator(func)
+
+    return decorator
 
 
 def with_metrics(name: str, tracker: Any = None) -> Callable:

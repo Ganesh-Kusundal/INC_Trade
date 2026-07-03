@@ -23,7 +23,7 @@ class SimpleWebSocketRateLimiter:
     """
 
     def __init__(self):
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._last_connection_time = 0.0
         self._min_connection_interval = 1.0
         self._depth_200_connections = 0

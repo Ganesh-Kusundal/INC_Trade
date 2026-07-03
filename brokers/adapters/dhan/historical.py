@@ -88,7 +88,7 @@ class DhanHistorical:
         end_time: datetime,
         resolution: str,
     ) -> list[Candle]:
-        """Alias for get_historical_candles for protocol compatibility."""
+        """Protocol-compatibility alias. Prefer get_historical_candles."""
         return self.get_historical_candles(
             symbol, exchange, start_time, end_time, resolution
         )

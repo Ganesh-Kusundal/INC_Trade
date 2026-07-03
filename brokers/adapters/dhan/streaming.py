@@ -80,10 +80,10 @@ class DhanStreaming(BaseWebSocketStreaming):
             ref = self._resolver.resolve(symbol, exchange)
             key = f"{ref.exchange_segment}|{ref.security_id}"
             super().subscribe(key)
-            logger.info(f"Subscribed to {symbol} ({exchange}) as key {key}")
+            logger.info("subscribed", extra={"symbol": symbol, "exchange": exchange, "key": key})
         except Exception as e:
             logger.error(
-                f"Failed to resolve and subscribe to {symbol} on {exchange}: {e}"
+                "failed_to_subscribe", extra={"symbol": symbol, "exchange": exchange, "error": str(e)}
             )
             segment = resolve_segment(exchange)
             key = f"{segment}|{symbol}"
@@ -109,10 +109,10 @@ class DhanStreaming(BaseWebSocketStreaming):
             if ref:
                 key = f"{ref.exchange_segment}|{ref.security_id}"
                 super().unsubscribe(key)
-                logger.info(f"Unsubscribed from {symbol} ({exchange}) as key {key}")
+                logger.info("unsubscribed", extra={"symbol": symbol, "exchange": exchange, "key": key})
         except Exception as e:
             logger.error(
-                f"Failed to resolve and unsubscribe from {symbol} on {exchange}: {e}"
+                "failed_to_unsubscribe", extra={"symbol": symbol, "exchange": exchange, "error": str(e)}
             )
             segment = resolve_segment(exchange)
             key = f"{segment}|{symbol}"
@@ -189,7 +189,7 @@ class DhanStreaming(BaseWebSocketStreaming):
                         tick, tick.get("subscription_key")
                     )
             except Exception as e:
-                logger.warning(f"Failed to parse binary tick: {e}", exc_info=True)
+                logger.warning("failed_to_parse_binary_tick", extra={"error": str(e)}, exc_info=True)
         else:
             super()._on_message(ws, message)
 

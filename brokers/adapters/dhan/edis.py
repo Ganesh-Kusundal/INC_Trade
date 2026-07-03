@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 
 from brokers.adapters.dhan.http import DhanHttpClient
-from brokers.adapters.dhan.identity import DhanInstrumentResolver
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +15,8 @@ class DhanEDIS:
     Manages CDSL authorization for selling delivery positions.
     """
 
-    def __init__(
-        self, client: DhanHttpClient, resolver: DhanInstrumentResolver
-    ) -> None:
+    def __init__(self, client: DhanHttpClient) -> None:
         self._client = client
-        self._resolver = resolver
 
     def get_tpin_status(self) -> dict:
         """Check if TPIN is authorized for the day."""
@@ -28,7 +24,7 @@ class DhanEDIS:
             response = self._client.get("/edis/tpinStatus")
             return response if isinstance(response, dict) else {}
         except Exception as e:
-            logger.error(f"Failed to check TPIN status: {e}")
+            logger.error("Failed to check TPIN status: %s", e, exc_info=True)
             return {"error": str(e)}
 
     def generate_tpin(self) -> dict:
@@ -37,7 +33,7 @@ class DhanEDIS:
             response = self._client.get("/edis/generateTpin")
             return response if isinstance(response, dict) else {}
         except Exception as e:
-            logger.error(f"Failed to generate TPIN: {e}")
+            logger.error("Failed to generate TPIN: %s", e, exc_info=True)
             return {"error": str(e)}
 
     def get_edis_form(self, isin: str, qty: int, exchange: str = "NSE") -> dict:
@@ -53,5 +49,5 @@ class DhanEDIS:
             )
             return response if isinstance(response, dict) else {}
         except Exception as e:
-            logger.error(f"Failed to get EDIS form: {e}")
+            logger.error("Failed to get EDIS form: %s", e, exc_info=True)
             return {"error": str(e)}
