@@ -8,12 +8,13 @@ from brokers.domain.capabilities import (
     RateLimitProfile,
     StreamLimitProfile,
 )
+from brokers.domain.enums import BrokerID
 
 
 def upstox_capabilities() -> BrokerCapabilities:
     """Authoritative capability snapshot for the Upstox broker adapter."""
     return BrokerCapabilities(
-        broker_id="upstox",
+        broker_id=BrokerID.UPSTOX,
         supports_place_order=True,
         supports_cancel_order=True,
         supports_modify_order=True,
@@ -53,9 +54,7 @@ def upstox_capabilities() -> BrokerCapabilities:
             max_connections=1,
             max_instruments_per_connection=1000,
             max_depth_levels=30,
-            supported_stream_modes=frozenset(
-                {"LTP", "QUOTE", "FULL", "DEPTH_5", "DEPTH_30"}
-            ),
+            supported_stream_modes=frozenset({"LTP", "QUOTE", "FULL", "DEPTH_5", "DEPTH_30"}),
         ),
         latency_class="low",
         reliability_class="tier1",

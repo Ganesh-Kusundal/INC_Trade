@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from brokers.adapters.upstox.http import UpstoxHttpClient
 from brokers.config.endpoints import _UpstoxUrls
 from brokers.domain.entities import NewsItem
+from brokers.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 
@@ -33,14 +33,13 @@ def _parse_news_item(raw: dict[str, Any]) -> NewsItem:
         summary=str(raw.get("summary", "") or raw.get("description", "")),
         source=str(raw.get("source", "")),
         timestamp=parsed_ts,
-        raw=raw,
     )
 
 
 class UpstoxNews:
     """News adapter implementing news retrieval for Upstox."""
 
-    def __init__(self, client: UpstoxHttpClient, urls: _UpstoxUrls) -> None:
+    def __init__(self, client: HttpClientPort, urls: _UpstoxUrls) -> None:
         self._client = client
         self._urls = urls
 
@@ -70,9 +69,7 @@ class UpstoxNews:
                 if isinstance(data, dict):
                     for _key, items in data.items():
                         if isinstance(items, list):
-                            all_raw.extend(
-                                i for i in items if isinstance(i, dict)
-                            )
+                            all_raw.extend(i for i in items if isinstance(i, dict))
                 elif isinstance(data, list):
                     all_raw = [i for i in data if isinstance(i, dict)]
             elif isinstance(body, list):

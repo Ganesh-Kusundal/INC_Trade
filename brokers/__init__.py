@@ -15,68 +15,150 @@ from typing import Any
 
 from brokers.domain import (
     Balance as Balance,
+)
+from brokers.domain import (
     DepthLevel as DepthLevel,
+)
+from brokers.domain import (
     Holding as Holding,
+)
+from brokers.domain import (
     MarketDepth as MarketDepth,
+)
+from brokers.domain import (
     Order as Order,
+)
+from brokers.domain import (
     OrderResponse as OrderResponse,
+)
+from brokers.domain import (
     Position as Position,
+)
+from brokers.domain import (
     Quote as Quote,
+)
+from brokers.domain import (
     Trade as Trade,
 )
 from brokers.domain.enums import (
+    BrokerID as BrokerID,
+)
+from brokers.domain.enums import (
     OrderStatus as OrderStatus,
+)
+from brokers.domain.enums import (
     OrderType as OrderType,
+)
+from brokers.domain.enums import (
     ProductType as ProductType,
+)
+from brokers.domain.enums import (
     Side as Side,
+)
+from brokers.domain.enums import (
     Validity as Validity,
 )
 from brokers.domain.exceptions import (
     AuthenticationError as AuthenticationError,
+)
+from brokers.domain.exceptions import (
     BrokerDegradedError as BrokerDegradedError,
+)
+from brokers.domain.exceptions import (
     BrokerError as BrokerError,
+)
+from brokers.domain.exceptions import (
     BrokerServerError as BrokerServerError,
+)
+from brokers.domain.exceptions import (
     CircuitOpenError as CircuitOpenError,
+)
+from brokers.domain.exceptions import (
     ConfigError as ConfigError,
+)
+from brokers.domain.exceptions import (
     DataError as DataError,
+)
+from brokers.domain.exceptions import (
     InstrumentNotFoundError as InstrumentNotFoundError,
+)
+from brokers.domain.exceptions import (
     NetworkError as NetworkError,
+)
+from brokers.domain.exceptions import (
     NonRetryableError as NonRetryableError,
+)
+from brokers.domain.exceptions import (
     NotSupportedError as NotSupportedError,
+)
+from brokers.domain.exceptions import (
     OrderRejectedError as OrderRejectedError,
+)
+from brokers.domain.exceptions import (
     RateLimitError as RateLimitError,
+)
+from brokers.domain.exceptions import (
     RetryableError as RetryableError,
+)
+from brokers.domain.exceptions import (
     TokenRateLimitError as TokenRateLimitError,
+)
+from brokers.domain.exceptions import (
     TradeXV2Error as TradeXV2Error,
+)
+from brokers.domain.exceptions import (
     ValidationError as ValidationError,
 )
 from brokers.ports import (
     AuthPort as AuthPort,
+)
+from brokers.ports import (
     BrokerGateway as BrokerGateway,
+)
+from brokers.ports import (
     ClockPort as ClockPort,
+)
+from brokers.ports import (
     HistoricalPort as HistoricalPort,
+)
+from brokers.ports import (
     InstrumentInfo as InstrumentInfo,
+)
+from brokers.ports import (
     InstrumentPort as InstrumentPort,
+)
+from brokers.ports import (
     MarketDataPort as MarketDataPort,
+)
+from brokers.ports import (
     OrderExecutionPort as OrderExecutionPort,
+)
+from brokers.ports import (
     PortfolioPort as PortfolioPort,
+)
+from brokers.ports import (
     StreamingPort as StreamingPort,
+)
+from brokers.services.broker_facade import (
+    BrokerFacade as BrokerFacade,
 )
 
 
 def create_broker(
-    name: str,
+    name: str | BrokerID,
     allow_live_orders: bool = False,
     env_path: str | None = None,
     token_state_dir: str | None = None,
     auto_refresh: bool = True,
     lifecycle: Any | None = None,
     **credentials: Any,
-) -> BrokerGateway:
-    """Factory — create a broker gateway by name.
+) -> "BrokerFacade":
+    """Factory — create a broker facade by name.
+
+    Returns a BrokerFacade that enforces service layer usage.
 
     Args:
-        name: Broker name — "dhan", "upstox", or "paper".
+        name: Broker name — "dhan", "upstox", or "paper" (str or BrokerID).
         allow_live_orders: Enable live order placement (kill switch). Defaults to False for safety.
         env_path: Path to .env file for token persistence (Dhan only).
         token_state_dir: Directory for JSON token state persistence (Dhan only).
@@ -88,18 +170,23 @@ def create_broker(
             - paper: initial_cash (optional)
 
     Returns:
-        A BrokerGateway instance.
+        A BrokerFacade instance wrapping the underlying gateway.
 
     Raises:
         ValueError: If broker name is unknown.
     """
     from pathlib import Path
 
+    from brokers.services.broker_facade import BrokerFacade
+
+    # Normalize BrokerID enum to string
+    if isinstance(name, BrokerID):
+        name = name.value
     name = name.lower().strip()
     if name == "dhan":
         from brokers.adapters.dhan.gateway import DhanGateway
 
-        return DhanGateway(
+        gateway = DhanGateway(
             access_token=credentials.get("access_token"),
             client_id=credentials.get("client_id"),
             pin=credentials.get("pin"),
@@ -110,19 +197,47 @@ def create_broker(
             auto_refresh=auto_refresh,
             lifecycle=lifecycle,
         )
+        from brokers.ports.extension_registry import DictExtensionRegistry
+        from brokers.ports.capabilities import (
+            KillSwitchProvider, 
+            SliceOrderProvider,
+            MarginProvider,
+            ForeverOrderProvider,
+            SuperOrderProvider,
+        )
+
+        registry = DictExtensionRegistry()
+        registry.register("dhan", KillSwitchProvider, gateway.orders)
+        registry.register("dhan", SliceOrderProvider, gateway.orders)
+        registry.register("dhan", MarginProvider, gateway.margin)
+        registry.register("dhan", ForeverOrderProvider, gateway.forever_orders)
+        registry.register("dhan", SuperOrderProvider, gateway.super_orders)
+        
+        return BrokerFacade(gateway, allow_live_orders=allow_live_orders, extension_registry=registry)
     if name == "upstox":
         from brokers.adapters.upstox.gateway import UpstoxGateway
 
-        return UpstoxGateway(
+        gateway = UpstoxGateway(
             access_token=credentials["access_token"],
             allow_live_orders=allow_live_orders,
         )
+        from brokers.ports.extension_registry import DictExtensionRegistry
+        from brokers.ports.capabilities import NewsProvider, ForeverOrderProvider
+        registry = DictExtensionRegistry()
+        registry.register("upstox", NewsProvider, gateway.news)
+        registry.register("upstox", ForeverOrderProvider, gateway.gtt)
+        return BrokerFacade(gateway, allow_live_orders=allow_live_orders, extension_registry=registry)
     if name == "paper":
         from decimal import Decimal
+
         from brokers.adapters.paper.gateway import PaperGateway
 
         initial_cash = credentials.get("initial_cash")
         if initial_cash is not None:
-            return PaperGateway(initial_cash=Decimal(str(initial_cash)))
-        return PaperGateway()
+            gateway = PaperGateway(initial_cash=Decimal(str(initial_cash)))
+        else:
+            gateway = PaperGateway()
+        from brokers.ports.extension_registry import DictExtensionRegistry
+        registry = DictExtensionRegistry()
+        return BrokerFacade(gateway, allow_live_orders=allow_live_orders, extension_registry=registry)
     raise ValueError(f"Unknown broker: {name!r}. Choose from: dhan, upstox, paper")

@@ -28,6 +28,15 @@ class OrderExecutionPort(Protocol):
         trigger_price: Decimal = Decimal("0"),
     ) -> OrderResponse: ...
 
+    def modify_order(
+        self,
+        order_id: str,
+        quantity: int | None = None,
+        price: Decimal | None = None,
+        order_type: OrderType | None = None,
+        validity: Validity | None = None,
+    ) -> OrderResponse: ...
+
     def cancel_order(self, order_id: str) -> OrderResponse: ...
 
     def get_order(self, order_id: str) -> Order | None: ...

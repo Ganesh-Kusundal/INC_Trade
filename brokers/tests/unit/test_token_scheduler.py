@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 from brokers.adapters.dhan.auth import DhanAuth
 from brokers.domain.exceptions import TokenRateLimitError
-from brokers.infrastructure.token_persistence import TokenSource, TokenState
+from brokers.infrastructure.storage.token_store import TokenSource, TokenState
 from brokers.resilience.token_scheduler import TokenRefreshScheduler
 
 

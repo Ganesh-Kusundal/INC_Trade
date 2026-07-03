@@ -7,45 +7,13 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Literal
 
-from brokers.adapters.dhan.http import DhanHttpClient
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
+from brokers.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
-class OptionLeg:
-    """Single option leg (call or put) at a given strike."""
-
-    ltp: Decimal | None
-    oi: int
-    volume: int
-    iv: Decimal | None
-    delta: Decimal | None
-    theta: Decimal | None
-    gamma: Decimal | None
-    vega: Decimal | None
-    security_id: int | None
-    symbol: str
-
-
-@dataclass(frozen=True)
-class OptionStrike:
-    """One row in the option chain — a strike price with CE and PE legs."""
-
-    strike: Decimal
-    call: OptionLeg
-    put: OptionLeg
-
-
-@dataclass(frozen=True)
-class OptionChain:
-    """Full option chain result."""
-
-    underlying: str
-    expiry: str
-    spot: Decimal
-    strikes: list[OptionStrike]
+from brokers.domain.entities import OptionChain, OptionLeg, OptionStrike
 
 
 class DhanOptions:
@@ -56,7 +24,7 @@ class DhanOptions:
 
     def __init__(
         self,
-        client: DhanHttpClient,
+        client: HttpClientPort,
         resolver: DhanInstrumentResolver,
     ) -> None:
         self._client = client
@@ -169,7 +137,7 @@ class DhanOptions:
             underlying=underlying,
             expiry=expiry,
             spot=spot,
-            strikes=strikes,
+            strikes=tuple(strikes),
         )
 
     def _resolve_underlying(self, underlying: str, exchange: str) -> tuple[str, str]:
@@ -203,10 +171,7 @@ class DhanOptions:
         candidates = []
         for ref in results:
             sym = ref.symbol.upper()
-            if (
-                sym.startswith(underlying.upper() + "-")
-                and "FUT" in ref.instrument_type.upper()
-            ):
+            if sym.startswith(underlying.upper() + "-") and "FUT" in ref.instrument_type.upper():
                 candidates.append(ref)
         if candidates:
             # Sort candidates by symbol (chronological by symbol name like CRUDEOIL-20Jul2026-FUT)
@@ -249,9 +214,7 @@ class DhanOptions:
             values = data if isinstance(data, list) else []
 
         result = [str(v) for v in values]
-        logger.info(
-            "expiries_fetched", extra={"underlying": underlying, "count": len(result)}
-        )
+        logger.info("expiries_fetched", extra={"underlying": underlying, "count": len(result)})
         return result
 
     def get_expired_options_data(

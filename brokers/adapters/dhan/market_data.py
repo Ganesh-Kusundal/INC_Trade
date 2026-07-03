@@ -6,17 +6,17 @@ import logging
 from decimal import Decimal
 
 from brokers.adapters.dhan.config import ENDPOINTS, SEGMENT_TO_EXCHANGE
-from brokers.adapters.dhan.http import DhanHttpClient
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
 from brokers.adapters.dhan.invariants import assert_valid_dhan_payload
 from brokers.adapters.dhan.mapper import map_depth, map_quote
 from brokers.domain import MarketDepth, Quote
+from brokers.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 
 
 class DhanMarketData:
-    def __init__(self, client: DhanHttpClient, resolver: DhanInstrumentResolver):
+    def __init__(self, client: HttpClientPort, resolver: DhanInstrumentResolver):
         self._client = client
         self._resolver = resolver
 
@@ -35,16 +35,9 @@ class DhanMarketData:
             if isinstance(segment_data, dict):
                 entry = segment_data.get(str(sid)) or {}
             if not entry:
-                entry = (
-                    feed.get(str(sid))
-                    or feed.get(f"{segment}:{sid}")
-                    or feed.get(symbol)
-                    or {}
-                )
+                entry = feed.get(str(sid)) or feed.get(f"{segment}:{sid}") or feed.get(symbol) or {}
 
-        price = (
-            entry.get("last_price") if "last_price" in entry else entry.get("lastPrice")
-        )
+        price = entry.get("last_price") if "last_price" in entry else entry.get("lastPrice")
         if price is None:
             if isinstance(entry, (int, float, str, Decimal)):
                 price = entry
@@ -73,9 +66,7 @@ class DhanMarketData:
         return map_depth(symbol, symbol_data)
 
     @staticmethod
-    def _extract_symbol_feed(
-        data: dict, segment: str, sid: int, symbol: str
-    ) -> dict:
+    def _extract_symbol_feed(data: dict, segment: str, sid: int, symbol: str) -> dict:
         feed = data.get("data", {})
         exchange_short = SEGMENT_TO_EXCHANGE.get(segment, segment)
         segment_data = feed.get(segment)
@@ -91,9 +82,7 @@ class DhanMarketData:
             or {}
         )
 
-    def ltp_batch(
-        self, symbols: list[str], exchange: str = "NSE"
-    ) -> dict[str, Decimal]:
+    def ltp_batch(self, symbols: list[str], exchange: str = "NSE") -> dict[str, Decimal]:
         """Fetch LTP for multiple symbols using native batch API."""
         if not symbols:
             return {}
@@ -133,9 +122,7 @@ class DhanMarketData:
                 result[symbol_map[sid]] = Decimal(str(price))
         return result
 
-    def quote_batch(
-        self, symbols: list[str], exchange: str = "NSE"
-    ) -> dict[str, Quote]:
+    def quote_batch(self, symbols: list[str], exchange: str = "NSE") -> dict[str, Quote]:
         """Fetch quotes for multiple symbols using native batch API."""
         if not symbols:
             return {}
@@ -182,4 +169,3 @@ class DhanMarketData:
                 )
                 result[sym] = map_quote(sym, symbol_data)
         return result
-

@@ -22,7 +22,7 @@ from brokers.domain import (
     Side,
     Trade,
 )
-from brokers.domain.enums import OrderStatus, OrderType, ProductType, Validity
+from brokers.domain.enums import BrokerID, OrderStatus, OrderType, ProductType, Validity
 from brokers.ports import (
     InstrumentInfo,
 )
@@ -64,6 +64,33 @@ class _PaperOrders:
             self._store[order_id] = order
         return OrderResponse(order_id=order_id, success=True, status=OrderStatus.OPEN)
 
+    def modify_order(
+        self,
+        order_id: str,
+        quantity: int | None = None,
+        price: Decimal | None = None,
+        order_type: OrderType | None = None,
+        validity: Validity | None = None,
+    ) -> OrderResponse:
+        with self._lock:
+            order = self._store.get(order_id)
+            if order is None:
+                return OrderResponse.fail(f"Order {order_id} not found")
+            self._store[order_id] = Order(
+                order_id=order.order_id,
+                symbol=order.symbol,
+                exchange=order.exchange,
+                side=order.side,
+                quantity=quantity if quantity is not None else order.quantity,
+                price=price if price is not None else order.price,
+                trigger_price=order.trigger_price,
+                order_type=order_type if order_type is not None else order.order_type,
+                product_type=order.product_type,
+                validity=validity if validity is not None else order.validity,
+                status=order.status,
+            )
+        return OrderResponse(order_id=order_id, success=True, status=order.status)
+
     def cancel_order(self, order_id: str) -> OrderResponse:
         with self._lock:
             order = self._store.get(order_id)
@@ -82,9 +109,7 @@ class _PaperOrders:
                 validity=order.validity,
                 status=OrderStatus.CANCELLED,
             )
-        return OrderResponse(
-            order_id=order_id, success=True, status=OrderStatus.CANCELLED
-        )
+        return OrderResponse(order_id=order_id, success=True, status=OrderStatus.CANCELLED)
 
     def get_order(self, order_id: str) -> Order | None:
         with self._lock:
@@ -116,6 +141,12 @@ class _PaperMarketData:
 
     def depth(self, symbol: str, exchange: str = "NSE") -> MarketDepth:
         return MarketDepth(symbol=symbol, exchange=exchange)
+
+    def ltp_batch(self, symbols: list[str], exchange: str = "NSE") -> dict[str, Decimal]:
+        return {sym: self.ltp(sym, exchange) for sym in symbols}
+
+    def quote_batch(self, symbols: list[str], exchange: str = "NSE") -> dict[str, Quote]:
+        return {sym: self.quote(sym, exchange) for sym in symbols}
 
 
 class _PaperPortfolio:
@@ -171,10 +202,29 @@ class _PaperAuth:
 
 
 class _PaperHistorical:
-    def get_historical_candles(
-        self, symbol, exchange, start_time, end_time, resolution
-    ):
+    def get_historical_candles(self, symbol, exchange, start_time, end_time, resolution):
         return []
+
+
+class _PaperOptions:
+    def get_expiries(self, underlying: str, exchange: str = "NFO") -> list[str]:
+        return []
+
+    def get_option_chain(
+        self,
+        underlying: str,
+        exchange: str = "NFO",
+        expiry: str | None = None,
+    ):
+        from brokers.domain.entities import OptionChain
+        from decimal import Decimal
+        return OptionChain(
+            underlying=underlying,
+            expiry=expiry or "",
+            spot=Decimal("0"),
+            strikes=()
+        )
+
 
 
 class _PaperStreaming(StreamingPort):
@@ -222,16 +272,18 @@ class PaperGateway:
         self._instruments = _PaperInstruments()
         self._auth = _PaperAuth()
         self._historical = _PaperHistorical()
+        self._options = _PaperOptions()
         self._streaming = _PaperStreaming()
 
     @property
-    def broker_id(self) -> str:
-        return "paper"
+    def broker_id(self) -> BrokerID:
+        return BrokerID.PAPER
 
     def capabilities(self) -> BrokerCapabilities:
         from brokers.domain.capabilities import BrokerCapabilities
+
         return BrokerCapabilities(
-            broker_id="paper",
+            broker_id=BrokerID.PAPER,
             supports_place_order=True,
             supports_cancel_order=True,
             supports_historical_data=True,
@@ -265,6 +317,10 @@ class PaperGateway:
     @property
     def streaming(self) -> StreamingPort:
         return self._streaming
+
+    @property
+    def options(self) -> _PaperOptions:
+        return self._options
 
     def set_quote(self, symbol: str, ltp: Decimal) -> None:
         with self._lock:

@@ -1,4 +1,4 @@
-"""Dhan regression suite orchestrator — modern DhanCompatibilityGateway.
+"""Dhan regression suite orchestrator — modern DhanGateway.
 
 Parametrized entry point that runs every case registered in
 ``regression_manifest``.  Cases are split into two groups by tier:

@@ -26,7 +26,7 @@ def test_get_trade_history_pagination():
         ]
     }
     resolver = MagicMock()
-    orders = DhanOrders(client, resolver, allow_live_orders=True)
+    orders = DhanOrders(client, resolver)
     trades = orders.get_trade_history("2026-01-01", "2026-01-31", page=2)
     assert len(trades) == 1
     assert trades[0].trade_id == "TRD001"
@@ -39,5 +39,5 @@ def test_get_trade_book_alias():
     client = MagicMock()
     client.client_id = "cid"
     client.get.return_value = {"data": []}
-    orders = DhanOrders(client, MagicMock(), allow_live_orders=True)
+    orders = DhanOrders(client, MagicMock())
     assert orders.get_trade_book() == []

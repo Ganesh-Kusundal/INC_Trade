@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from brokers.adapters.dhan.http import DhanHttpClient
+from brokers.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class DhanIpManagement:
     """IP Management adapter for Dhan to handle IP whitelisting dynamically."""
 
-    def __init__(self, client: DhanHttpClient) -> None:
+    def __init__(self, client: HttpClientPort) -> None:
         self._client = client
 
     def whitelist_ip(self, ip_address: str) -> dict:

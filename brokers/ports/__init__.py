@@ -7,49 +7,53 @@ these interfaces. Services depend on these abstractions, not concretions.
 from brokers.ports.auth import AuthPort
 from brokers.ports.broker import BrokerGateway
 from brokers.ports.capabilities import (
-    ConditionalTriggerProvider,
-    EDISTransferProvider,
     ForeverOrderProvider,
-    IPManagementProvider,
-    LedgerProvider,
     MarginProvider,
-    ReconciliationProvider,
     SuperOrderProvider,
-    UserProfileProvider,
+    KillSwitchProvider,
+    SliceOrderProvider,
+    NewsProvider,
 )
 from brokers.ports.clock import ClockPort, SystemClock
-from brokers.ports.extensions import BrokerExtension, get_extension, supports_extension
+from brokers.ports.connection_lifecycle import ConnectionLifecyclePort
+from brokers.ports.event_publisher import EventPublisherPort
+from brokers.ports.extension_registry import ExtensionRegistry, ExtensionRegistryPort
 from brokers.ports.historical import HistoricalPort
+from brokers.ports.http_client_port import HttpClientPort
 from brokers.ports.instruments import InstrumentInfo, InstrumentPort
 from brokers.ports.market_data import MarketDataPort
 from brokers.ports.order_execution import OrderExecutionPort
 from brokers.ports.portfolio import PortfolioPort
+from brokers.ports.options import OptionsPort
 from brokers.ports.risk_manager import RiskManagerPort
-from brokers.ports.streaming import StreamingPort
+from brokers.ports.streaming import StreamHandle, StreamingPort
+from brokers.ports.token_store import TokenStorePort as TokenStorePort
 
 __all__ = [
     "AuthPort",
-    "BrokerExtension",
     "BrokerGateway",
     "ClockPort",
-    "ConditionalTriggerProvider",
-    "EDISTransferProvider",
+    "ConnectionLifecyclePort",
+    "EventPublisherPort",
+    "ExtensionRegistry",
+    "ExtensionRegistryPort",
     "ForeverOrderProvider",
     "HistoricalPort",
+    "HttpClientPort",
     "InstrumentInfo",
     "InstrumentPort",
-    "IPManagementProvider",
-    "LedgerProvider",
     "MarginProvider",
     "MarketDataPort",
     "OrderExecutionPort",
+    "OptionsPort",
     "PortfolioPort",
-    "ReconciliationProvider",
     "RiskManagerPort",
+    "StreamHandle",
     "StreamingPort",
     "SuperOrderProvider",
+    "KillSwitchProvider",
+    "SliceOrderProvider",
+    "NewsProvider",
     "SystemClock",
-    "UserProfileProvider",
-    "get_extension",
-    "supports_extension",
+    "TokenStorePort",
 ]

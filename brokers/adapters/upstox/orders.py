@@ -6,14 +6,13 @@ import logging
 from decimal import Decimal
 
 from brokers.adapters.upstox.config import ORDER_TYPE_MAP, PRODUCT_TYPE_MAP, VALIDITY_MAP
-from brokers.adapters.upstox.http import UpstoxHttpClient
-from brokers.adapters.upstox.idempotency import InMemoryIdempotencyCache
-from brokers.adapters.upstox.instruments import resolve_upstox_instrument_key
-from brokers.adapters.upstox.instruments import UpstoxInstruments
+from brokers.adapters.upstox.instruments import UpstoxInstruments, resolve_upstox_instrument_key
 from brokers.adapters.upstox.mapper import map_order, map_order_response, unwrap_data
 from brokers.config.endpoints import _UpstoxUrls
 from brokers.domain import Order, OrderResponse
 from brokers.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
+from brokers.ports.http_client_port import HttpClientPort
+from brokers.utils.idempotency_cache import TypedIdempotencyCache as InMemoryIdempotencyCache
 from brokers.utils.price import to_wire_float
 
 logger = logging.getLogger(__name__)
@@ -22,16 +21,14 @@ logger = logging.getLogger(__name__)
 class UpstoxOrders:
     def __init__(
         self,
-        client: UpstoxHttpClient,
+        client: HttpClientPort,
         urls: _UpstoxUrls,
-        allow_live_orders: bool = True,
         analytics_only: bool = False,
         idempotency_cache: InMemoryIdempotencyCache[OrderResponse] | None = None,
         instruments: UpstoxInstruments | None = None,
     ):
         self._client = client
         self._urls = urls
-        self._allow_live_orders = allow_live_orders
         self._analytics_only = analytics_only
         self._idempotency_cache = idempotency_cache or InMemoryIdempotencyCache()
         self._instruments = instruments
@@ -45,8 +42,6 @@ class UpstoxOrders:
                 "Analytics-only token cannot place or modify live orders",
                 error_code="ANALYTICS_ONLY",
             )
-        if not self._allow_live_orders:
-            return OrderResponse.live_orders_disabled()
         return None
 
     def place_order(

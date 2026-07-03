@@ -3,6 +3,7 @@
 These tests run in <1s and catch import direction violations, missing
 decorators, and structural regressions.
 """
+
 from __future__ import annotations
 
 import ast
@@ -15,7 +16,9 @@ BROKERS_ROOT = Path(__file__).resolve().parents[3]
 
 
 def _list_modules(layer: str) -> list[Path]:
-    layer_dir = BROKERS_ROOT / layer
+    layer_dir = BROKERS_ROOT / "brokers" / layer
+    if not layer_dir.exists():
+        return []
     return [p for p in layer_dir.rglob("*.py") if "tests" not in str(p)]
 
 
@@ -33,21 +36,39 @@ def _get_imports(filepath: Path) -> list[tuple[int, str]]:
 
 
 BOUNDARY_RULES: dict[str, set[str]] = {
-    "domain": set(),
-    "core": set(),
+    "domain": {"brokers.domain"},
+    "core": {"brokers.core"},
     "utils": set(),
-    "config": {"brokers.domain.exceptions"},
+    "config": {"brokers.domain.exceptions", "brokers.config"},
     "ports": {"brokers.domain", "brokers.ports"},
     "services": {"brokers.domain", "brokers.ports", "brokers.utils", "brokers.services"},
     "resilience": {"brokers.domain", "brokers.resilience"},
+    "infrastructure": {
+        "brokers.domain",
+        "brokers.infrastructure",
+        "brokers.config",
+        "brokers.core",
+        "brokers.ports",
+        "brokers.resilience",
+    },
 }
 
 
 @pytest.mark.architecture
 class TestBoundaryRules:
-    @pytest.mark.parametrize("layer", [
-        "domain", "core", "utils", "config", "ports", "services", "resilience",
-    ])
+    @pytest.mark.parametrize(
+        "layer",
+        [
+            "domain",
+            "core",
+            "utils",
+            "config",
+            "ports",
+            "services",
+            "resilience",
+            "infrastructure",
+        ],
+    )
     def test_boundary(self, layer: str) -> None:
         allowed = BOUNDARY_RULES[layer]
         violations = []
@@ -65,23 +86,24 @@ class TestPortStructure:
         "brokers.ports.auth.AuthPort",
         "brokers.ports.broker.BrokerGateway",
         "brokers.ports.clock.ClockPort",
+        "brokers.ports.connection_lifecycle.ConnectionLifecyclePort",
         "brokers.ports.historical.HistoricalPort",
         "brokers.ports.instruments.InstrumentPort",
         "brokers.ports.market_data.MarketDataPort",
         "brokers.ports.order_execution.OrderExecutionPort",
         "brokers.ports.portfolio.PortfolioPort",
         "brokers.ports.risk_manager.RiskManagerPort",
+        "brokers.ports.streaming.StreamHandle",
         "brokers.ports.streaming.StreamingPort",
+        "brokers.ports.token_store.TokenStorePort",
         "brokers.ports.capabilities.MarginProvider",
         "brokers.ports.capabilities.SuperOrderProvider",
         "brokers.ports.capabilities.ForeverOrderProvider",
-        "brokers.ports.capabilities.ConditionalTriggerProvider",
-        "brokers.ports.capabilities.EDISTransferProvider",
-        "brokers.ports.capabilities.IPManagementProvider",
-        "brokers.ports.capabilities.LedgerProvider",
-        "brokers.ports.capabilities.UserProfileProvider",
-        "brokers.ports.capabilities.ReconciliationProvider",
-        "brokers.ports.extensions.BrokerExtension",
+        "brokers.ports.capabilities.KillSwitchProvider",
+        "brokers.ports.capabilities.SliceOrderProvider",
+        "brokers.ports.capabilities.NewsProvider",
+        "brokers.ports.options.OptionsPort",
+        "brokers.ports.extension_registry.ExtensionRegistryPort",
     ]
 
     @pytest.mark.parametrize("dotted_path", ALL_PORTS, ids=lambda p: p.rsplit(".", 1)[-1])
@@ -90,10 +112,13 @@ class TestPortStructure:
         mod = importlib.import_module(mod_path)
         cls = getattr(mod, cls_name)
         assert getattr(cls, "_is_protocol", False), f"{dotted_path} is not a Protocol"
-        assert getattr(cls, "_is_runtime_protocol", False), f"{dotted_path} is not @runtime_checkable"
+        assert getattr(cls, "_is_runtime_protocol", False), (
+            f"{dotted_path} is not @runtime_checkable"
+        )
 
     def test_all_core_ports_exported(self) -> None:
         import brokers.ports
+
         for dotted_path in self.ALL_PORTS:
             cls_name = dotted_path.rsplit(".", 1)[-1]
             assert hasattr(brokers.ports, cls_name), f"{cls_name} not exported from brokers.ports"
@@ -102,13 +127,15 @@ class TestPortStructure:
 @pytest.mark.architecture
 class TestExceptionHierarchy:
     def test_order_state_error_inherits_tradexv2_error(self) -> None:
-        from brokers.domain.order_lifecycle import OrderStateError
         from brokers.domain.exceptions import TradeXV2Error
+        from brokers.domain.order_lifecycle import OrderStateError
+
         assert issubclass(OrderStateError, TradeXV2Error)
 
     def test_all_exceptions_inherit_tradexv2_error(self) -> None:
         from brokers.domain import exceptions
         from brokers.domain.exceptions import TradeXV2Error
+
         for name in dir(exceptions):
             obj = getattr(exceptions, name)
             if isinstance(obj, type) and issubclass(obj, Exception) and obj is not TradeXV2Error:
@@ -119,6 +146,7 @@ class TestExceptionHierarchy:
 class TestErrorCodeCoverage:
     def test_all_constants_referenced(self) -> None:
         from brokers.domain import error_codes, exceptions
+
         exc_source = Path(exceptions.__file__).read_text()
         defined = [name for name in dir(error_codes) if name.isupper() and not name.startswith("_")]
         for const_name in defined:
@@ -132,8 +160,10 @@ class TestErrorCodeCoverage:
 class TestNoDuplicateAll:
     def test_no_duplicate_all_entries(self) -> None:
         from collections import Counter
+
         init_files = [
-            p for p in BROKERS_ROOT.rglob("__init__.py")
+            p
+            for p in BROKERS_ROOT.rglob("__init__.py")
             if "venv" not in str(p) and "site-packages" not in str(p)
         ]
         violations = []
@@ -147,9 +177,253 @@ class TestNoDuplicateAll:
                     for target in node.targets:
                         if isinstance(target, ast.Name) and target.id == "__all__":
                             if isinstance(node.value, ast.List):
-                                items = [elt.value for elt in node.value.elts if isinstance(elt, ast.Constant)]
-                                dupes = [name for name, count in Counter(items).items() if count > 1]
+                                items = [
+                                    elt.value
+                                    for elt in node.value.elts
+                                    if isinstance(elt, ast.Constant)
+                                ]
+                                dupes = [
+                                    name for name, count in Counter(items).items() if count > 1
+                                ]
                                 if dupes:
                                     rel = init_file.relative_to(BROKERS_ROOT.parent)
                                     violations.append(f"{rel}: duplicate __all__: {dupes}")
         assert not violations, "Duplicate __all__ entries:\n" + "\n".join(violations)
+
+
+@pytest.mark.architecture
+class TestInfrastructureBoundary:
+    """Infrastructure-specific architecture rules beyond boundary."""
+
+    def test_infrastructure_does_not_import_adapters(self) -> None:
+        """Infrastructure must never import adapters (outer layer)."""
+        infra_dir = BROKERS_ROOT / "brokers" / "infrastructure"
+        if not infra_dir.exists():
+            pytest.skip("brokers/infrastructure/ directory does not exist")
+        violations = []
+        for filepath in infra_dir.rglob("*.py"):
+            if "tests" in str(filepath) or "venv" in str(filepath):
+                continue
+            for lineno, module in _get_imports(filepath):
+                if module.startswith("brokers.adapters") or module.startswith("brokers.services"):
+                    rel = filepath.relative_to(BROKERS_ROOT.parent)
+                    violations.append(f"  {rel}:{lineno}: imports {module}")
+        assert not violations, (
+            f"Infrastructure imports from adapters/services (forbidden):\n" + "\n".join(violations)
+        )
+
+
+@pytest.mark.architecture
+class TestSingleIdempotencyImplementation:
+    """Idempotency logic must exist only in core/order_result_cache.py."""
+
+    def test_no_adapters_idempotency_modules(self) -> None:
+        adapter_dir = BROKERS_ROOT / "brokers" / "adapters"
+        if not adapter_dir.exists():
+            pytest.skip("brokers/adapters/ directory does not exist")
+        violations = []
+        for filepath in adapter_dir.rglob("*.py"):
+            if "tests" in str(filepath) or "venv" in str(filepath):
+                continue
+            if filepath.name == "__init__.py":
+                continue
+            if "idempoten" in filepath.name.lower():
+                rel = filepath.relative_to(BROKERS_ROOT.parent)
+                violations.append(f"  {rel}: idempotency logic outside core/")
+        assert not violations, f"Idempotency logic found outside core/:\n" + "\n".join(violations)
+
+
+@pytest.mark.architecture
+class TestNoCompatGateways:
+    """No compat_gateway.py files should exist (deprecated pattern)."""
+
+    def test_no_compat_gateway_files(self) -> None:
+        violations = []
+        for filepath in BROKERS_ROOT.rglob("compat_gateway.py"):
+            if "tests" in str(filepath) or "venv" in str(filepath):
+                continue
+            rel = filepath.relative_to(BROKERS_ROOT)
+            violations.append(f"  {rel}")
+        assert not violations, f"Compat gateway files found (should be removed):\n" + "\n".join(
+            violations
+        )
+
+
+@pytest.mark.architecture
+class TestNoRawDictInDomain:
+    """Domain entities must not have raw dict fields."""
+
+    def test_domain_entities_no_dict_fields(self) -> None:
+        domain_dir = BROKERS_ROOT / "brokers" / "domain"
+        if not domain_dir.exists():
+            pytest.skip("brokers/domain/ directory does not exist")
+        violations = []
+        for filepath in domain_dir.rglob("*.py"):
+            if "tests" in str(filepath) or "venv" in str(filepath):
+                continue
+            try:
+                tree = ast.parse(filepath.read_text())
+            except SyntaxError:
+                continue
+            for node in ast.walk(tree):
+                if isinstance(node, ast.AnnAssign) and isinstance(node.annotation, ast.Name):
+                    if node.annotation.id == "dict":
+                        rel = filepath.relative_to(BROKERS_ROOT)
+                        violations.append(f"  {rel}:{node.lineno}: raw dict field")
+        assert not violations, f"Domain entities have raw dict fields:\n" + "\n".join(violations)
+
+
+@pytest.mark.architecture
+class TestSingleEndpointAuthority:
+    """No adapters/dhan/endpoints.py file should exist."""
+
+    def test_no_dhan_endpoints_file(self) -> None:
+        dhan_dir = BROKERS_ROOT / "brokers" / "adapters" / "dhan"
+        if not dhan_dir.exists():
+            pytest.skip("brokers/adapters/dhan/ directory does not exist")
+        endpoints_file = dhan_dir / "endpoints.py"
+        assert not endpoints_file.exists(), (
+            f"Found {endpoints_file.relative_to(BROKERS_ROOT.parent)}: "
+            f"endpoint authority should be in a single location"
+        )
+
+
+@pytest.mark.architecture
+class TestNoGlobalSingletons:
+    """No class-level _instances dicts outside allowed definitions."""
+
+    ALLOWED_PATTERNS = [
+        "brokers/infrastructure/websocket_pool.py",  # Phase 5 target
+        "brokers/infrastructure/totp_cooldown.py",  # Phase 5 target
+    ]
+
+    def test_no_class_level_instances(self) -> None:
+        violations = []
+        for filepath in BROKERS_ROOT.rglob("*.py"):
+            if "venv" in str(filepath) or "site-packages" in str(filepath):
+                continue
+            if "test_" in filepath.name:
+                continue
+            if "archive" in filepath.parts:
+                continue
+            try:
+                tree = ast.parse(filepath.read_text())
+            except SyntaxError:
+                continue
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ClassDef):
+                    continue
+                for item in node.body:
+                    if (
+                        isinstance(item, ast.AnnAssign)
+                        and isinstance(item.target, ast.Name)
+                        and item.target.id == "_instances"
+                    ):
+                        rel = filepath.relative_to(BROKERS_ROOT)
+                        if str(rel) not in self.ALLOWED_PATTERNS:
+                            violations.append(
+                                f"  {rel}:{item.lineno}: annotated class-level _instances"
+                            )
+                    elif isinstance(item, ast.Assign):
+                        for target in item.targets:
+                            if isinstance(target, ast.Name) and target.id == "_instances":
+                                rel = filepath.relative_to(BROKERS_ROOT)
+                                if str(rel) not in self.ALLOWED_PATTERNS:
+                                    violations.append(
+                                        f"  {rel}:{item.lineno}: class-level _instances"
+                                    )
+        assert not violations, (
+            f"Global singleton _instances found (allowed: {self.ALLOWED_PATTERNS}):\n"
+            + "\n".join(violations)
+        )
+
+
+@pytest.mark.architecture
+class TestNoHasattrOnGateway:
+    """No hasattr() in BrokerFacade for capability detection."""
+
+    def test_no_hasattr_in_broker_facade(self) -> None:
+        facade_path = BROKERS_ROOT / "brokers" / "services" / "broker_facade.py"
+        if not facade_path.exists():
+            pytest.skip("broker_facade.py not found")
+        tree = ast.parse(facade_path.read_text())
+        violations = []
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(getattr(node, "func", None), ast.Name)
+                and node.func.id == "hasattr"
+            ):
+                violations.append(
+                    f"  brokers/services/broker_facade.py:{node.lineno}: hasattr() call"
+                )
+        assert not violations, (
+            f"hasattr() calls found in BrokerFacade (use ExtensionRegistry.resolve()):\n"
+            + "\n".join(violations)
+        )
+
+
+@pytest.mark.architecture
+class TestNoAdapterImportsService:
+    """Adapters must not import from services/."""
+
+    ALLOWED_PATTERNS = [
+        "INC_Trade/brokers/adapters/dhan/reconciliation.py",  # Phase 2 target (inject port)
+    ]
+
+    def test_adapters_not_import_services(self) -> None:
+        adapter_dir = BROKERS_ROOT / "brokers" / "adapters"
+        if not adapter_dir.exists():
+            pytest.skip("brokers/adapters/ directory does not exist")
+        violations = []
+        for filepath in adapter_dir.rglob("*.py"):
+            if "test_" in filepath.name or "venv" in str(filepath):
+                continue
+            for lineno, module in _get_imports(filepath):
+                if module.startswith("brokers.services"):
+                    rel = filepath.relative_to(BROKERS_ROOT.parent)
+                    if str(rel) not in self.ALLOWED_PATTERNS:
+                        violations.append(f"  {rel}:{lineno}: imports {module}")
+        assert not violations, (
+            f"Adapters importing from services (violates clean architecture):\n"
+            + "\n".join(violations)
+        )
+
+
+@pytest.mark.architecture
+class TestHttpClientPort:
+    """Adapters must import HttpClientPort, not concrete implementations.
+
+    Known violations are ALLOWED (P2 target — Task 6.4: Inject HttpClientPort
+    into all Dhan/Upstox adapters). New adapters must NOT add new violations.
+    """
+
+    FORBIDDEN_PREFIXES = ("brokers.infrastructure.http",)
+
+    # Factory files that legitimately create/extend ResilientHttpClient.
+    # Consumer adapters use HttpClientPort via constructor injection.
+    ALLOWED_PATTERNS = [
+        # Factory: creates the concrete ResilientHttpClient instance
+        "INC_Trade/brokers/adapters/dhan/http_client.py",
+        "INC_Trade/brokers/adapters/upstox/http_client.py",
+        # Subclass: extends ResilientHttpClient
+        "INC_Trade/brokers/adapters/upstox/http.py",
+    ]
+
+    def test_adapters_not_import_concrete_http(self) -> None:
+        adapter_dir = BROKERS_ROOT / "brokers" / "adapters"
+        if not adapter_dir.exists():
+            pytest.skip("brokers/adapters/ directory does not exist")
+        violations = []
+        for filepath in adapter_dir.rglob("*.py"):
+            if "test_" in filepath.name or "venv" in str(filepath):
+                continue
+            for lineno, module in _get_imports(filepath):
+                if module.startswith(self.FORBIDDEN_PREFIXES):
+                    rel = filepath.relative_to(BROKERS_ROOT.parent)
+                    if str(rel) not in self.ALLOWED_PATTERNS:
+                        violations.append(f"  {rel}:{lineno}: imports {module}")
+        assert not violations, (
+            f"Adapters importing concrete HTTP clients (use HttpClientPort):\n"
+            + "\n".join(violations)
+        )

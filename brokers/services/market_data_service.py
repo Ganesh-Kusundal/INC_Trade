@@ -49,6 +49,30 @@ class MarketDataService:
         self._set_cached(key, result)
         return result
 
+    def ltp_batch(self, symbols: list[str], exchange: str = "NSE") -> dict[str, Decimal]:
+        quotes = self.quote_batch(symbols, exchange)
+        return {sym: q.ltp for sym, q in quotes.items()}
+
+    def quote_batch(self, symbols: list[str], exchange: str = "NSE") -> dict[str, Quote]:
+        result: dict[str, Quote] = {}
+        missing_symbols: list[str] = []
+
+        for sym in symbols:
+            key = f"quote:{exchange}:{sym}"
+            cached = self._get_cached(key)
+            if cached is not None:
+                result[sym] = cast(Quote, cached)
+            else:
+                missing_symbols.append(sym)
+
+        if missing_symbols:
+            missing_quotes = self._provider.quote_batch(missing_symbols, exchange)
+            for sym, quote_data in missing_quotes.items():
+                self._set_cached(f"quote:{exchange}:{sym}", quote_data)
+                result[sym] = quote_data
+
+        return result
+
     def invalidate(self, symbol: str = "", exchange: str = "") -> None:
         with self._lock:
             if not symbol:

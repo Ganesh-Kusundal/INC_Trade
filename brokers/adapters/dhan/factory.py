@@ -1,4 +1,4 @@
-"""Dhan broker factory — singleton compatibility gateway via GatewayRegistry."""
+"""Dhan broker factory — singleton gateway via GatewayRegistry."""
 
 from __future__ import annotations
 
@@ -6,9 +6,10 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from brokers.adapters.dhan.compat_gateway import DhanCompatibilityGateway
 from brokers.adapters.dhan.gateway import DhanGateway
 from brokers.infrastructure.registry import GatewayRegistry
+
+gateway_registry = GatewayRegistry()
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ BROKER_ID = "dhan"
 
 
 class DhanBrokerFactory:
-    """Create :class:`DhanCompatibilityGateway` instances with per-client singletons."""
+    """Create :class:`DhanGateway` instances with per-client singletons."""
 
     @classmethod
     def create(
@@ -34,14 +35,14 @@ class DhanBrokerFactory:
         event_bus: Any | None = None,
         risk_manager: Any | None = None,
         **kwargs: Any,
-    ) -> DhanCompatibilityGateway:
-        """Return a compatibility facade, reusing one gateway per ``client_id``."""
+    ) -> DhanGateway:
+        """Return a gateway instance, reusing one gateway per ``client_id``."""
         if kwargs:
             logger.warning("Unknown kwargs ignored: %s", list(kwargs.keys()))
         resolved_client_id = (client_id or access_token or "default")[:64]
 
-        def _build() -> DhanCompatibilityGateway:
-            gateway = DhanGateway(
+        def _build() -> DhanGateway:
+            return DhanGateway(
                 access_token=access_token,
                 client_id=client_id,
                 pin=pin,
@@ -54,6 +55,5 @@ class DhanBrokerFactory:
                 event_bus=event_bus,
                 risk_manager=risk_manager,
             )
-            return DhanCompatibilityGateway(gateway)
 
-        return GatewayRegistry.get_or_create(BROKER_ID, resolved_client_id, _build)
+        return gateway_registry.get_or_create(BROKER_ID, resolved_client_id, _build)

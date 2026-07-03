@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from brokers.adapters.dhan.http import DhanHttpClient
+from brokers.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class DhanAlerts:
     """Alerts adapter for Dhan to manage price alerts."""
 
-    def __init__(self, client: DhanHttpClient) -> None:
+    def __init__(self, client: HttpClientPort) -> None:
         self._client = client
 
     def create_alert(

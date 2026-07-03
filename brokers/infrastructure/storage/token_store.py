@@ -90,12 +90,16 @@ class TokenStateStore:
 class JsonTokenStateStore(TokenStateStore):
     """JSON file-based token state persistence.
 
+    Implements the ``TokenStorePort`` protocol.
+
     Stores token state as JSON with atomic writes.
     File permissions are set to 0o600 (owner read/write only).
 
     Args:
         path: Path to the JSON file.
     """
+
+    __implements__ = ("TokenStorePort",)
 
     def __init__(self, path: Path) -> None:
         self._path = Path(path)
@@ -160,9 +164,7 @@ class JsonTokenStateStore(TokenStateStore):
         """Convert TokenState to JSON-serializable dict."""
         result = asdict(state)
         result["issued_at"] = state.issued_at.isoformat() if state.issued_at else None
-        result["expires_at"] = (
-            state.expires_at.isoformat() if state.expires_at else None
-        )
+        result["expires_at"] = state.expires_at.isoformat() if state.expires_at else None
         result["source"] = state.source.value
         return result
 
@@ -251,9 +253,7 @@ def update_env_token(
 
             os.replace(tmp_path, env_path)
             tmp_path = None
-            logger.info(
-                "env_token_updated", extra={"key": env_key, "path": str(env_path)}
-            )
+            logger.info("env_token_updated", extra={"key": env_key, "path": str(env_path)})
 
         except PermissionError:
             logger.warning("env_file_read_only", extra={"path": str(env_path)})
@@ -263,9 +263,7 @@ def update_env_token(
                     os.close(tmp_fd)
 
     except OSError as exc:
-        logger.warning(
-            "env_token_update_failed", extra={"error": str(exc), "path": str(env_path)}
-        )
+        logger.warning("env_token_update_failed", extra={"error": str(exc), "path": str(env_path)})
     finally:
         if fd is not None:
             with contextlib.suppress(OSError):

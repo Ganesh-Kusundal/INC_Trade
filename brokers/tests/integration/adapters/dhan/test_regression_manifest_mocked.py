@@ -8,10 +8,6 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from brokers.adapters.dhan.compat_gateway import (
-    DhanCompatibilityGateway,
-    FutureChain,
-)
 from brokers.adapters.dhan.gateway import DhanGateway
 from brokers.adapters.dhan.identity import DhanInstrumentRef
 from brokers.adapters.dhan.options import OptionChain, OptionLeg, OptionStrike
@@ -39,9 +35,8 @@ def mock_compat_gateway():
         "brokers.adapters.dhan.gateway.JsonTokenStateStore"
     ):
         gw = DhanGateway(access_token="tok", client_id="cid", auto_refresh=False)
-        compat = DhanCompatibilityGateway(gw)
-        yield compat
-        compat.close()
+        yield gw
+        gw.close()
 
 
 class TestMockedRegressionHelpers:

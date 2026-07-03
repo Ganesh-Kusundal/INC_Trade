@@ -5,14 +5,14 @@ from __future__ import annotations
 import json
 import logging
 import threading
-import time
 from decimal import Decimal
 from typing import Any, Callable
 
 import websocket
 
 from brokers.domain.entities import Quote
-from brokers.ports.streaming import StreamingPort
+from brokers.infrastructure.reconnect_strategy import ReconnectStrategy
+from brokers.ports.streaming import StreamHandle, StreamingPort
 
 logger = logging.getLogger(__name__)
 
@@ -116,9 +116,7 @@ class BaseWebSocketStreaming(StreamingPort):
         if self._running:
             return
         self._running = True
-        self._thread = threading.Thread(
-            target=self._run, name=self._log_prefix, daemon=True
-        )
+        self._thread = threading.Thread(target=self._run, name=self._log_prefix, daemon=True)
         self._thread.start()
 
     def stop(self) -> None:
@@ -135,7 +133,11 @@ class BaseWebSocketStreaming(StreamingPort):
         return self._ws_url
 
     def _run(self) -> None:
-        delay = self._reconnect_delay
+        strategy = ReconnectStrategy(
+            base_delay=self._reconnect_delay,
+            max_delay=self._max_reconnect_delay,
+            max_retries=0,  # retry indefinitely until stopped
+        )
         while self._running:
             self._ws = websocket.WebSocketApp(
                 self._get_ws_url(),
@@ -148,10 +150,10 @@ class BaseWebSocketStreaming(StreamingPort):
             self._ws.run_forever(ping_interval=30, ping_timeout=10)
             if self._running:
                 logger.warning(
-                    f"{self._log_prefix}_reconnecting", extra={"delay": delay}
+                    f"{self._log_prefix}_reconnecting",
+                    extra={"delay": strategy.current_delay},
                 )
-                time.sleep(delay)
-                delay = min(delay * 2, self._max_reconnect_delay)
+                strategy.wait()
 
     def _on_open(self, ws) -> None:
         logger.info(f"{self._log_prefix}_connected")
@@ -213,7 +215,7 @@ class BaseWebSocketStreaming(StreamingPort):
         exchange: str = "NSE",
         mode: str = "LTP",
         on_tick: Callable[[Quote], Any] | None = None,
-    ) -> Any:
+    ) -> StreamHandle:
         """Subscribe to a live tick stream (sync facade).
 
         Parameters
@@ -232,19 +234,8 @@ class BaseWebSocketStreaming(StreamingPort):
         Stream handle with .disconnect() and .is_connected().
         """
 
-        class StreamHandle:
-            def __init__(self, ws: BaseWebSocketStreaming, sym: str, exch: str) -> None:
-                self._ws = ws
-                self._sym = sym
-                self._exch = exch
-
-            def disconnect(self) -> None:
-                self._ws.unsubscribe(self._sym, self._exch)
-
-            def is_connected(self) -> bool:
-                return self._ws.is_connected
-
         if on_tick is not None:
+
             def _on_tick(tick: dict) -> None:
                 quote = Quote(
                     symbol=tick.get("symbol", ""),
@@ -264,7 +255,7 @@ class BaseWebSocketStreaming(StreamingPort):
         if not self.is_connected:
             self.start()
 
-        return StreamHandle(self, symbol, exchange)
+        return _StreamHandle(self, symbol, exchange)
 
     def stream_depth(
         self,
@@ -272,7 +263,7 @@ class BaseWebSocketStreaming(StreamingPort):
         exchange: str = "NSE",
         depth_type: str = "DEPTH_5",
         on_depth: Any = None,
-    ) -> Any:
+    ) -> StreamHandle:
         """Subscribe to market depth streaming (sync facade).
 
         Parameters
@@ -291,21 +282,6 @@ class BaseWebSocketStreaming(StreamingPort):
         Stream handle with .stop() and .is_connected().
         """
 
-        class DepthStreamHandle:
-            def __init__(self, ws: BaseWebSocketStreaming, sym: str, exch: str) -> None:
-                self._ws = ws
-                self._sym = sym
-                self._exch = exch
-
-            def stop(self) -> None:
-                self._ws.unsubscribe(self._sym, self._exch)
-
-            def disconnect(self) -> None:
-                self.stop()
-
-            def is_connected(self) -> bool:
-                return self._ws.is_connected
-
         if on_depth is not None:
             self._on_depth = on_depth
 
@@ -313,7 +289,7 @@ class BaseWebSocketStreaming(StreamingPort):
         if not self.is_connected:
             self.start()
 
-        return DepthStreamHandle(self, symbol, exchange)
+        return StreamingHandle(self, symbol, exchange)
 
     async def connect(self) -> None:
         """Establish the WebSocket connection (async wrapper for start)."""
@@ -369,3 +345,22 @@ class StreamHandle:
 
     def disconnect(self) -> None:
         self.stop()
+
+
+class _StreamHandle:
+    """Concrete stream handle returned by synchronous streaming facades.
+
+    Implements the ``StreamHandle`` protocol from ``ports/streaming``.
+    """
+
+    def __init__(self, streaming: BaseWebSocketStreaming, symbol: str, exchange: str) -> None:
+        self._streaming = streaming
+        self._symbol = symbol
+        self._exchange = exchange
+
+    def disconnect(self) -> None:
+        self._streaming.unsubscribe(self._symbol, self._exchange)
+
+    @property
+    def is_connected(self) -> bool:
+        return self._streaming.is_connected

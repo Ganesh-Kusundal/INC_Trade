@@ -4,15 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from brokers.adapters.upstox.http import UpstoxHttpClient
 from brokers.adapters.upstox.urls import resolve_upstox_urls
 from brokers.domain import OrderResponse
+from brokers.ports.http_client_port import HttpClientPort
 
 
 class UpstoxGtt:
-    def __init__(
-        self, client: UpstoxHttpClient, *, environment: str = "LIVE"
-    ) -> None:
+    def __init__(self, client: HttpClientPort, *, environment: str = "LIVE") -> None:
         self._client = client
         self._urls = resolve_upstox_urls(environment)
 
@@ -40,7 +38,5 @@ class UpstoxGtt:
         return OrderResponse(order_id=gtt_order_id, success=self._is_success(data))
 
     def cancel_gtt(self, gtt_order_id: str) -> OrderResponse:
-        data = self._client.delete(
-            self._urls.gtt_cancel_url() + f"/{gtt_order_id}"
-        )
+        data = self._client.delete(self._urls.gtt_cancel_url() + f"/{gtt_order_id}")
         return OrderResponse(order_id=gtt_order_id, success=self._is_success(data))

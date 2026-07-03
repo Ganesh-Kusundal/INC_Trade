@@ -8,7 +8,7 @@ import pytest
 
 from brokers.adapters.dhan.auth import DhanAuth
 from brokers.domain.exceptions import AuthenticationError, TokenRateLimitError
-from brokers.infrastructure.token_persistence import TokenSource
+from brokers.infrastructure.storage.token_store import TokenSource
 
 
 @pytest.fixture(autouse=True)

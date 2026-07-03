@@ -6,7 +6,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from brokers.adapters.dhan.config import ENDPOINTS
-from brokers.adapters.dhan.http import DhanHttpClient
+from brokers.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class DhanExitAll:
     Allows instantly closing all open positions or cancelling all open orders.
     """
 
-    def __init__(self, client: DhanHttpClient) -> None:
+    def __init__(self, client: HttpClientPort) -> None:
         self._client = client
 
     def close_all_positions(self) -> dict:
@@ -51,9 +51,7 @@ class DhanExitAll:
         results = []
         with ThreadPoolExecutor(max_workers=10) as executor:
             future_to_payload = {
-                executor.submit(
-                    self._client.post, ENDPOINTS.get("orders", "/orders"), json=p
-                ): p
+                executor.submit(self._client.post, ENDPOINTS.get("orders", "/orders"), json=p): p
                 for p in square_off_payloads
             }
             for future in as_completed(future_to_payload):
@@ -84,12 +82,10 @@ class DhanExitAll:
                 if order.get("orderStatus") in active_statuses:
                     order_id = order.get("orderId")
                     if order_id:
-                        endpoint = ENDPOINTS.get(
-                            "cancel_order", "/orders/{order_id}"
-                        ).format(order_id=order_id)
-                        cancel_futures.append(
-                            executor.submit(self._client.post, endpoint)
+                        endpoint = ENDPOINTS.get("cancel_order", "/orders/{order_id}").format(
+                            order_id=order_id
                         )
+                        cancel_futures.append(executor.submit(self._client.post, endpoint))
 
             results = []
             for future in as_completed(cancel_futures):

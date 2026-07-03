@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 
-from brokers.adapters.upstox.http import UpstoxHttpClient
 from brokers.adapters.upstox.mapper import (
     map_balance,
     map_holding,
@@ -14,12 +13,13 @@ from brokers.adapters.upstox.mapper import (
 )
 from brokers.config.endpoints import _UpstoxUrls
 from brokers.domain import Balance, Holding, Position, Trade
+from brokers.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 
 
 class UpstoxPortfolio:
-    def __init__(self, client: UpstoxHttpClient, urls: _UpstoxUrls):
+    def __init__(self, client: HttpClientPort, urls: _UpstoxUrls):
         self._client = client
         self._urls = urls
 

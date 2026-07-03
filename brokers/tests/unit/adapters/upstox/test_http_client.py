@@ -8,8 +8,8 @@ import pytest
 import requests
 
 from brokers.adapters.upstox.http import UpstoxHttpClient
-from brokers.domain.exceptions import AuthenticationError
-from brokers.resilience.http_client import TokenRefreshSignal
+from brokers.domain.exceptions import AuthenticationError, BrokerError
+from brokers.infrastructure.http.resilient_client import TokenRefreshSignal
 
 
 def _mock_response(status_code=200, json_data=None):
@@ -21,15 +21,15 @@ def _mock_response(status_code=200, json_data=None):
 
 
 class TestUpstoxHttp401Retry:
-    @patch("brokers.adapters.upstox.http.requests.Session")
-    def test_401_triggers_try_refresh_and_retries(self, mock_session_cls):
+    @patch("brokers.adapters.upstox.http.create_pinned_session")
+    def test_401_triggers_try_refresh_and_retries(self, mock_session_factory):
         mock_session = MagicMock()
         mock_session.headers = {}
         mock_session.request.side_effect = [
             _mock_response(401),
             _mock_response(200, {"data": {"ok": True}}),
         ]
-        mock_session_cls.return_value = mock_session
+        mock_session_factory.return_value = mock_session
 
         refresh_called = []
 
@@ -46,15 +46,15 @@ class TestUpstoxHttp401Retry:
         assert refresh_called == [True]
         assert mock_session.request.call_count == 2
 
-    @patch("brokers.adapters.upstox.http.requests.Session")
-    def test_401_without_refresh_raises(self, mock_session_cls):
+    @patch("brokers.adapters.upstox.http.create_pinned_session")
+    def test_401_without_refresh_raises(self, mock_session_factory):
         mock_session = MagicMock()
         mock_session.headers = {}
         mock_session.request.return_value = _mock_response(401)
-        mock_session_cls.return_value = mock_session
+        mock_session_factory.return_value = mock_session
 
         client = UpstoxHttpClient(access_token="tok")
-        with pytest.raises(AuthenticationError):
+        with pytest.raises(BrokerError):
             client.get("/v2/user/profile")
 
     def test_handle_response_raises_token_refresh_signal(self):

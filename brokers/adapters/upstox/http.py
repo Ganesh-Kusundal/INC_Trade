@@ -15,25 +15,25 @@ from typing import Any
 
 import requests
 
-from brokers.domain.constants.timeouts import DEFAULT_HTTP_TIMEOUT_SECONDS
 from brokers.adapters.upstox.config import (
     RATE_LIMITS,
     READ_PREFIXES,
     WRITE_PREFIXES,
 )
+from brokers.domain.constants.timeouts import DEFAULT_HTTP_TIMEOUT_SECONDS
 from brokers.domain.exceptions import (
     AuthenticationError,
     BrokerError,
     BrokerServerError,
     RateLimitError,
 )
+from brokers.infrastructure.http.resilient_client import ResilientHttpClient, TokenRefreshSignal
 from brokers.infrastructure.ssl_hardening import create_pinned_session
-from brokers.resilience.http_client import BaseResilientHttpClient
 
 logger = logging.getLogger(__name__)
 
 
-class UpstoxHttpClient(BaseResilientHttpClient):
+class UpstoxHttpClient(ResilientHttpClient):
     def __init__(
         self,
         access_token: str | Callable[[], str],
@@ -42,8 +42,7 @@ class UpstoxHttpClient(BaseResilientHttpClient):
         timeout: float = DEFAULT_HTTP_TIMEOUT_SECONDS,
         token_refresh_fn: Callable[[], bool] | None = None,
     ):
-        super().__init__(rate_limits=RATE_LIMITS, timeout=timeout, session_factory=create_pinned_session)
-        self._token_refresh_fn = token_refresh_fn
+        self._user_refresh_fn = token_refresh_fn
         if callable(access_token):
             self._token_provider = access_token
             initial_token = access_token()
@@ -53,6 +52,35 @@ class UpstoxHttpClient(BaseResilientHttpClient):
 
         self._base_v2 = base_url_v2 or "https://api.upstox.com"
         self._base_hft = base_url_hft or "https://api-hft.upstox.com"
+
+        # Build URL function
+        def _build_url(endpoint: str) -> str:
+            if endpoint.startswith("http"):
+                return endpoint
+            if "/v3/" in endpoint:
+                return f"{self._base_hft}{endpoint}"
+            return f"{self._base_v2}{endpoint}"
+
+        # Token refresh adapter — bridges Upstox bool-returning fn to str-returning fn
+        def _token_refresh_adapter() -> str | None:
+            if self._user_refresh_fn is not None:
+                result = self._user_refresh_fn()
+                if result:
+                    token = self._token_provider()
+                    if token:
+                        self.update_token(token)
+                    return token
+            return None
+
+        super().__init__(
+            rate_limits=RATE_LIMITS,
+            categorize_fn=self._categorize_endpoint,
+            url_builder_fn=_build_url,
+            response_handler_fn=self._handle_response,
+            timeout=timeout,
+            session_factory=create_pinned_session,
+            token_refresh_fn=_token_refresh_adapter,
+        )
 
         self._session.headers.update(
             {
@@ -66,17 +94,7 @@ class UpstoxHttpClient(BaseResilientHttpClient):
         self._session.headers["Authorization"] = f"Bearer {new_token}"
         logger.debug("http_client_token_updated")
 
-    def _request(self, method: str, endpoint: str, **kwargs: Any) -> dict:
-        if self._token_provider is not None:
-            try:
-                token = self._token_provider()
-                if token:
-                    self._session.headers["Authorization"] = f"Bearer {token}"
-            except Exception:
-                pass
-        return super()._request(method, endpoint, **kwargs)
-
-    def _categorize(self, endpoint: str) -> str:
+    def _categorize_endpoint(self, endpoint: str) -> str:
         for prefix in READ_PREFIXES:
             if endpoint.startswith(prefix):
                 return "read"
@@ -85,24 +103,9 @@ class UpstoxHttpClient(BaseResilientHttpClient):
                 return "write"
         return "admin"
 
-    def _build_url(self, endpoint: str) -> str:
-        if endpoint.startswith("http"):
-            return endpoint
-        if "/v3/" in endpoint:
-            return f"{self._base_hft}{endpoint}"
-        return f"{self._base_v2}{endpoint}"
-
     def _handle_response(self, resp: requests.Response) -> dict:
         if resp.status_code in (401, 403):
-            if self._token_refresh_fn is not None:
-                if self._token_refresh_fn():
-                    token = self._token_provider()
-                    if token:
-                        self.update_token(token)
-                    from brokers.resilience.http_client import TokenRefreshSignal
-
-                    raise TokenRefreshSignal("Token refreshed, retrying request")
-            raise AuthenticationError("Token expired or invalid")
+            raise TokenRefreshSignal("Token expired or invalid")
         if resp.status_code == 429:
             raise RateLimitError("Rate limit exceeded", retry_after=30.0)
         if resp.status_code >= 500:
@@ -112,9 +115,7 @@ class UpstoxHttpClient(BaseResilientHttpClient):
                 msg = errors[0].get("message", resp.text) if errors else resp.text
             except Exception:
                 msg = resp.text
-            raise BrokerServerError(
-                f"HTTP {resp.status_code}: {msg}", code=str(resp.status_code)
-            )
+            raise BrokerServerError(f"HTTP {resp.status_code}: {msg}", code=str(resp.status_code))
         if resp.status_code >= 400:
             try:
                 body = resp.json()
@@ -122,9 +123,7 @@ class UpstoxHttpClient(BaseResilientHttpClient):
                 msg = errors[0].get("message", resp.text) if errors else resp.text
             except Exception:
                 msg = resp.text
-            raise BrokerError(
-                f"HTTP {resp.status_code}: {msg}", code=str(resp.status_code)
-            )
+            raise BrokerError(f"HTTP {resp.status_code}: {msg}", code=str(resp.status_code))
         try:
             return resp.json()
         except Exception:

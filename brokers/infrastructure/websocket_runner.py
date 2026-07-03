@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
 from collections.abc import Callable
 from typing import Any
 
 import websocket
+
+from brokers.infrastructure.reconnect_strategy import ReconnectStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +85,11 @@ class ReconnectingWebSocketRunner:
         return self._header() if callable(self._header) else self._header
 
     def _run(self) -> None:
-        delay = self._reconnect_delay
+        strategy = ReconnectStrategy(
+            base_delay=self._reconnect_delay,
+            max_delay=self._max_reconnect_delay,
+            max_retries=0,  # retry indefinitely until stopped
+        )
         while self._running:
             self._ws = websocket.WebSocketApp(
                 self._resolve_url(),
@@ -99,6 +104,7 @@ class ReconnectingWebSocketRunner:
                 ping_timeout=self._ping_timeout,
             )
             if self._running:
-                logger.warning("%s_reconnecting", self._log_prefix, extra={"delay": delay})
-                time.sleep(delay)
-                delay = min(delay * 2, self._max_reconnect_delay)
+                logger.warning(
+                    "%s_reconnecting", self._log_prefix, extra={"delay": strategy.current_delay}
+                )
+                strategy.wait()

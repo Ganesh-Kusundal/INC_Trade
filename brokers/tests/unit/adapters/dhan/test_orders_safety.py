@@ -8,10 +8,10 @@ from unittest.mock import MagicMock
 import pytest
 
 from brokers.adapters.dhan.identity import DhanInstrumentRef
-from brokers.adapters.dhan.idempotency import DhanIdempotencyCache
 from brokers.adapters.dhan.orders import DhanOrders
 from brokers.domain import OrderResponse
 from brokers.domain.enums import OrderStatus, OrderType, ProductType, Side
+from brokers.utils.idempotency_cache import TypedIdempotencyCache
 
 
 def _equity_ref(symbol: str = "RELIANCE", lot_size: int = 1) -> DhanInstrumentRef:
@@ -46,12 +46,8 @@ class TestDhanOrderIdempotency:
         client.post.return_value = {"orderId": "ORD1", "orderStatus": "OPEN"}
         orders = _orders(client)
 
-        r1 = orders.place_order(
-            "RELIANCE", "NSE", Side.BUY, 10, correlation_id="corr-abc"
-        )
-        r2 = orders.place_order(
-            "RELIANCE", "NSE", Side.BUY, 10, correlation_id="corr-abc"
-        )
+        r1 = orders.place_order("RELIANCE", "NSE", Side.BUY, 10, correlation_id="corr-abc")
+        r2 = orders.place_order("RELIANCE", "NSE", Side.BUY, 10, correlation_id="corr-abc")
         assert r1.success
         assert r2.order_id == r1.order_id
         assert client.post.call_count == 1
@@ -61,7 +57,7 @@ class TestDhanOrderIdempotency:
         client.client_id = "cid"
         resolver = MagicMock()
         resolver.resolve.return_value = _fno_ref(lot_size=50)
-        orders = DhanOrders(client, resolver, allow_live_orders=True)
+        orders = DhanOrders(client, resolver)
 
         resp = orders.place_order(
             "NIFTY",
@@ -75,22 +71,17 @@ class TestDhanOrderIdempotency:
         client.post.assert_not_called()
 
     def test_idempotency_cache_exposed(self):
-        cache = DhanIdempotencyCache[OrderResponse]()
+        cache = TypedIdempotencyCache[OrderResponse]()
         orders = _orders(idempotency_cache=cache)
         assert orders.idempotency_cache is cache
 
 
 class TestKillSwitchAndSlice:
-    def test_kill_switch_requires_live_orders(self):
-        orders = _orders(allow_live_orders=False)
-        with pytest.raises(Exception, match="Live orders are disabled"):
-            orders.kill_switch(True)
-
     def test_kill_switch_posts_action(self):
         client = MagicMock()
         client.client_id = "cid"
         client.post.return_value = {"status": "success"}
-        orders = _orders(client, allow_live_orders=True)
+        orders = _orders(client)
         assert orders.kill_switch(True) is True
         client.post.assert_called_once()
         assert "ACTIVATE" in client.post.call_args[0][0]
@@ -99,10 +90,8 @@ class TestKillSwitchAndSlice:
         client = MagicMock()
         client.client_id = "cid"
         client.post.return_value = {"orderId": "SL1", "orderStatus": "OPEN"}
-        orders = _orders(client, allow_live_orders=True)
-        resp = orders.place_slice_order(
-            "RELIANCE", "NSE", Side.BUY, 1000, correlation_id="slice-1"
-        )
+        orders = _orders(client)
+        resp = orders.place_slice_order("RELIANCE", "NSE", Side.BUY, 1000, correlation_id="slice-1")
         assert resp.success
         assert "slice" in client.post.call_args[0][0]
 

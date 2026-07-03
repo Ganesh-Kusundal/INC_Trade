@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from brokers.adapters.dhan.http import DhanHttpClient
+from brokers.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ class DhanEDIS:
     Manages CDSL authorization for selling delivery positions.
     """
 
-    def __init__(self, client: DhanHttpClient) -> None:
+    def __init__(self, client: HttpClientPort) -> None:
         self._client = client
 
     def get_tpin_status(self) -> dict:

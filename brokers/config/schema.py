@@ -15,21 +15,17 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Literal
-
-from pydantic import BaseModel, field_validator
-
-_VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 
 
-class AppConfig(BaseModel):
+@dataclass(frozen=True)
+class AppConfig:
     """Central application configuration with env-var loading.
 
     All fields map to environment variables. Use ``AppConfig.from_env()``
     to load from the current environment, or construct directly for testing.
     """
 
-    app_env: Literal["dev", "staging", "prod"] = "dev"
+    app_env: str = "dev"
     log_level: str = "INFO"
     debug: bool = False
     redis_url: str | None = None
@@ -37,27 +33,26 @@ class AppConfig(BaseModel):
     api_host: str = "127.0.0.1"
     api_port: int = 8080
     observability_port: int = 8765
-    cors_origins: list[str] = ["http://localhost:5173"]
+    cors_origins: list[str] | None = None
 
     rate_limit_max_requests: int = 0
     rate_limit_window_seconds: float = 60.0
 
-    @field_validator("log_level")
-    @classmethod
-    def _validate_log_level(cls, v: str) -> str:
-        upper = v.upper()
-        if upper not in _VALID_LOG_LEVELS:
+    def __post_init__(self) -> None:
+        # Validate and normalize log level
+        upper = self.log_level.upper()
+        _valid = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+        if upper not in _valid:
             raise ValueError(
-                f"Invalid log level '{v}'. Must be one of: {sorted(_VALID_LOG_LEVELS)}"
+                f"Invalid log level '{self.log_level}'. Must be one of: {sorted(_valid)}"
             )
-        return upper
+        object.__setattr__(self, "log_level", upper)
 
-    @field_validator("api_port", "observability_port")
-    @classmethod
-    def _validate_port(cls, v: int) -> int:
-        if v <= 0:
-            raise ValueError(f"Port must be > 0, got {v}")
-        return v
+        # Validate ports
+        if self.api_port <= 0:
+            raise ValueError(f"api_port must be > 0, got {self.api_port}")
+        if self.observability_port <= 0:
+            raise ValueError(f"observability_port must be > 0, got {self.observability_port}")
 
     @classmethod
     def from_env(cls) -> AppConfig:
@@ -68,30 +63,24 @@ class AppConfig(BaseModel):
         """
         kwargs: dict[str, object] = {}
 
-        kwargs["app_env"] = os.environ.get(
-            "TRADEX_APP_ENV", os.environ.get("APP_ENV", "dev")
-        )
+        kwargs["app_env"] = os.environ.get("TRADEX_APP_ENV", os.environ.get("APP_ENV", "dev"))
 
         kwargs["log_level"] = os.environ.get(
             "TRADEX_LOG_LEVEL", os.environ.get("XV2_LOG_LEVEL", "INFO")
         )
 
-        debug_raw = os.environ.get(
-            "TRADEX_DEBUG", os.environ.get("TRADEXV2_DEBUG", "")
-        )
+        debug_raw = os.environ.get("TRADEX_DEBUG", os.environ.get("TRADEXV2_DEBUG", ""))
         kwargs["debug"] = debug_raw.lower() in ("1", "true", "yes") if debug_raw else False
 
-        kwargs["redis_url"] = os.environ.get(
-            "TRADEX_REDIS_URL", os.environ.get("REDIS_URL")
-        ) or None
+        kwargs["redis_url"] = (
+            os.environ.get("TRADEX_REDIS_URL", os.environ.get("REDIS_URL")) or None
+        )
 
         kwargs["api_host"] = os.environ.get(
             "TRADEX_API_HOST", os.environ.get("API_HOST", "127.0.0.1")
         )
 
-        api_port_raw = os.environ.get(
-            "TRADEX_API_PORT", os.environ.get("API_PORT", "8080")
-        )
+        api_port_raw = os.environ.get("TRADEX_API_PORT", os.environ.get("API_PORT", "8080"))
         kwargs["api_port"] = int(api_port_raw)
 
         obs_raw = os.environ.get("TRADEX_OBSERVABILITY_PORT", "8765")
@@ -212,9 +201,7 @@ def load_dhan_config() -> DhanConfig:
         rest_base_url=os.environ.get("DHAN_REST_BASE_URL", ""),
         pin=os.environ.get("DHAN_PIN", ""),
         totp_secret=os.environ.get("DHAN_TOTP_SECRET", ""),
-        token_state_file=os.environ.get(
-            "DHAN_TOKEN_STATE_FILE", "runtime/dhan-token-state.json"
-        ),
+        token_state_file=os.environ.get("DHAN_TOKEN_STATE_FILE", "runtime/dhan-token-state.json"),
         refresh_buffer_minutes=_get_int("DHAN_REFRESH_BUFFER_MINUTES", 10),
         allow_live_orders=_get_bool("DHAN_ALLOW_LIVE_ORDERS"),
         sandbox_client_id=os.environ.get("DHAN_SANDBOX_CLIENT_ID", ""),
@@ -235,9 +222,7 @@ def load_upstox_config() -> UpstoxConfig:
         analytics_token=os.environ.get("UPSTOX_ANALYTICS_TOKEN", ""),
         environment=os.environ.get("UPSTOX_ENVIRONMENT", "LIVE"),
         auth_mode=os.environ.get("UPSTOX_AUTH_MODE", "STATIC"),
-        redirect_uri=os.environ.get(
-            "UPSTOX_REDIRECT_URI", "http://127.0.0.1:18080/callback"
-        ),
+        redirect_uri=os.environ.get("UPSTOX_REDIRECT_URI", "http://127.0.0.1:18080/callback"),
         token_state_file=os.environ.get(
             "UPSTOX_TOKEN_STATE_FILE", "runtime/upstox-token-state.json"
         ),

@@ -5,11 +5,11 @@ from __future__ import annotations
 from decimal import Decimal
 from unittest.mock import MagicMock
 
-from brokers.adapters.upstox.idempotency import InMemoryIdempotencyCache
 from brokers.adapters.upstox.orders import UpstoxOrders
 from brokers.config.endpoints import Upstox
 from brokers.domain import Order, OrderResponse
 from brokers.domain.enums import OrderStatus, Side
+from brokers.utils.idempotency_cache import TypedIdempotencyCache as InMemoryIdempotencyCache
 
 
 def _orders(client=None, **kwargs) -> UpstoxOrders:
@@ -23,12 +23,6 @@ class TestOrderSafetyGuards:
         assert not resp.success
         assert resp.error_code == "ANALYTICS_ONLY"
 
-    def test_live_orders_disabled_returns_fail(self):
-        orders = _orders(allow_live_orders=False)
-        resp = orders.place_order("RELIANCE", "NSE", Side.BUY, 1)
-        assert not resp.success
-        assert resp.error_code == "LIVE_ORDERS_DISABLED"
-
     def test_correlation_id_idempotency(self):
         client = MagicMock()
         client.post.return_value = {
@@ -38,12 +32,8 @@ class TestOrderSafetyGuards:
         cache = InMemoryIdempotencyCache[OrderResponse]()
         orders = UpstoxOrders(client, Upstox.production(), idempotency_cache=cache)
 
-        r1 = orders.place_order(
-            "RELIANCE", "NSE", Side.BUY, 1, correlation_id="corr-1"
-        )
-        r2 = orders.place_order(
-            "RELIANCE", "NSE", Side.BUY, 1, correlation_id="corr-1"
-        )
+        r1 = orders.place_order("RELIANCE", "NSE", Side.BUY, 1, correlation_id="corr-1")
+        r2 = orders.place_order("RELIANCE", "NSE", Side.BUY, 1, correlation_id="corr-1")
         assert r1.success
         assert r2 is r1 or r2.order_id == r1.order_id
         assert client.post.call_count == 1

@@ -6,6 +6,7 @@ import logging
 from dataclasses import replace
 from typing import Any
 
+from brokers.adapters.base_streaming import StreamHandle
 from brokers.adapters.upstox.auth import UpstoxAuth
 from brokers.adapters.upstox.auth.config import (
     UpstoxConnectionSettings,
@@ -16,8 +17,7 @@ from brokers.adapters.upstox.extended import UpstoxExtended
 from brokers.adapters.upstox.feed_authorizer import UpstoxFeedAuthorizer
 from brokers.adapters.upstox.gtt import UpstoxGtt
 from brokers.adapters.upstox.historical import UpstoxHistorical
-from brokers.adapters.upstox.http import UpstoxHttpClient
-from brokers.adapters.base_streaming import StreamHandle
+from brokers.adapters.upstox.http_client import create_upstox_http_client
 from brokers.adapters.upstox.instruments import UpstoxInstruments
 from brokers.adapters.upstox.market_data import UpstoxMarketData
 from brokers.adapters.upstox.metrics import UpstoxMetrics
@@ -29,6 +29,7 @@ from brokers.adapters.upstox.portfolio_stream import UpstoxPortfolioStream
 from brokers.adapters.upstox.streaming import UpstoxStreaming
 from brokers.adapters.upstox.urls import resolve_upstox_urls
 from brokers.domain.capabilities import BrokerCapabilities
+from brokers.domain.enums import BrokerID
 from brokers.ports.streaming import StreamingPort
 
 logger = logging.getLogger(__name__)
@@ -37,10 +38,10 @@ logger = logging.getLogger(__name__)
 class UpstoxGateway:
     """Upstox broker adapter implementing BrokerGateway protocol."""
 
-    _broker_id: str = "upstox"
+    _broker_id: BrokerID = BrokerID.UPSTOX
 
     @property
-    def broker_id(self) -> str:
+    def broker_id(self) -> BrokerID:
         """Canonical broker identifier."""
         return self._broker_id
 
@@ -64,9 +65,7 @@ class UpstoxGateway:
                 settings = UpstoxConnectionSettings(
                     client_id="default",
                     access_token=access_token or "",
-                    allow_live_orders=allow_live_orders
-                    if allow_live_orders is not None
-                    else False,
+                    allow_live_orders=allow_live_orders if allow_live_orders is not None else False,
                 )
 
         if access_token is not None:
@@ -76,16 +75,8 @@ class UpstoxGateway:
                 auth_mode="STATIC",
                 token_state_file=None,
                 analytics_only=False,
-                allow_live_orders=(
-                    allow_live_orders if allow_live_orders is not None else True
-                ),
+                allow_live_orders=(allow_live_orders if allow_live_orders is not None else True),
             )
-
-        live_orders = (
-            allow_live_orders
-            if allow_live_orders is not None
-            else settings.allow_live_orders
-        )
 
         self._settings = settings
         self._urls = resolve_upstox_urls(settings.environment)
@@ -94,16 +85,22 @@ class UpstoxGateway:
 
         self._auth.acquire()
 
-        self._client = UpstoxHttpClient(
-            access_token=self._auth.get_token,
+        def _refresh_and_get() -> str | None:
+            if self._auth.try_refresh_on_401():
+                token = self._auth.get_token()
+                if token:
+                    self._auth.force_refresh_callbacks(token)  # Trigger broadcast
+                return token
+            return None
+
+        self._client = create_upstox_http_client(
+            access_token=self._auth.get_token(),
+            token_refresh_fn=_refresh_and_get,
             base_url_v2=settings.base_v2,
             base_url_hft=settings.base_hft,
-            token_refresh_fn=self._auth.try_refresh_on_401,
         )
 
-        self._feed_authorizer = UpstoxFeedAuthorizer(
-            self._client, environment=settings.environment
-        )
+        self._feed_authorizer = UpstoxFeedAuthorizer(self._client, environment=settings.environment)
 
         self._portfolio = UpstoxPortfolio(self._client, self._urls)
         self._instruments = UpstoxInstruments(cache_path=settings.instrument_cache_path)
@@ -122,13 +119,10 @@ class UpstoxGateway:
         if load_instruments:
             self.load_instruments()
 
-        self._market_data = UpstoxMarketData(
-            self._client, self._urls, self._instruments
-        )
+        self._market_data = UpstoxMarketData(self._client, self._urls, self._instruments)
         self._orders = UpstoxOrders(
             self._client,
             self._urls,
-            allow_live_orders=live_orders,
             analytics_only=settings.analytics_only,
             instruments=self._instruments,
         )
@@ -144,6 +138,7 @@ class UpstoxGateway:
 
         self._auth.on_token_change(self._streaming.update_access_token)
         self._auth.on_token_change(self._portfolio_stream.update_access_token)
+        self._auth.on_token_change(self._client.update_token)
 
         self._scheduler = None
         if auto_refresh and settings.is_totp and settings.has_totp_config:
@@ -221,9 +216,7 @@ class UpstoxGateway:
     def quote_batch(self, symbols: list[str], exchange: str = "NSE") -> dict[str, Any]:
         return self._market_data.quote_batch(symbols, exchange)
 
-    def option_chain(
-        self, underlying: str, exchange: str = "NFO", expiry: str | None = None
-    ):
+    def option_chain(self, underlying: str, exchange: str = "NFO", expiry: str | None = None):
         return self._options.get_option_chain(underlying, exchange, expiry)
 
     def get_connection_status(self) -> dict[str, bool]:

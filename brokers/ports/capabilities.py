@@ -11,7 +11,7 @@ from decimal import Decimal
 from typing import Protocol, runtime_checkable
 
 from brokers.domain.entities import Order, OrderResponse
-from brokers.domain.enums import OrderType, ProductType
+from brokers.domain.enums import OrderType, ProductType, Side, Validity
 
 
 @runtime_checkable
@@ -47,52 +47,36 @@ class ForeverOrderProvider(Protocol):
     def cancel_forever_order(self, order_id: str) -> bool: ...
     def get_forever_orders(self) -> list[Order]: ...
 
-
 @runtime_checkable
-class ConditionalTriggerProvider(Protocol):
-    """Broker supports conditional alerts/triggers."""
+class NewsProvider(Protocol):
+    """Broker provides market news feeds."""
 
-    def place_alert(self, request: dict) -> str: ...
-    def get_alert(self, alert_id: str) -> dict: ...
-    def list_alerts(self) -> list[dict]: ...
-    def delete_alert(self, alert_id: str) -> bool: ...
+    def get_news(self, symbol: str | None = None) -> list[dict]: ...
+
+
 
 
 @runtime_checkable
-class EDISTransferProvider(Protocol):
-    """Broker supports EDIS (electronic delivery instruction) transfers."""
+class KillSwitchProvider(Protocol):
+    """Broker supports manual emergency kill switch activation."""
 
-    def submit_edis(self, symbol: str, quantity: int, **kwargs) -> dict: ...
-    def check_edis_status(self, isin: str) -> dict: ...
-
-
-@runtime_checkable
-class IPManagementProvider(Protocol):
-    """Broker supports static IP management."""
-
-    def get_static_ip(self) -> dict[str, str]: ...
-    def set_static_ip(
-        self, primary: str, secondary: str | None = None
-    ) -> dict[str, str]: ...
+    def kill_switch(self, enable: bool) -> bool: ...
 
 
 @runtime_checkable
-class LedgerProvider(Protocol):
-    """Broker supports ledger history retrieval."""
+class SliceOrderProvider(Protocol):
+    """Broker natively supports splitting large orders (slicing)."""
 
-    def get_ledger(self, from_date: str, to_date: str) -> list[dict]: ...
-
-
-@runtime_checkable
-class UserProfileProvider(Protocol):
-    """Broker supports user profile data."""
-
-    def get_profile(self) -> dict: ...
-
-
-@runtime_checkable
-class ReconciliationProvider(Protocol):
-    """Broker supports order/portfolio reconciliation."""
-
-    def reconcile(self) -> dict: ...
-    def auto_repair(self, enabled: bool) -> None: ...
+    def place_slice_order(
+        self,
+        symbol: str,
+        exchange: str,
+        side: Side,
+        quantity: int,
+        order_type: OrderType = OrderType.MARKET,
+        price: Decimal = Decimal("0"),
+        product_type: ProductType = ProductType.INTRADAY,
+        validity: Validity = Validity.DAY,
+        trigger_price: Decimal = Decimal("0"),
+        correlation_id: str = "",
+    ) -> OrderResponse: ...

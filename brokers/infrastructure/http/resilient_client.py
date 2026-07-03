@@ -31,15 +31,23 @@ class TokenRefreshSignal(Exception):
     """Internal signal that token was refreshed and request should be retried."""
 
 
-class BaseResilientHttpClient(ABC):
+class ResilientHttpClient:
     def __init__(
         self,
         rate_limits: dict[str, float],
+        categorize_fn: Callable[[str], str],
+        url_builder_fn: Callable[[str], str],
+        response_handler_fn: Callable[[requests.Response], dict],
         timeout: float = 10.0,
         session_factory: Callable[[], requests.Session] | None = None,
+        token_refresh_fn: Callable[[], str | None] | None = None,
     ):
         self._timeout = timeout
         self._session = session_factory() if session_factory else requests.Session()
+        self._categorize_fn = categorize_fn
+        self._url_builder_fn = url_builder_fn
+        self._response_handler_fn = response_handler_fn
+        self._token_refresh_fn = token_refresh_fn
 
         self._rate_limiters: dict[str, TokenBucketRateLimiter] = {}
         for endpoint, rate in rate_limits.items():
@@ -63,6 +71,10 @@ class BaseResilientHttpClient(ABC):
                 RateLimitError,
             ),
         )
+
+    @property
+    def session(self) -> requests.Session:
+        return self._session
 
     @property
     def _read_breaker(self) -> CircuitBreaker:
@@ -91,17 +103,26 @@ class BaseResilientHttpClient(ABC):
 
     def delete(self, endpoint: str, params: dict | None = None) -> dict:
         return self._request("DELETE", endpoint, params=params)
+        
+    def update_token(self, new_token: str) -> None:
+        if "access-token" in self._session.headers:
+            self._session.headers["access-token"] = new_token
+        elif "Authorization" in self._session.headers:
+            self._session.headers["Authorization"] = f"Bearer {new_token}"
+        else:
+            # Default to Authorization if neither exists
+            self._session.headers["Authorization"] = f"Bearer {new_token}"
 
     def _request(self, method: str, endpoint: str, **kwargs: Any) -> dict:
-        category = self._categorize(endpoint)
+        category = self._categorize_fn(endpoint)
         cb = self._circuit_breakers.get(category, self._circuit_breakers["admin"])
 
         self._apply_rate_limit(endpoint)
 
         def _do_request() -> dict:
-            url = self._build_url(endpoint)
+            url = self._url_builder_fn(endpoint)
             resp = self._session.request(method, url, timeout=self._timeout, **kwargs)
-            return self._handle_response(resp)
+            return self._response_handler_fn(resp)
 
         try:
             return cb.call(
@@ -110,6 +131,15 @@ class BaseResilientHttpClient(ABC):
             )
         except TokenRefreshSignal:
             logger.debug("token_refreshed_retrying", extra={"endpoint": endpoint})
+            
+            if hasattr(self, "_token_refresh_fn") and self._token_refresh_fn:
+                try:
+                    new_token = self._token_refresh_fn()
+                    if new_token:
+                        self.update_token(new_token)
+                except Exception as exc:
+                    logger.warning("token_refresh_failed", extra={"error": str(exc)})
+                    
             try:
                 return cb.call(
                     lambda: self._retry.call(_do_request),
@@ -150,15 +180,3 @@ class BaseResilientHttpClient(ABC):
             name: mapping[breaker.state]
             for name, breaker in self._circuit_breakers.items()
         }
-
-    @abstractmethod
-    def _categorize(self, endpoint: str) -> str:
-        """Categorize endpoint into 'read', 'write', or 'admin' for circuit breakers."""
-
-    @abstractmethod
-    def _build_url(self, endpoint: str) -> str:
-        """Resolve endpoint to absolute URL."""
-
-    @abstractmethod
-    def _handle_response(self, resp: requests.Response) -> dict:
-        """Parse response, mapping HTTP errors to domain exceptions."""

@@ -13,17 +13,17 @@ from brokers.adapters.dhan.config import (
     VALIDITY_MAP,
 )
 from brokers.adapters.dhan.extensions.models import ForeverOrder
-from brokers.adapters.dhan.http import DhanHttpClient
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
 from brokers.adapters.dhan.invariants import assert_valid_dhan_payload
 from brokers.domain.enums import OrderType, ProductType, Side, Validity
+from brokers.ports.http_client_port import HttpClientPort
 from brokers.utils.price import to_wire_float
 
 logger = logging.getLogger(__name__)
 
 
 class DhanForeverOrders:
-    def __init__(self, client: DhanHttpClient, resolver: DhanInstrumentResolver):
+    def __init__(self, client: HttpClientPort, resolver: DhanInstrumentResolver):
         self._client = client
         self._resolver = resolver
 

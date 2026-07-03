@@ -17,20 +17,19 @@ from brokers.adapters.dhan.config import (
     VALIDITY_MAP,
 )
 from brokers.adapters.dhan.exceptions import DhanOrderError
-from brokers.adapters.dhan.http import DhanHttpClient
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
-from brokers.adapters.dhan.idempotency import DhanIdempotencyCache
 from brokers.adapters.dhan.invariants import assert_valid_dhan_payload
 from brokers.adapters.dhan.mapper import map_order, map_order_response
 from brokers.adapters.dhan.segments import resolve_segment
-from brokers.adapters.dhan.use_cases.place_order import PlaceOrderRequest, PlaceOrderUseCase
-from brokers.domain import Order, OrderResponse, Trade
+from brokers.adapters.dhan.use_cases.place_order import PlaceOrderUseCase
+from brokers.domain import Order, OrderRequest, OrderResponse, Trade
 from brokers.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
 from brokers.domain.events import DomainEvent
 from brokers.domain.exceptions import InstrumentNotFoundError
-from brokers.infrastructure.correlation import get_current_correlation_id
-from brokers.infrastructure.event_bus import EventBus
+from brokers.ports.event_publisher import EventPublisherPort
+from brokers.ports.http_client_port import HttpClientPort
 from brokers.ports.risk_manager import RiskManagerPort
+from brokers.utils.idempotency_cache import TypedIdempotencyCache
 from brokers.utils.price import to_wire_float
 
 logger = logging.getLogger(__name__)
@@ -39,24 +38,21 @@ logger = logging.getLogger(__name__)
 class DhanOrders:
     def __init__(
         self,
-        client: DhanHttpClient,
+        client: HttpClientPort,
         resolver: DhanInstrumentResolver,
-        allow_live_orders: bool = True,
-        idempotency_cache: DhanIdempotencyCache[OrderResponse] | None = None,
-        event_bus: EventBus | None = None,
+        idempotency_cache: TypedIdempotencyCache[OrderResponse] | None = None,
+        event_bus: EventPublisherPort | None = None,
         risk_manager: RiskManagerPort | None = None,
     ):
         self._client = client
         self._resolver = resolver
-        self._allow_live_orders = allow_live_orders
-        self._idempotency = idempotency_cache or DhanIdempotencyCache()
+        self._idempotency = idempotency_cache or TypedIdempotencyCache()
         self._event_bus = event_bus
         self._risk_manager = risk_manager
         self._place_order_uc = PlaceOrderUseCase(
             client,
             resolver,
             idempotency=self._idempotency,
-            allow_live_orders=allow_live_orders,
             risk_manager=risk_manager,
             derivative_segments=DERIVATIVE_SEGMENTS,
             equity_only_products=EQUITY_ONLY_PRODUCTS,
@@ -67,7 +63,7 @@ class DhanOrders:
         )
 
     @property
-    def idempotency_cache(self) -> DhanIdempotencyCache[OrderResponse]:
+    def idempotency_cache(self) -> TypedIdempotencyCache[OrderResponse]:
         """Expose idempotency cache for contract tests and diagnostics."""
         return self._idempotency
 
@@ -84,7 +80,7 @@ class DhanOrders:
         trigger_price: Decimal = Decimal("0"),
         correlation_id: str = "",
     ) -> OrderResponse:
-        request = PlaceOrderRequest(
+        request = OrderRequest(
             symbol=symbol,
             exchange=exchange,
             side=side,
@@ -114,12 +110,6 @@ class DhanOrders:
         )
 
     def cancel_order(self, order_id: str) -> OrderResponse:
-        if not self._allow_live_orders:
-            logger.warning(
-                "Live orders disabled — rejecting cancel_order for %s", order_id
-            )
-            return OrderResponse.live_orders_disabled()
-
         endpoint = ENDPOINTS["cancel_order"].format(order_id=order_id)
         try:
             data = self._client.delete(endpoint)
@@ -175,9 +165,6 @@ class DhanOrders:
         order_type: OrderType | None = None,
         validity: Validity | None = None,
     ) -> OrderResponse:
-        if not self._allow_live_orders:
-            return OrderResponse.live_orders_disabled()
-
         endpoint = ENDPOINTS.get("modify_order", "").format(order_id=order_id)
         payload: dict = {}
         if quantity is not None:
@@ -227,9 +214,7 @@ class DhanOrders:
             return [map_trade(t) for t in items]
         return []
 
-    def get_trade_history(
-        self, from_date: str, to_date: str, page: int = 0
-    ) -> list[Trade]:
+    def get_trade_history(self, from_date: str, to_date: str, page: int = 0) -> list[Trade]:
         from brokers.adapters.dhan.mapper import map_trade
 
         endpoint = ENDPOINTS["trade_history"].format(
@@ -251,10 +236,6 @@ class DhanOrders:
 
     def kill_switch(self, enable: bool) -> bool:
         """Activate or deactivate the broker kill switch."""
-        if not self._allow_live_orders:
-            raise DhanOrderError(
-                "Live orders are disabled. Set allow_live_orders=True to enable."
-            )
         action = "ACTIVATE" if enable else "DEACTIVATE"
         endpoint = f"{ENDPOINTS['kill_switch']}?killSwitchStatus={action}"
         data = self._client.post(endpoint, json={})
@@ -276,11 +257,6 @@ class DhanOrders:
         correlation_id: str = "",
     ) -> OrderResponse:
         """Place a slice order (broker-managed quantity splitting)."""
-        if not self._allow_live_orders:
-            raise DhanOrderError(
-                "Live orders are disabled. Set allow_live_orders=True to enable."
-            )
-
         try:
             ref = self._resolver.resolve(
                 symbol,
@@ -290,7 +266,7 @@ class DhanOrders:
         except InstrumentNotFoundError as exc:
             return OrderResponse.fail(str(exc), error_code="INSTRUMENT_NOT_FOUND")
 
-        request = PlaceOrderRequest(
+        request = OrderRequest(
             symbol=symbol,
             exchange=exchange,
             side=side,
@@ -309,7 +285,7 @@ class DhanOrders:
                 error_code="VALIDATION_FAILED",
             )
 
-        cid = correlation_id or get_current_correlation_id() or str(uuid.uuid4())
+        cid = correlation_id or str(uuid.uuid4())
         payload = {
             "dhanClientId": self._client.client_id,
             "transactionType": SIDE_MAP.get(side.value, 1),

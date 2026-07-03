@@ -89,3 +89,23 @@ class AuthMode(str, Enum):
     @property
     def is_long_lived(self) -> bool:
         return self in (AuthMode.EXTENDED, AuthMode.STATIC)
+
+
+class BrokerID(str, Enum):
+    """Canonical broker identifiers — type-safe broker selection."""
+
+    DHAN = "dhan"
+    UPSTOX = "upstox"
+    PAPER = "paper"
+
+    @classmethod
+    def from_string(cls, value: str) -> BrokerID:
+        """Parse a broker string into a BrokerID, case-insensitive."""
+        value = value.lower().strip()
+        for member in cls:
+            if member.value == value:
+                return member
+        raise ValueError(f"Unknown broker: {value!r}. Valid: {[m.value for m in cls]}")
+
+    def to_string(self) -> str:
+        return self.value

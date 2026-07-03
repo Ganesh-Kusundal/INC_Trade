@@ -9,7 +9,7 @@ import pytest
 from brokers.adapters.paper.gateway import PaperGateway
 from brokers.domain import Side
 from brokers.domain.enums import OrderType
-from brokers.domain.exceptions import OrderRejectedError
+from brokers.domain.exceptions import OrderRejectedError, ValidationError
 from brokers.services.order_service import OrderService
 
 
@@ -24,19 +24,19 @@ class TestOrderService:
         assert resp.order_id
 
     def test_place_order_validates_symbol(self):
-        with pytest.raises(OrderRejectedError, match="symbol"):
+        with pytest.raises(ValidationError, match="symbol"):
             self.service.place_order("", "NSE", Side.BUY, 10)
 
     def test_place_order_validates_exchange(self):
-        with pytest.raises(OrderRejectedError, match="exchange"):
+        with pytest.raises(ValidationError, match="exchange"):
             self.service.place_order("RELIANCE", "", Side.BUY, 10)
 
     def test_place_order_validates_quantity(self):
-        with pytest.raises(OrderRejectedError, match="quantity"):
+        with pytest.raises(ValidationError, match="quantity"):
             self.service.place_order("RELIANCE", "NSE", Side.BUY, 0)
 
     def test_place_order_validates_limit_price(self):
-        with pytest.raises(OrderRejectedError, match="price"):
+        with pytest.raises(ValidationError, match="price"):
             self.service.place_order(
                 "RELIANCE",
                 "NSE",
@@ -47,7 +47,7 @@ class TestOrderService:
             )
 
     def test_place_order_validates_stop_trigger(self):
-        with pytest.raises(OrderRejectedError, match="trigger_price"):
+        with pytest.raises(ValidationError, match="trigger_price"):
             self.service.place_order(
                 "RELIANCE",
                 "NSE",
@@ -109,6 +109,26 @@ class TestMarketDataService:
         self.service.invalidate("RELIANCE")
         q2 = self.service.quote("RELIANCE")
         assert q2.ltp == Decimal("2500")
+
+    def test_ltp_batch(self):
+        self.gw.set_quote("TCS", Decimal("3500"))
+        batch = self.service.ltp_batch(["RELIANCE", "TCS"])
+        assert batch["RELIANCE"] == Decimal("2500")
+        assert batch["TCS"] == Decimal("3500")
+
+    def test_quote_batch(self):
+        self.gw.set_quote("TCS", Decimal("3500"))
+        # Call single quote to pre-cache RELIANCE
+        q1 = self.service.quote("RELIANCE")
+        
+        # Call batch for both
+        batch = self.service.quote_batch(["RELIANCE", "TCS"])
+        
+        assert "RELIANCE" in batch
+        assert "TCS" in batch
+        # Verify the cached object was returned for RELIANCE
+        assert batch["RELIANCE"] is q1
+        assert batch["TCS"].ltp == Decimal("3500")
 
 
 class TestPortfolioService:

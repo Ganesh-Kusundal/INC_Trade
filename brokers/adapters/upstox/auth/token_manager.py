@@ -24,7 +24,7 @@ from .holders import (
     UpstoxStaticTokenHolder,
     UpstoxTokenHolder,
 )
-from .json_token_store import JsonTokenStateStore
+from brokers.infrastructure.storage.token_store import JsonTokenStateStore, TokenState, TokenSource
 from .oauth_client import UpstoxOAuthClient
 from .pkce import PkcePair, UpstoxPkceUtil
 from .token_expiry import UpstoxTokenExpiry
@@ -489,26 +489,27 @@ class UpstoxTokenManager:
         if self._state_store is None:
             return
         try:
-            self._state_store.save(
-                {
-                    "access_token": state.access_token,
-                    "refresh_token": state.refresh_token,
-                    "expires_at_ms": state.expires_at_ms,
-                    "issued_at_ms": state.issued_at_ms,
-                    "source": state.source,
-                }
+            from datetime import datetime, timezone
+            issued = datetime.fromtimestamp(state.issued_at_ms / 1000, tz=timezone.utc) if state.issued_at_ms else None
+            expires = datetime.fromtimestamp(state.expires_at_ms / 1000, tz=timezone.utc) if state.expires_at_ms else None
+            
+            ts = TokenState(
+                access_token=state.access_token,
+                refresh_token=state.refresh_token,
+                issued_at=issued,
+                expires_at=expires,
+                source=TokenSource.OAUTH,
             )
+            self._state_store.save(ts)
         except (OSError, ValueError, TypeError) as exc:
             logger.warning("Failed to persist Upstox token state: %s", exc)
 
-    def _valid_persisted(self, persisted: dict) -> bool:
-        if not isinstance(persisted, dict):
+    def _valid_persisted(self, persisted: Any) -> bool:
+        if not getattr(persisted, "access_token", None):
             return False
-        token = persisted.get("access_token")
-        if not token or not isinstance(token, str):
+        if getattr(persisted, "expires_at", None) is None:
             return False
-        exp = int(persisted.get("expires_at_ms", 0) or 0)
-        return exp > int(time.time() * 1000)
+        return persisted.is_valid()
 
     def _valid_snapshot(self, state: TokenSnapshot) -> bool:
         if not state.access_token:
@@ -518,13 +519,13 @@ class UpstoxTokenManager:
             return False
         return exp > int(time.time() * 1000)
 
-    def _from_persisted(self, persisted: dict) -> TokenSnapshot:
+    def _from_persisted(self, persisted: Any) -> TokenSnapshot:
         return TokenSnapshot(
-            access_token=persisted["access_token"],
-            refresh_token=persisted.get("refresh_token"),
-            expires_at_ms=int(persisted.get("expires_at_ms", 0)),
-            issued_at_ms=int(persisted.get("issued_at_ms", 0)),
-            source=str(persisted.get("source", "OAUTH")),
+            access_token=persisted.access_token,
+            refresh_token=persisted.refresh_token,
+            expires_at_ms=int(persisted.expires_at.timestamp() * 1000) if persisted.expires_at else 0,
+            issued_at_ms=int(persisted.issued_at.timestamp() * 1000) if persisted.issued_at else 0,
+            source=persisted.source.value if getattr(persisted, "source", None) else "OAUTH",
         )
 
     def _bootstrap_totp(self) -> TokenSnapshot:

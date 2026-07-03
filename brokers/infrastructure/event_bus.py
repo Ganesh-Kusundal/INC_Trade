@@ -8,13 +8,14 @@ import uuid
 from collections.abc import Callable
 
 from brokers.domain.events import DomainEvent
+from brokers.ports.event_publisher import EventPublisherPort
 
 logger = logging.getLogger(__name__)
 
 EventHandler = Callable[[DomainEvent], None]
 
 
-class EventBus:
+class EventBus(EventPublisherPort):
     """Minimal event bus for broker adapter → application notifications."""
 
     def __init__(self) -> None:

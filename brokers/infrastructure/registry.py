@@ -19,32 +19,29 @@ _T = TypeVar("_T")
 
 
 class GatewayRegistry:
-    """Thread-safe singleton registry for broker gateways."""
+    """Thread-safe registry for broker gateways (instance-based)."""
 
-    _instances: dict[str, Any] = {}
-    _lock = threading.Lock()
+    def __init__(self) -> None:
+        self._instances: dict[str, Any] = {}
+        self._lock = threading.Lock()
 
-    @classmethod
-    def get_or_create(
-        cls, broker_id: str, client_id: str, factory_fn: Callable[[], Any]
-    ) -> Any:
+    def get_or_create(self, broker_id: str, client_id: str, factory_fn: Callable[[], Any]) -> Any:
         """Get existing gateway or create a new one using factory_fn."""
         key = f"{broker_id}:{client_id}"
 
-        with cls._lock:
-            if key in cls._instances:
+        with self._lock:
+            if key in self._instances:
                 logger.debug(f"registry_hit for {key}")
-                return cls._instances[key]
+                return self._instances[key]
 
             logger.info(f"registry_miss creating new gateway for {key}")
             instance = factory_fn()
-            cls._instances[key] = instance
+            self._instances[key] = instance
             return instance
 
-    @classmethod
-    def clear(cls) -> None:
-        with cls._lock:
-            cls._instances.clear()
+    def clear(self) -> None:
+        with self._lock:
+            self._instances.clear()
 
 
 # ── Service Registry ────────────────────────────────────────────────────────
@@ -148,9 +145,7 @@ class BrokerRegistry:
         """Register a broker gateway."""
         with self._lock:
             self._gateways[broker_id] = gateway
-            self._health[broker_id] = BrokerHealthSnapshot(
-                broker_id=broker_id, alive=True
-            )
+            self._health[broker_id] = BrokerHealthSnapshot(broker_id=broker_id, alive=True)
             if metadata:
                 self._metadata[broker_id] = metadata
         logger.info("broker.registered: %s", broker_id)

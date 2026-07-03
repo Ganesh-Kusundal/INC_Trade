@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal
-from typing import Any
 
 from brokers.domain import Order, OrderResponse, Side
 from brokers.domain.enums import OrderType, ProductType, Validity
@@ -21,6 +20,7 @@ from brokers.services.order_validation import (
     validate_product_segment,
     validate_tick_alignment,
 )
+from brokers.utils.idempotency_cache import TypedIdempotencyCache
 
 logger = logging.getLogger(__name__)
 
@@ -29,14 +29,16 @@ class OrderService:
     def __init__(
         self,
         executor: OrderExecutionPort,
-        idempotency_cache: Any = None,
+        idempotency_cache: TypedIdempotencyCache[OrderResponse] | None = None,
         lot_size: int = 0,
         tick_size: Decimal = Decimal("0"),
+        allow_live_orders: bool = True,
     ):
         self._executor = executor
         self._idempotency = idempotency_cache
         self._lot_size = lot_size
         self._tick_size = tick_size
+        self._allow_live_orders = allow_live_orders
 
     def place_order(
         self,
@@ -51,9 +53,10 @@ class OrderService:
         trigger_price: Decimal = Decimal("0"),
         correlation_id: str = "",
     ) -> OrderResponse:
-        validate_order_fields(
-            symbol, exchange, quantity, order_type, price, trigger_price
-        )
+        if not self._allow_live_orders:
+            return OrderResponse.live_orders_disabled()
+
+        validate_order_fields(symbol, exchange, quantity, order_type, price, trigger_price)
         validate_product_segment(product_type, exchange)
 
         if self._lot_size > 0:
@@ -80,17 +83,51 @@ class OrderService:
         )
 
         if resp.success:
-            logger.info(
-                "order_placed", extra={"order_id": resp.order_id, "symbol": symbol}
-            )
+            logger.info("order_placed", extra={"order_id": resp.order_id, "symbol": symbol})
         else:
-            logger.warning(
-                "order_rejected", extra={"symbol": symbol, "message": resp.message}
-            )
+            logger.warning("order_rejected", extra={"symbol": symbol, "message": resp.message})
+
+        return resp
+
+    def modify_order(
+        self,
+        order_id: str,
+        quantity: int | None = None,
+        price: Decimal | None = None,
+        order_type: OrderType | None = None,
+        validity: Validity | None = None,
+    ) -> OrderResponse:
+        if not self._allow_live_orders:
+            return OrderResponse.live_orders_disabled()
+        if not order_id:
+            raise OrderRejectedError("order_id is required")
+
+        if self._lot_size > 0 and quantity is not None:
+            validate_lot_size(quantity, self._lot_size)
+        if self._tick_size > 0 and price is not None and price > 0:
+            validate_tick_alignment(price, self._tick_size)
+
+        if quantity is not None and price is not None:
+            check_notional_warning(quantity, price)
+
+        resp = self._executor.modify_order(
+            order_id=order_id,
+            quantity=quantity,
+            price=price,
+            order_type=order_type,
+            validity=validity,
+        )
+
+        if resp.success:
+            logger.info("order_modified", extra={"order_id": order_id})
+        else:
+            logger.warning("order_modify_rejected", extra={"order_id": order_id, "message": resp.message})
 
         return resp
 
     def cancel_order(self, order_id: str) -> OrderResponse:
+        if not self._allow_live_orders:
+            return OrderResponse.live_orders_disabled()
         if not order_id:
             raise OrderRejectedError("order_id is required")
         return self._executor.cancel_order(order_id)

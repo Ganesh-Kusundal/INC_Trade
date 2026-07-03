@@ -5,11 +5,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from brokers.adapters.dhan.streaming_pool import (
-    Depth20Connection,
-    Depth200Connection,
+    DhanStreamChannel,
     OrderStreamConnection,
-    PooledDhanDepth200Stream,
     PooledDhanDepth20Stream,
+    PooledDhanDepth200Stream,
     PooledDhanOrderStream,
     PooledDhanStreaming,
 )
@@ -351,10 +350,10 @@ class TestPooledDhanOrderStream:
         assert results == []
 
 
-class TestDepth20Connection:
-    def test_send_subscribe(self):
+class TestDhanStreamChannel:
+    def test_send_subscribe_default_request_code(self):
         mock_ws = MagicMock()
-        conn = Depth20Connection(
+        conn = DhanStreamChannel(
             ws_url="wss://test",
             headers={},
             on_message=lambda m: None,
@@ -363,12 +362,28 @@ class TestDepth20Connection:
         conn._send_subscribe(["NSE_EQ|RELIANCE"])
         mock_ws.send.assert_called_once()
         import json
+
         sent = json.loads(mock_ws.send.call_args[0][0])
         assert sent["RequestCode"] == 23
         assert sent["InstrumentList"][0]["SecurityId"] == "RELIANCE"
 
+    def test_send_subscribe_custom_request_code(self):
+        mock_ws = MagicMock()
+        conn = DhanStreamChannel(
+            ws_url="wss://test",
+            headers={},
+            on_message=lambda m: None,
+            request_code=42,
+        )
+        conn._ws = mock_ws
+        conn._send_subscribe(["NSE_EQ|RELIANCE"])
+        import json
+
+        sent = json.loads(mock_ws.send.call_args[0][0])
+        assert sent["RequestCode"] == 42
+
     def test_send_subscribe_no_ws(self):
-        conn = Depth20Connection(
+        conn = DhanStreamChannel(
             ws_url="wss://test",
             headers={},
             on_message=lambda m: None,
@@ -377,7 +392,7 @@ class TestDepth20Connection:
 
     def test_send_unsubscribe_delegates_to_subscribe(self):
         mock_ws = MagicMock()
-        conn = Depth20Connection(
+        conn = DhanStreamChannel(
             ws_url="wss://test",
             headers={},
             on_message=lambda m: None,
@@ -386,11 +401,9 @@ class TestDepth20Connection:
         conn._send_unsubscribe(["NSE_EQ|TCS"])
         mock_ws.send.assert_called_once()
 
-
-class TestDepth200Connection:
-    def test_send_subscribe_limits_to_one(self):
+    def test_send_subscribe_with_multiple_keys(self):
         mock_ws = MagicMock()
-        conn = Depth200Connection(
+        conn = DhanStreamChannel(
             ws_url="wss://test",
             headers={},
             on_message=lambda m: None,
@@ -398,17 +411,10 @@ class TestDepth200Connection:
         conn._ws = mock_ws
         conn._send_subscribe(["NSE_EQ|RELIANCE", "NSE_EQ|TCS"])
         import json
-        sent = json.loads(mock_ws.send.call_args[0][0])
-        assert sent["InstrumentCount"] == 1
-        assert len(sent["InstrumentList"]) == 1
 
-    def test_send_subscribe_no_ws(self):
-        conn = Depth200Connection(
-            ws_url="wss://test",
-            headers={},
-            on_message=lambda m: None,
-        )
-        conn._send_subscribe(["NSE_EQ|RELIANCE"])
+        sent = json.loads(mock_ws.send.call_args[0][0])
+        assert sent["InstrumentCount"] == 2
+        assert len(sent["InstrumentList"]) == 2
 
 
 class TestOrderStreamConnection:
@@ -424,6 +430,7 @@ class TestOrderStreamConnection:
         conn._ws = mock_ws
         conn._send_subscribe([])
         import json
+
         sent = json.loads(mock_ws.send.call_args[0][0])
         assert sent["LoginReq"]["Token"] == "tok123"
         assert sent["LoginReq"]["ClientId"] == "c1"
@@ -440,6 +447,7 @@ class TestOrderStreamConnection:
         conn._ws = mock_ws
         conn._send_subscribe([])
         import json
+
         sent = json.loads(mock_ws.send.call_args[0][0])
         assert sent["LoginReq"]["Token"] == "fn_tok"
 
@@ -455,6 +463,7 @@ class TestOrderStreamConnection:
         conn._ws = mock_ws
         conn._send_unsubscribe([])
         import json
+
         sent = json.loads(mock_ws.send.call_args[0][0])
         assert sent["type"] == "unsubscribe"
 

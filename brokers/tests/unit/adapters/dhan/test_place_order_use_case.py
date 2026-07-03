@@ -9,8 +9,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from brokers.adapters.dhan.identity import DhanInstrumentRef
-from brokers.adapters.dhan.use_cases.place_order import PlaceOrderRequest, PlaceOrderUseCase
-from brokers.domain import OrderResponse
+from brokers.adapters.dhan.use_cases.place_order import PlaceOrderUseCase
+from brokers.domain import OrderRequest, OrderResponse
 from brokers.domain.enums import OrderType, ProductType, Side, Validity
 from brokers.domain.exceptions import InstrumentNotFoundError
 
@@ -41,7 +41,6 @@ def _make_ref(**overrides: object) -> DhanInstrumentRef:
 
 def _make_uc(
     *,
-    allow_live_orders: bool = True,
     risk_manager: object | None = None,
 ) -> tuple[PlaceOrderUseCase, MagicMock, MagicMock, MagicMock]:
     client = MagicMock()
@@ -52,7 +51,6 @@ def _make_uc(
         client,
         resolver,
         idempotency=idempotency,
-        allow_live_orders=allow_live_orders,
         risk_manager=risk_manager,
         derivative_segments=_DERIVATIVE_SEGMENTS,
         equity_only_products=_EQUITY_ONLY_PRODUCTS,
@@ -64,7 +62,7 @@ def _make_uc(
     return uc, client, resolver, idempotency
 
 
-def _default_request(**overrides: object) -> PlaceOrderRequest:
+def _default_request(**overrides: object) -> OrderRequest:
     defaults = dict(
         symbol="RELIANCE",
         exchange="NSE",
@@ -78,22 +76,22 @@ def _default_request(**overrides: object) -> PlaceOrderRequest:
         correlation_id="test-corr-001",
     )
     defaults.update(overrides)
-    return PlaceOrderRequest(**defaults)  # type: ignore[arg-type]
+    return OrderRequest(**defaults)  # type: ignore[arg-type]
 
 
 # ===========================================================================
-# PlaceOrderRequest tests
+# OrderRequest tests
 # ===========================================================================
 
 
-class TestPlaceOrderRequest:
+class TestOrderRequest:
     def test_frozen_dataclass(self) -> None:
         req = _default_request()
         with pytest.raises(FrozenInstanceError):
             req.symbol = "TCS"  # type: ignore[misc]
 
     def test_default_values(self) -> None:
-        req = PlaceOrderRequest(
+        req = OrderRequest(
             symbol="RELIANCE",
             exchange="NSE",
             side=Side.BUY,
@@ -113,16 +111,7 @@ class TestPlaceOrderRequest:
 
 
 class TestExecute:
-    def test_live_orders_disabled(self) -> None:
-        uc, _, _, _ = _make_uc(allow_live_orders=False)
-        result, placed = uc.execute(_default_request())
-        assert not result.success
-        assert result.error_code == "LIVE_ORDERS_DISABLED"
-        assert placed is None
-
-    @patch("brokers.adapters.dhan.use_cases.place_order.get_current_correlation_id")
-    def test_successful_order(self, mock_corr: MagicMock) -> None:
-        mock_corr.return_value = "gen-cid"
+    def test_successful_order(self) -> None:
         uc, client, resolver, idempotency = _make_uc()
         ref = _make_ref()
         resolver.resolve.return_value = ref

@@ -77,7 +77,7 @@ class TestGetOptionChain:
         opts = UpstoxOptions(client, instruments)
         chain = opts.get_option_chain("NIFTY", "NFO")
         assert chain.underlying == "NIFTY"
-        assert chain.entries == ()
+        assert chain.strikes == ()
         client.get.assert_not_called()
 
     def test_get_option_chain_empty_chain_response(self):
@@ -90,7 +90,7 @@ class TestGetOptionChain:
         )
         opts = UpstoxOptions(client, instruments)
         chain = opts.get_option_chain("NIFTY", "NFO")
-        assert chain.entries == ()
+        assert chain.strikes == ()
 
 
 class TestGetExpiries:

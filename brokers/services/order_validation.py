@@ -2,6 +2,8 @@
 
 Extends the basic validation in OrderService with market microstructure
 checks that prevent rejected orders at the exchange level.
+
+All validators now delegate to brokers.domain.validators.
 """
 
 from __future__ import annotations
@@ -9,10 +11,8 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 
-from brokers.domain.constants.exchanges import DERIVATIVE_EXCHANGES
 from brokers.domain.enums import OrderType, ProductType
 from brokers.domain.exceptions import OrderRejectedError
-from brokers.utils.price import is_tick_aligned
 
 logger = logging.getLogger(__name__)
 
@@ -29,45 +29,38 @@ def validate_order_fields(
     price: Decimal,
     trigger_price: Decimal,
 ) -> None:
-    if not symbol:
-        raise OrderRejectedError("symbol is required")
-    if not exchange:
-        raise OrderRejectedError("exchange is required")
-    if quantity <= 0:
-        raise OrderRejectedError(f"quantity must be positive, got {quantity}")
-    if order_type == OrderType.LIMIT and price <= Decimal("0"):
-        raise OrderRejectedError("LIMIT orders require a positive price")
-    if order_type.is_stop and trigger_price <= Decimal("0"):
-        raise OrderRejectedError("STOP orders require a positive trigger_price")
+    """Validate order fields using domain validators."""
+    from brokers.domain.validators.order_validator import validate_order as _domain_validate
+
+    _domain_validate(
+        symbol=symbol,
+        exchange=exchange,
+        quantity=quantity,
+        order_type=order_type,
+        price=price,
+        trigger_price=trigger_price,
+    )
 
 
 def validate_lot_size(quantity: int, lot_size: int) -> None:
-    if lot_size <= 0:
-        return
-    if quantity % lot_size != 0:
-        raise OrderRejectedError(
-            f"quantity {quantity} is not a multiple of lot_size {lot_size}"
-        )
+    from brokers.domain.validators.order_validator import validate_lot_size as _v
+
+    _v(quantity, lot_size)
 
 
 def validate_tick_alignment(
     price: Decimal,
     tick_size: Decimal = Decimal("0.05"),
 ) -> None:
-    if price <= Decimal("0"):
-        return
-    if not is_tick_aligned(price, tick_size):
-        raise OrderRejectedError(
-            f"price {price} is not aligned to tick size {tick_size}"
-        )
+    from brokers.domain.validators.order_validator import validate_tick_alignment as _v
+
+    _v(price, tick_size)
 
 
 def validate_product_segment(product_type: ProductType, exchange: str) -> None:
-    if exchange in DERIVATIVE_EXCHANGES and product_type in _EQUITY_PRODUCTS:
-        if product_type == ProductType.DELIVERY:
-            raise OrderRejectedError(
-                f"DELIVERY product is not valid for derivative exchange {exchange}"
-            )
+    from brokers.domain.validators.order_validator import validate_product_segment as _v
+
+    _v(product_type, exchange)
 
 
 def check_notional_warning(
@@ -75,12 +68,6 @@ def check_notional_warning(
     price: Decimal,
     threshold: Decimal = NOTIONAL_WARNING_THRESHOLD,
 ) -> None:
-    if price <= Decimal("0"):
-        return
-    notional = Decimal(quantity) * price
-    if notional > threshold:
-        logger.warning(
-            "High notional order: %.2f (threshold: %.2f)",
-            notional,
-            threshold,
-        )
+    from brokers.domain.validators.order_validator import check_notional_warning as _c
+
+    _c(quantity, price, threshold)

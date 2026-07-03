@@ -40,7 +40,7 @@ def test_place_order_publishes_event():
     bus = EventBus()
     received = []
     bus.subscribe("ORDER_PLACED", lambda e: received.append(e))
-    orders = DhanOrders(client, resolver, event_bus=bus, allow_live_orders=True)
+    orders = DhanOrders(client, resolver, event_bus=bus)
     resp = orders.place_order("RELIANCE", "NSE", Side.BUY, 1, correlation_id="c1")
     assert resp.success
     assert len(received) == 1
@@ -56,7 +56,7 @@ def test_place_order_idempotency_does_not_publish_duplicate():
     bus = EventBus()
     received = []
     bus.subscribe("ORDER_PLACED", lambda e: received.append(e))
-    orders = DhanOrders(client, resolver, event_bus=bus, allow_live_orders=True)
+    orders = DhanOrders(client, resolver, event_bus=bus)
     orders.place_order("RELIANCE", "NSE", Side.BUY, 1, correlation_id="c1")
     orders.place_order("RELIANCE", "NSE", Side.BUY, 1, correlation_id="c1")
     assert client.post.call_count == 1
@@ -72,7 +72,6 @@ def test_risk_manager_blocks_order():
         client,
         resolver,
         risk_manager=_BlockingRiskManager(),
-        allow_live_orders=True,
     )
     resp = orders.place_order(
         "RELIANCE",

@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from brokers.adapters.dhan.endpoints import ENDPOINTS, REST_BASE
+from brokers.config.endpoints import Dhan
+from brokers.domain.constants.segments import SEGMENT_TO_EXCHANGE
+
+ENDPOINTS = Dhan.ENDPOINTS
+REST_BASE = Dhan.REST_BASE
 
 EQUITY_ONLY_PRODUCTS: frozenset[str] = frozenset({"DELIVERY", "CNC"})
 
@@ -41,13 +45,21 @@ EXCHANGE_MAP = {
     "INDEX": "IDX_I",
 }
 
-SEGMENT_TO_EXCHANGE: dict[str, str] = {v: k for k, v in EXCHANGE_MAP.items()}
+# Dhan-specific overrides for the canonical segment-to-exchange map
+# (keys not covered by the canonical map):
+SEGMENT_TO_EXCHANGE = SEGMENT_TO_EXCHANGE.copy()
+SEGMENT_TO_EXCHANGE.update(
+    {
+        "NSE_CD": "CUR",
+        "IDX_I": "INDEX",
+    }
+)
 
 # Dhan's master CSV (api-scrip-master.csv) uses plain exchange codes in SEM_EXM_EXCH_ID:
 # "NSE", "BSE", "MCX" — NOT the segment codes above.
 # This map translates CSV exchange codes → API wire segment codes for the resolver.
 CSV_EXCHANGE_TO_SEGMENT: dict[str, str] = {
-    "NSE": "NSE_EQ",   # equity; FNO rows are still under "NSE" but instrument type distinguishes them
+    "NSE": "NSE_EQ",  # equity; FNO rows are still under "NSE" but instrument type distinguishes them
     "BSE": "BSE_EQ",
     "MCX": "MCX_COMM",
     "CDS": "NSE_CD",
@@ -72,9 +84,7 @@ DHAN_SEGMENTS: frozenset[str] = frozenset(
     {"NSE_EQ", "BSE_EQ", "NSE_FNO", "BSE_FNO", "MCX_COMM", "NSE_CD", "IDX_I"}
 )
 
-DERIVATIVE_SEGMENTS: frozenset[str] = frozenset(
-    {"NSE_FNO", "BSE_FNO", "MCX_COMM", "NSE_CD"}
-)
+DERIVATIVE_SEGMENTS: frozenset[str] = frozenset({"NSE_FNO", "BSE_FNO", "MCX_COMM", "NSE_CD"})
 
 INSTRUMENT_TYPE_MAP: dict[str, str] = {
     "EQUITY": "EQUITY",

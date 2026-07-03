@@ -8,12 +8,13 @@ from brokers.domain.capabilities import (
     RateLimitProfile,
     StreamLimitProfile,
 )
+from brokers.domain.enums import BrokerID
 
 
 def dhan_capabilities() -> BrokerCapabilities:
     """Authoritative capability snapshot for the Dhan broker adapter."""
     return BrokerCapabilities(
-        broker_id="dhan",
+        broker_id=BrokerID.DHAN,
         supports_place_order=True,
         supports_cancel_order=True,
         supports_modify_order=True,
@@ -53,9 +54,7 @@ def dhan_capabilities() -> BrokerCapabilities:
             max_connections=1,
             max_instruments_per_connection=1000,
             max_depth_levels=200,
-            supported_stream_modes=frozenset(
-                {"LTP", "QUOTE", "FULL", "DEPTH_20", "DEPTH_200"}
-            ),
+            supported_stream_modes=frozenset({"LTP", "QUOTE", "FULL", "DEPTH_20", "DEPTH_200"}),
         ),
         latency_class="low",
         reliability_class="tier1",

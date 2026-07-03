@@ -14,7 +14,7 @@ from typing import Any
 import requests
 
 from brokers.domain.exceptions import AuthenticationError, TokenRateLimitError
-from brokers.infrastructure.token_persistence import (
+from brokers.infrastructure.storage.token_store import (
     TokenSource,
     TokenState,
     compute_token_expiry,

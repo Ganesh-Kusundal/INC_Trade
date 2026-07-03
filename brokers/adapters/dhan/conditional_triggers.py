@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-
 from decimal import Decimal
 
 from brokers.adapters.dhan.config import (
@@ -12,9 +11,9 @@ from brokers.adapters.dhan.config import (
     SIDE_MAP,
     VALIDITY_MAP,
 )
-from brokers.adapters.dhan.http import DhanHttpClient
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
 from brokers.domain.enums import OrderType, ProductType, Side, Validity
+from brokers.ports.http_client_port import HttpClientPort
 from brokers.utils.price import to_wire_float
 
 logger = logging.getLogger(__name__)
@@ -26,9 +25,7 @@ class DhanConditionalTriggers:
     Allows placing orders that are triggered when a condition is met.
     """
 
-    def __init__(
-        self, client: DhanHttpClient, resolver: DhanInstrumentResolver
-    ) -> None:
+    def __init__(self, client: HttpClientPort, resolver: DhanInstrumentResolver) -> None:
         self._client = client
         self._resolver = resolver
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from brokers.adapters.dhan.http import DhanHttpClient
+from brokers.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ class DhanLedger:
     Fetches transaction history and ledger statements.
     """
 
-    def __init__(self, client: DhanHttpClient) -> None:
+    def __init__(self, client: HttpClientPort) -> None:
         self._client = client
 
     def get_ledger(self, from_date: str, to_date: str) -> list[dict]:
@@ -34,9 +34,7 @@ class DhanLedger:
             List of ledger entries.
         """
         try:
-            response = self._client.get(
-                f"/ledger?fromDate={from_date}&toDate={to_date}"
-            )
+            response = self._client.get(f"/ledger?fromDate={from_date}&toDate={to_date}")
             if not isinstance(response, dict):
                 logger.warning("Unexpected ledger response type")
                 return []

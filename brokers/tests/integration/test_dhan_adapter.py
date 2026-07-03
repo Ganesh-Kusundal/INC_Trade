@@ -32,9 +32,7 @@ def _isolated_totp_cooldown(tmp_path, monkeypatch):
             state_path=tmp_path / f"{broker}-totp-cooldown.json",
         )
 
-    monkeypatch.setattr(
-        "brokers.adapters.dhan.auth.TOTPCooldown.for_broker", _for_broker
-    )
+    monkeypatch.setattr("brokers.adapters.dhan.auth.TOTPCooldown.for_broker", _for_broker)
     yield
     TOTPCooldown._instances.clear()
 
@@ -47,9 +45,7 @@ def _mock_response(json_data, status_code=200):
     return resp
 
 
-def _equity_ref(
-    symbol: str = "RELIANCE", security_id: str = "2885"
-) -> DhanInstrumentRef:
+def _equity_ref(symbol: str = "RELIANCE", security_id: str = "2885") -> DhanInstrumentRef:
     return DhanInstrumentRef(
         symbol=symbol,
         security_id=security_id,
@@ -81,7 +77,7 @@ class TestDhanOrders:
     def teardown_method(self):
         self.gw.close()
 
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_place_order(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response(
@@ -106,7 +102,7 @@ class TestDhanOrders:
         assert "tradingSymbol" not in payload
         gw.close()
 
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_cancel_order(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response(
@@ -123,7 +119,7 @@ class TestDhanOrders:
         assert "DELETE" in methods
         gw.close()
 
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_get_orderbook(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response(
@@ -158,7 +154,7 @@ class TestDhanOrders:
 
 
 class TestDhanMarketData:
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_ltp(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response(
@@ -177,7 +173,7 @@ class TestDhanMarketData:
         assert payload == {"NSE_EQ": [2885]}
         gw.close()
 
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_quote(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response(
@@ -195,7 +191,7 @@ class TestDhanMarketData:
 
 
 class TestDhanPortfolio:
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_positions(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response(
@@ -219,7 +215,7 @@ class TestDhanPortfolio:
         assert positions[0].symbol == "RELIANCE"
         gw.close()
 
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_funds(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response(
@@ -253,9 +249,7 @@ class TestDhanAuth:
         mock_totp.now.return_value = "123456"
         mock_totp_cls.return_value = mock_totp
 
-        mock_post.return_value = _mock_response(
-            {"data": {"accessToken": "generated-token-123"}}
-        )
+        mock_post.return_value = _mock_response({"data": {"accessToken": "generated-token-123"}})
 
         gw = DhanGateway(
             access_token=None,

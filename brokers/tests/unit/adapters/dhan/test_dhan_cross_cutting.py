@@ -1,7 +1,7 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from brokers.adapters.dhan.metrics import with_metrics, with_rate_limit
 from brokers.adapters.dhan.gateway import DhanGateway
+from brokers.adapters.dhan.metrics import with_metrics, with_rate_limit
 
 
 def test_metrics_decorator():
@@ -38,16 +38,14 @@ def test_token_hot_swapping():
         "brokers.adapters.dhan.auth.DhanAuth.generate_token",
         return_value="new_token_456",
     ):
-        gw = DhanGateway(
-            access_token="old_token_123", client_id="client_123", auto_refresh=False
-        )
+        gw = DhanGateway(access_token="old_token_123", client_id="client_123", auto_refresh=False)
 
-        # Manually trigger a token refresh
-        new_token = gw._refresh_token_for_http()
+        # Manually trigger a token refresh via the connection manager
+        new_token = gw._conn_mgr.refresh_token_for_http()
         assert new_token == "new_token_456"
 
         # After refresh, simulate the callback triggering the broadcast
-        gw._on_token_refreshed(new_token)
+        gw._conn_mgr._on_token_refreshed(new_token)
 
         # The broadcast should propagate the token to the streams
         # Check if stream access tokens were conceptually updated (via broadcast)

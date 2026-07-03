@@ -7,12 +7,11 @@ from datetime import datetime
 from decimal import Decimal
 
 from brokers.adapters.upstox.config import _INTERVAL_MAP
-from brokers.adapters.upstox.http import UpstoxHttpClient
-from brokers.adapters.upstox.instruments import resolve_upstox_instrument_key
-from brokers.adapters.upstox.instruments import UpstoxInstruments
+from brokers.adapters.upstox.instruments import UpstoxInstruments, resolve_upstox_instrument_key
 from brokers.adapters.upstox.mapper import unwrap_data
 from brokers.config.endpoints import _UpstoxUrls
 from brokers.domain.entities import Candle
+from brokers.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +19,7 @@ logger = logging.getLogger(__name__)
 class UpstoxHistorical:
     def __init__(
         self,
-        client: UpstoxHttpClient,
+        client: HttpClientPort,
         *,
         urls: _UpstoxUrls,
         instruments: UpstoxInstruments | None = None,
@@ -46,9 +45,7 @@ class UpstoxHistorical:
         from_date = start_time.strftime("%Y-%m-%d")
         to_date = end_time.strftime("%Y-%m-%d")
 
-        endpoint = (
-            f"/v2/historical-candle/{instrument_key}/{interval}/{to_date}/{from_date}"
-        )
+        endpoint = f"/v2/historical-candle/{instrument_key}/{interval}/{to_date}/{from_date}"
         try:
             data = self._client.get(endpoint)
             return self._parse(data, symbol)
@@ -65,9 +62,7 @@ class UpstoxHistorical:
         to_date: str,
     ) -> list[Candle]:
         instrument_key = self._instrument_key(symbol, exchange)
-        url = self._urls.intraday_candle_v3_url(
-            instrument_key, unit, interval, to_date
-        )
+        url = self._urls.intraday_candle_v3_url(instrument_key, unit, interval, to_date)
         try:
             data = self._client.get(url)
             return self._parse(data, symbol)
@@ -84,9 +79,7 @@ class UpstoxHistorical:
         resolution: str,
     ) -> list[Candle]:
         """Alias for get_historical_candles for protocol compatibility."""
-        return self.get_historical_candles(
-            symbol, exchange, start_time, end_time, resolution
-        )
+        return self.get_historical_candles(symbol, exchange, start_time, end_time, resolution)
 
     @staticmethod
     def _parse(data: dict, symbol: str) -> list[Candle]:

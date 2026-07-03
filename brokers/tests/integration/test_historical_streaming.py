@@ -6,7 +6,6 @@ from datetime import datetime
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
-
 from brokers.adapters.dhan.gateway import DhanGateway
 from brokers.adapters.dhan.streaming import DhanStreaming
 from brokers.adapters.upstox.gateway import UpstoxGateway
@@ -32,7 +31,7 @@ def _preload_resolver(gw: DhanGateway) -> None:
 
 
 class TestDhanHistorical:
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_get_candles_daily(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response(
@@ -70,7 +69,7 @@ class TestDhanHistorical:
         assert candles[1].volume == 6000
         gw.close()
 
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_get_candles_empty(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response({"data": []})

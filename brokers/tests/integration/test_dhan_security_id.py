@@ -42,7 +42,7 @@ def _get_sent_payload(mock_session: MagicMock) -> dict:
 
 
 class TestDhanOrdersSecurityId:
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_place_order_uses_security_id(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response(
@@ -59,7 +59,7 @@ class TestDhanOrdersSecurityId:
         assert "tradingSymbol" not in payload
         gw.close()
 
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_place_order_equity_payload(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response(
@@ -76,7 +76,7 @@ class TestDhanOrdersSecurityId:
         assert payload["exchangeSegment"] == "NSE_EQ"
         gw.close()
 
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_place_order_option_payload(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response(
@@ -93,7 +93,7 @@ class TestDhanOrdersSecurityId:
         assert payload["exchangeSegment"] == "NSE_FNO"
         gw.close()
 
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_place_order_mcx_future_payload(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response(
@@ -112,7 +112,7 @@ class TestDhanOrdersSecurityId:
 
 
 class TestDhanMarketDataSecurityId:
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_ltp_uses_int_security_id(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response(
@@ -128,7 +128,7 @@ class TestDhanMarketDataSecurityId:
         assert payload == {"NSE_EQ": [2885]}
         gw.close()
 
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_quote_uses_int_security_id(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response(
@@ -144,7 +144,7 @@ class TestDhanMarketDataSecurityId:
         assert payload == {"NSE_FNO": [55000]}
         gw.close()
 
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_depth_uses_int_security_id(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response({"data": {"44772": {}}})
@@ -160,7 +160,7 @@ class TestDhanMarketDataSecurityId:
 
 
 class TestDhanHistoricalSecurityId:
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_candles_uses_security_id(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response(
@@ -191,7 +191,7 @@ class TestDhanHistoricalSecurityId:
         assert payload["instrument"] == "EQUITY"
         gw.close()
 
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_candles_equity_instrument(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response({"data": []})
@@ -207,7 +207,7 @@ class TestDhanHistoricalSecurityId:
         assert payload["instrument"] == "EQUITY"
         gw.close()
 
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_candles_option_instrument(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response({"data": []})
@@ -229,7 +229,7 @@ class TestDhanHistoricalSecurityId:
         assert payload["exchangeSegment"] == "NSE_FNO"
         gw.close()
 
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_candles_future_instrument(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response({"data": []})
@@ -246,7 +246,7 @@ class TestDhanHistoricalSecurityId:
         assert payload["instrument"] == "FUTIDX"
         gw.close()
 
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_candles_mcx_future_instrument(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response({"data": []})
@@ -268,7 +268,7 @@ class TestDhanHistoricalSecurityId:
         assert payload["exchangeSegment"] == "MCX_COMM"
         gw.close()
 
-    @patch("brokers.adapters.dhan.http.requests.Session")
+    @patch("brokers.infrastructure.http.resilient_client.requests.Session")
     def test_candles_index_instrument(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session.request.return_value = _mock_response({"data": []})

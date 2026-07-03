@@ -1,4 +1,4 @@
-"""Dhan regression suite manifest for modern DhanCompatibilityGateway.
+"""Dhan regression suite manifest for modern DhanGateway.
 
 Single source of truth mapping every P0/P1 Dhan capability to:
   - the tier it belongs to (off_market_safe | market_hours | pre_prod | sandbox)
@@ -16,7 +16,7 @@ import contextlib
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from brokers.adapters.dhan.compat_gateway import DhanCompatibilityGateway
+from brokers.adapters.dhan.gateway import DhanGateway
 
 Tier = str  # "off_market_safe" | "market_hours" | "pre_prod" | "sandbox"
 
@@ -30,7 +30,7 @@ class RegressionCase:
     tier: Tier
     segment: str
     description: str
-    assert_fn: Callable[[DhanCompatibilityGateway], None]
+    assert_fn: Callable[[DhanGateway], None]
     severity: str = "P0"  # P0 | P1 | P2
     tags: tuple[str, ...] = field(default_factory=tuple)
 
@@ -41,21 +41,21 @@ class RegressionCase:
 # ---------------------------------------------------------------------------
 
 
-def _assert_nse_ltp(gw: DhanCompatibilityGateway) -> None:
+def _assert_nse_ltp(gw: DhanGateway) -> None:
     from decimal import Decimal
 
     ltp = gw.ltp("RELIANCE", "NSE")
     assert isinstance(ltp, Decimal) and ltp > 0, f"NSE LTP invalid: {ltp}"
 
 
-def _assert_nse_quote(gw: DhanCompatibilityGateway) -> None:
+def _assert_nse_quote(gw: DhanGateway) -> None:
     q = gw.quote("RELIANCE", "NSE")
     assert q.ltp > 0, f"NSE quote LTP invalid: {q.ltp}"
     assert q.open >= 0
     assert q.high >= q.low
 
 
-def _assert_nse_depth(gw: DhanCompatibilityGateway) -> None:
+def _assert_nse_depth(gw: DhanGateway) -> None:
     depth = gw.depth("RELIANCE", "NSE")
     assert len(depth.bids) >= 1, "NSE REST depth: no bids"
     assert len(depth.asks) >= 1, "NSE REST depth: no asks"
@@ -63,76 +63,76 @@ def _assert_nse_depth(gw: DhanCompatibilityGateway) -> None:
     assert depth.asks[0].price > 0
 
 
-def _assert_nse_history(gw: DhanCompatibilityGateway) -> None:
+def _assert_nse_history(gw: DhanGateway) -> None:
     df = gw.history("RELIANCE", "NSE", timeframe="1D", lookback_days=5)
     assert df is not None and len(df) > 0, "NSE history returned empty"
     for col in ("open", "high", "low", "close", "volume"):
         assert col in df.columns, f"Missing column: {col}"
 
 
-def _assert_index_ltp(gw: DhanCompatibilityGateway) -> None:
+def _assert_index_ltp(gw: DhanGateway) -> None:
     from decimal import Decimal
 
     ltp = gw.ltp("NIFTY", "INDEX")
     assert isinstance(ltp, Decimal) and ltp > 0, f"INDEX LTP invalid: {ltp}"
 
 
-def _assert_nfo_option_chain(gw: DhanCompatibilityGateway) -> None:
+def _assert_nfo_option_chain(gw: DhanGateway) -> None:
     chain = gw.option_chain("NIFTY", "NFO")
     assert chain.spot > 0, f"NIFTY option chain spot invalid: {chain.spot}"
     assert len(chain.strikes) > 0, "NIFTY option chain has no strikes"
 
 
-def _assert_nfo_option_chain_banknifty(gw: DhanCompatibilityGateway) -> None:
+def _assert_nfo_option_chain_banknifty(gw: DhanGateway) -> None:
     chain = gw.option_chain("BANKNIFTY", "NFO")
     assert chain.spot > 0
     assert len(chain.strikes) > 0
 
 
-def _assert_nfo_future_chain_nifty(gw: DhanCompatibilityGateway) -> None:
+def _assert_nfo_future_chain_nifty(gw: DhanGateway) -> None:
     fc = gw.future_chain("NIFTY", "NFO")
     assert len(fc.contracts) >= 1, "NIFTY future chain empty"
     assert fc.contracts[0].expiry is not None
 
 
-def _assert_nfo_future_chain_reliance(gw: DhanCompatibilityGateway) -> None:
+def _assert_nfo_future_chain_reliance(gw: DhanGateway) -> None:
     fc = gw.future_chain("RELIANCE", "NSE")
     assert len(fc.contracts) >= 1, "RELIANCE future chain empty"
 
 
-def _assert_portfolio_funds(gw: DhanCompatibilityGateway) -> None:
+def _assert_portfolio_funds(gw: DhanGateway) -> None:
     bal = gw.funds()
     assert bal is not None, "funds() returned None"
     assert hasattr(bal, "available_cash")
 
 
-def _assert_portfolio_positions(gw: DhanCompatibilityGateway) -> None:
+def _assert_portfolio_positions(gw: DhanGateway) -> None:
     positions = gw.positions()
     assert isinstance(positions, list), "positions() must return a list"
 
 
-def _assert_portfolio_holdings(gw: DhanCompatibilityGateway) -> None:
+def _assert_portfolio_holdings(gw: DhanGateway) -> None:
     holdings = gw.holdings()
     assert isinstance(holdings, list), "holdings() must return a list"
 
 
-def _assert_batch_ltp(gw: DhanCompatibilityGateway) -> None:
+def _assert_batch_ltp(gw: DhanGateway) -> None:
     results = gw.ltp_batch(["RELIANCE", "TCS"], "NSE")
     assert isinstance(results, dict)
     assert len(results) >= 1, "batch LTP returned empty"
 
 
-def _assert_nse_instruments_search(gw: DhanCompatibilityGateway) -> None:
+def _assert_nse_instruments_search(gw: DhanGateway) -> None:
     results = gw.search_instruments("RELIANCE")
     assert isinstance(results, list) and len(results) >= 1
 
 
-def _assert_observability_cb(gw: DhanCompatibilityGateway) -> None:
+def _assert_observability_cb(gw: DhanGateway) -> None:
     health = gw.health()
     assert health is not None, "health() returned None"
 
 
-def _assert_subscription_engine_wired(gw: DhanCompatibilityGateway) -> None:
+def _assert_subscription_engine_wired(gw: DhanGateway) -> None:
     """P0: gateway must expose streaming and order stream ports."""
     inner = gw.inner
     assert inner.streaming is not None, "missing streaming port on gateway"
@@ -141,7 +141,7 @@ def _assert_subscription_engine_wired(gw: DhanCompatibilityGateway) -> None:
     assert callable(getattr(inner.order_stream, "start", None))
 
 
-def _assert_session_manager_wired(gw: DhanCompatibilityGateway) -> None:
+def _assert_session_manager_wired(gw: DhanGateway) -> None:
     """P0: gateway must expose auth/token lifecycle."""
     inner = gw.inner
     assert inner.auth is not None, "missing DhanAuth on gateway"
@@ -149,31 +149,31 @@ def _assert_session_manager_wired(gw: DhanCompatibilityGateway) -> None:
     assert callable(getattr(inner.auth, "get_token", None))
 
 
-def _assert_stream_order_not_market_alias(gw: DhanCompatibilityGateway) -> None:
+def _assert_stream_order_not_market_alias(gw: DhanGateway) -> None:
     """P0: gateway must expose distinct order stream entry point."""
     assert callable(getattr(gw, "stream_order", None))
     assert callable(getattr(gw, "unstream_order", None))
     assert gw.stream_order is not gw.stream
 
 
-def _assert_nse_depth_both_sides(gw: DhanCompatibilityGateway) -> None:
+def _assert_nse_depth_both_sides(gw: DhanGateway) -> None:
     depth = gw.depth("TCS", "NSE")
     assert len(depth.bids) >= 1, "depth() bids empty after fix"
     assert len(depth.asks) >= 1, "depth() asks empty after fix"
 
 
-def _assert_nfo_stock_option_chain(gw: DhanCompatibilityGateway) -> None:
+def _assert_nfo_stock_option_chain(gw: DhanGateway) -> None:
     chain = gw.option_chain("RELIANCE", "NSE")
     assert chain.spot > 0
     assert len(chain.strikes) > 0, "Stock option chain (RELIANCE) has no strikes"
 
 
-def _assert_nfo_banknifty_future(gw: DhanCompatibilityGateway) -> None:
+def _assert_nfo_banknifty_future(gw: DhanGateway) -> None:
     fc = gw.future_chain("BANKNIFTY", "NFO")
     assert len(fc.contracts) >= 1, "BANKNIFTY future chain empty"
 
 
-def _assert_depth_20_both_sides(gw: DhanCompatibilityGateway) -> None:
+def _assert_depth_20_both_sides(gw: DhanGateway) -> None:
     """depth_20() initial return has both bids and asks (merged with REST)."""
     import time
 
@@ -183,7 +183,7 @@ def _assert_depth_20_both_sides(gw: DhanCompatibilityGateway) -> None:
     time.sleep(1.0)
 
 
-def _assert_full_mode_tick(gw: DhanCompatibilityGateway) -> None:
+def _assert_full_mode_tick(gw: DhanGateway) -> None:
     """FULL mode stream receives at least one tick within 15 s during market hours."""
     import threading
 

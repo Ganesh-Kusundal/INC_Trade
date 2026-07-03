@@ -6,42 +6,71 @@ import logging
 from decimal import Decimal
 from typing import Any
 
-from brokers.adapters.upstox.http import UpstoxHttpClient
-from brokers.adapters.upstox.instruments import resolve_upstox_instrument_key
-from brokers.adapters.upstox.instruments import UpstoxInstruments
+from brokers.adapters.upstox.instruments import UpstoxInstruments, resolve_upstox_instrument_key
 from brokers.adapters.upstox.urls import resolve_upstox_urls
-from brokers.domain.entities import OptionChain, OptionChainEntry
+from brokers.domain.entities import OptionChain, OptionLeg, OptionStrike
+from brokers.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 
 
-def _parse_chain_entries(raw: Any) -> tuple[OptionChainEntry, ...]:
+def _parse_chain_entries(raw: Any) -> tuple[OptionStrike, ...]:
     if not isinstance(raw, dict):
         return ()
-    entries: list[OptionChainEntry] = []
+
+    # Group by strike price
+    by_strike: dict[Decimal, dict[str, dict]] = {}
     for item in raw.get("options", []):
-        if isinstance(item, dict):
-            entries.append(
-                OptionChainEntry(
-                    strike_price=Decimal(
-                        str(item.get("strike_price", "0") or "0")
-                    ),
-                    option_type=str(item.get("option_type", "")),
-                    last_price=Decimal(
-                        str(item.get("last_price", "0") or "0")
-                    ),
-                    oi=int(item.get("oi", 0) or 0),
-                    volume=int(item.get("volume", 0) or 0),
-                    raw=item,
-                )
-            )
-    return tuple(entries)
+        if not isinstance(item, dict):
+            continue
+        strike = Decimal(str(item.get("strike_price", "0") or "0"))
+        opt_type = str(item.get("option_type", "")).upper()
+        if strike not in by_strike:
+            by_strike[strike] = {"CE": {}, "PE": {}}
+        if opt_type in ("CE", "CALL"):
+            by_strike[strike]["CE"] = item
+        elif opt_type in ("PE", "PUT"):
+            by_strike[strike]["PE"] = item
+
+    strikes: list[OptionStrike] = []
+    for strike, legs in sorted(by_strike.items()):
+        ce_item = legs["CE"]
+        pe_item = legs["PE"]
+
+        ce_leg = OptionLeg(
+            ltp=Decimal(str(ce_item.get("last_price", "0") or "0")) if ce_item else None,
+            oi=int(ce_item.get("oi", 0) or 0),
+            volume=int(ce_item.get("volume", 0) or 0),
+            iv=None,
+            delta=None,
+            theta=None,
+            gamma=None,
+            vega=None,
+            security_id=None,
+            symbol=str(ce_item.get("instrument_key", "")),
+        )
+        pe_leg = OptionLeg(
+            ltp=Decimal(str(pe_item.get("last_price", "0") or "0")) if pe_item else None,
+            oi=int(pe_item.get("oi", 0) or 0),
+            volume=int(pe_item.get("volume", 0) or 0),
+            iv=None,
+            delta=None,
+            theta=None,
+            gamma=None,
+            vega=None,
+            security_id=None,
+            symbol=str(pe_item.get("instrument_key", "")),
+        )
+
+        strikes.append(OptionStrike(strike=strike, call=ce_leg, put=pe_leg))
+
+    return tuple(strikes)
 
 
 class UpstoxOptions:
     def __init__(
         self,
-        client: UpstoxHttpClient,
+        client: HttpClientPort,
         instruments: UpstoxInstruments,
         *,
         environment: str = "LIVE",
@@ -72,7 +101,7 @@ class UpstoxOptions:
         expiries = self.get_expiries(underlying, exchange)
         if not expiries:
             return OptionChain(
-                underlying=underlying, expiry=expiry or "", raw={"chain": {}}
+                underlying=underlying, expiry=expiry or "", spot=Decimal("0"), strikes=()
             )
         from datetime import date
 
@@ -90,6 +119,6 @@ class UpstoxOptions:
         return OptionChain(
             underlying=underlying,
             expiry=expiry_date,
-            entries=_parse_chain_entries(chain_raw),
-            raw=chain_raw if isinstance(chain_raw, dict) else {},
+            spot=Decimal("0"),
+            strikes=_parse_chain_entries(chain_raw),
         )

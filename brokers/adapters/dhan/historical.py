@@ -8,10 +8,10 @@ from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from brokers.adapters.dhan.config import ENDPOINTS
-from brokers.adapters.dhan.http import DhanHttpClient
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
 from brokers.adapters.dhan.invariants import assert_valid_dhan_payload
 from brokers.domain.entities import Candle
+from brokers.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ _TIMEFRAME_MAP = {
 
 
 class DhanHistorical:
-    def __init__(self, client: DhanHttpClient, resolver: DhanInstrumentResolver):
+    def __init__(self, client: HttpClientPort, resolver: DhanInstrumentResolver):
         self._client = client
         self._resolver = resolver
 
@@ -89,9 +89,7 @@ class DhanHistorical:
         resolution: str,
     ) -> list[Candle]:
         """Protocol-compatibility alias. Prefer get_historical_candles."""
-        return self.get_historical_candles(
-            symbol, exchange, start_time, end_time, resolution
-        )
+        return self.get_historical_candles(symbol, exchange, start_time, end_time, resolution)
 
     @staticmethod
     def _parse(data: dict, symbol: str) -> list[Candle]:
@@ -114,9 +112,7 @@ class DhanHistorical:
                 candles = []
                 for i in range(len(times)):
                     try:
-                        ts = datetime.fromtimestamp(
-                            times[i], tz=ZoneInfo("Asia/Kolkata")
-                        )
+                        ts = datetime.fromtimestamp(times[i], tz=ZoneInfo("Asia/Kolkata"))
                     except Exception:
                         continue
                     candles.append(

@@ -11,6 +11,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from brokers.adapters.dhan.http_client import create_dhan_http_client
+from brokers.domain.exceptions import BrokerServerError
 from brokers.resilience.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
@@ -27,8 +29,6 @@ def test_dhan_place_order_with_read_cb_open_still_posts_order() -> None:
     order placement was blocked. Phase A / A1 split the breaker into
     read / write / admin categories. This test pins that split.
     """
-    from brokers.domain.exceptions import BrokerServerError
-    from brokers.adapters.dhan.http import DhanHttpClient
 
     cb_read = CircuitBreaker(
         "test-read", CircuitBreakerConfig(failure_threshold=1, open_duration_ms=30_000)
@@ -36,15 +36,15 @@ def test_dhan_place_order_with_read_cb_open_still_posts_order() -> None:
     cb_write = CircuitBreaker(
         "test-write", CircuitBreakerConfig(failure_threshold=10, open_duration_ms=30_000)
     )
-    client = DhanHttpClient(
+    client = create_dhan_http_client(
         client_id="X",
         access_token="T",
     )
-    client._read_breaker = cb_read
-    client._write_breaker = cb_write
+    client._circuit_breakers["read"] = cb_read
+    client._circuit_breakers["write"] = cb_write
 
-    # Bypass throttle to keep the test fast.
-    client._throttle = lambda *a, **kw: None  # type: ignore[assignment]
+    # Bypass rate limiting to keep the test fast.
+    client._rate_limiters = {}
 
     # Drive the read CB past its threshold with one failed read.
     resp_503 = MagicMock()
@@ -70,18 +70,16 @@ def test_dhan_place_order_with_read_cb_open_still_posts_order() -> None:
 
 def test_dhan_post_orders_with_write_cb_open_fails_fast() -> None:
     """The inverse: a write CB that is OPEN must fast-fail a POST /orders call."""
-    from brokers.domain.exceptions import BrokerServerError
-    from brokers.adapters.dhan.http import DhanHttpClient
 
     cb_write = CircuitBreaker(
         "test-write", CircuitBreakerConfig(failure_threshold=1, open_duration_ms=30_000)
     )
-    client = DhanHttpClient(
+    client = create_dhan_http_client(
         client_id="X",
         access_token="T",
     )
-    client._write_breaker = cb_write
-    client._throttle = lambda *a, **kw: None  # type: ignore[assignment]
+    client._circuit_breakers["write"] = cb_write
+    client._rate_limiters = {}
 
     # Trip the write CB with one failed POST.
     resp_503 = MagicMock()

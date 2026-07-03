@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from brokers.adapters.upstox.auth.config import UpstoxConnectionSettings
-from brokers.adapters.upstox.auth.json_token_store import JsonTokenStateStore
+from brokers.infrastructure.storage.token_store import JsonTokenStateStore
 from brokers.adapters.upstox.auth.token_manager import UpstoxTokenManager
 
 
@@ -33,14 +33,16 @@ def test_initial_holder_is_static():
 
 def test_bootstrap_loads_persisted_state(tmp_path):
     path = tmp_path / "upstox-token.json"
-    future_exp = int(time.time() * 1000) + 3600 * 1000
+    from datetime import datetime, timedelta, timezone
+    future_exp = datetime.now(timezone.utc) + timedelta(hours=1)
+    now = datetime.now(timezone.utc)
     path.write_text(
         json.dumps(
             {
                 "access_token": "persisted-access",
                 "refresh_token": "persisted-refresh",
-                "expires_at_ms": future_exp,
-                "issued_at_ms": int(time.time() * 1000),
+                "expires_at": future_exp.isoformat(),
+                "issued_at": now.isoformat(),
                 "source": "OAUTH",
             }
         )

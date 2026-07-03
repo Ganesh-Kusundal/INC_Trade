@@ -5,9 +5,9 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from brokers.adapters.upstox.http import UpstoxHttpClient
 from brokers.adapters.upstox.urls import resolve_upstox_urls
 from brokers.domain.entities import IpoInfo, MutualFundHolding, UserProfile
+from brokers.ports.http_client_port import HttpClientPort
 
 
 def _parse_user_profile(raw: dict[str, Any]) -> UserProfile:
@@ -17,7 +17,6 @@ def _parse_user_profile(raw: dict[str, Any]) -> UserProfile:
         email=str(raw.get("email", "")),
         mobile=str(raw.get("mobile", "")),
         broker=str(raw.get("broker", "")),
-        raw=raw,
     )
 
 
@@ -28,7 +27,6 @@ def _parse_ipo(raw: dict[str, Any]) -> IpoInfo:
         status=str(raw.get("status", "")),
         price_min=Decimal(str(raw.get("price_min", "0") or "0")),
         price_max=Decimal(str(raw.get("price_max", "0") or "0")),
-        raw=raw,
     )
 
 
@@ -37,14 +35,11 @@ def _parse_mf_holding(raw: dict[str, Any]) -> MutualFundHolding:
         name=str(raw.get("name", "")),
         units=Decimal(str(raw.get("units", "0") or "0")),
         current_value=Decimal(str(raw.get("current_value", "0") or "0")),
-        raw=raw,
     )
 
 
 class UpstoxExtended:
-    def __init__(
-        self, client: UpstoxHttpClient, *, environment: str = "LIVE"
-    ) -> None:
+    def __init__(self, client: HttpClientPort, *, environment: str = "LIVE") -> None:
         self._client = client
         self._urls = resolve_upstox_urls(environment)
 
@@ -65,9 +60,7 @@ class UpstoxExtended:
         items = data.get("data", []) if isinstance(data, dict) else []
         if not isinstance(items, list):
             items = []
-        return [
-            _parse_mf_holding(item) for item in items if isinstance(item, dict)
-        ]
+        return [_parse_mf_holding(item) for item in items if isinstance(item, dict)]
 
     def convert_position(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client.post(self._urls.convert_position_url(), json=payload)

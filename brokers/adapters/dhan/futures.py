@@ -7,8 +7,8 @@ import re
 from datetime import datetime, timezone
 from typing import Literal
 
-from brokers.adapters.dhan.http import DhanHttpClient
 from brokers.adapters.dhan.identity import DhanInstrumentRef, DhanInstrumentResolver
+from brokers.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +21,18 @@ _EXPIRY_PATTERN = re.compile(
 )
 
 _MONTH_MAP = {
-    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
-    "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+    "jan": 1,
+    "feb": 2,
+    "mar": 3,
+    "apr": 4,
+    "may": 5,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
 }
 
 FUTURES_INSTRUMENT_TYPES = frozenset({"FUTIDX", "FUTSTK", "FUTCOM", "FUTCUR"})
@@ -64,7 +74,7 @@ class DhanFutures:
 
     def __init__(
         self,
-        client: DhanHttpClient,
+        client: HttpClientPort,
         resolver: DhanInstrumentResolver,
     ) -> None:
         self._client = client

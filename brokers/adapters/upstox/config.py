@@ -5,6 +5,8 @@ REST URLs live in ``brokers.config.endpoints.Upstox`` — use ``urls.resolve_ups
 
 from __future__ import annotations
 
+from brokers.domain.constants.segments import SEGMENT_TO_EXCHANGE
+
 RATE_LIMITS = {
     "/market-quote": 10.0,
     "/orders": 25.0,
@@ -32,11 +34,19 @@ EXCHANGE_TO_SEGMENT = {
     "INDEX": "NSE_INDEX",
 }
 
-SEGMENT_TO_EXCHANGE = {v: k for k, v in EXCHANGE_TO_SEGMENT.items()}
+# Upstox-specific overrides for the canonical segment-to-exchange map
+# (keys differ from Dhan's segment codes):
+SEGMENT_TO_EXCHANGE = SEGMENT_TO_EXCHANGE.copy()
 SEGMENT_TO_EXCHANGE.update(
     {
-        "MCX_COMM": "MCX",
+        "NSE_FO": "NFO",
+        "BSE_FO": "BFO",
+        "MCX_FO": "MCX",
+        "NCD_FO": "CDS",
+        "BCD_FO": "BCD",
+        "NSE_INDEX": "INDEX",
         "NSE_COM": "MCX",
+        "MCX_COMM": "MCX",
     }
 )
 
@@ -94,19 +104,35 @@ _INTERVAL_MAP = {
 }
 
 ORDER_TYPE_MAP_REVERSE = {
-    "MARKET": "MARKET", "MKT": "MARKET", "LIMIT": "LIMIT", "LMT": "LIMIT",
-    "SL": "STOP_LOSS", "STOP_LOSS": "STOP_LOSS", "SL-M": "STOP_LOSS_MARKET", "SLM": "STOP_LOSS_MARKET",
+    "MARKET": "MARKET",
+    "MKT": "MARKET",
+    "LIMIT": "LIMIT",
+    "LMT": "LIMIT",
+    "SL": "STOP_LOSS",
+    "STOP_LOSS": "STOP_LOSS",
+    "SL-M": "STOP_LOSS_MARKET",
+    "SLM": "STOP_LOSS_MARKET",
 }
 PRODUCT_MAP_REVERSE = {
-    "I": "INTRADAY", "D": "DELIVERY", "MTF": "DELIVERY",
+    "I": "INTRADAY",
+    "D": "DELIVERY",
+    "MTF": "DELIVERY",
 }
 SIDE_MAP_REVERSE = {
-    "BUY": "BUY", "SELL": "SELL",
+    "BUY": "BUY",
+    "SELL": "SELL",
 }
 VALIDITY_MAP_REVERSE = {
-    "DAY": "DAY", "IOC": "IOC",
+    "DAY": "DAY",
+    "IOC": "IOC",
 }
 STATUS_MAP = {
-    "OPEN": "OPEN", "COMPLETE": "FILLED", "CANCELED": "CANCELLED", "CANCELLED": "CANCELLED",
-    "REJECTED": "REJECTED", "MODIFY_PENDING": "PENDING", "OPEN_PENDING": "PENDING", "TRIGGER_PENDING": "PENDING",
+    "OPEN": "OPEN",
+    "COMPLETE": "FILLED",
+    "CANCELED": "CANCELLED",
+    "CANCELLED": "CANCELLED",
+    "REJECTED": "REJECTED",
+    "MODIFY_PENDING": "PENDING",
+    "OPEN_PENDING": "PENDING",
+    "TRIGGER_PENDING": "PENDING",
 }

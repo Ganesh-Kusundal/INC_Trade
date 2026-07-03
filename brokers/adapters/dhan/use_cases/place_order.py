@@ -4,20 +4,20 @@ from __future__ import annotations
 
 import logging
 import uuid
-from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Protocol
 
-from brokers.adapters.dhan.endpoints import ENDPOINTS
-from brokers.adapters.dhan.idempotency import DhanIdempotencyCache
+from brokers.config.endpoints import Dhan as _DhanEndpoints
+
+ENDPOINTS = _DhanEndpoints.ENDPOINTS
 from brokers.adapters.dhan.invariants import assert_valid_dhan_payload
 from brokers.adapters.dhan.mapper import map_order_response
 from brokers.adapters.dhan.segments import resolve_segment
-from brokers.domain import Order, OrderResponse, RiskCheckRequest
+from brokers.domain import Order, OrderRequest, OrderResponse, RiskCheckRequest
 from brokers.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
 from brokers.domain.exceptions import InstrumentNotFoundError
-from brokers.services.order_validation import check_notional_warning
-from brokers.infrastructure.correlation import get_current_correlation_id
+from brokers.domain.validators.order_validator import check_notional_warning
+from brokers.utils.idempotency_cache import TypedIdempotencyCache
 from brokers.utils.price import is_tick_aligned, to_wire_float
 
 logger = logging.getLogger(__name__)
@@ -35,20 +35,6 @@ class _Resolver(Protocol):
     ) -> Any: ...
 
 
-@dataclass(frozen=True)
-class PlaceOrderRequest:
-    symbol: str
-    exchange: str
-    side: Side
-    quantity: int
-    order_type: OrderType = OrderType.MARKET
-    price: Decimal = Decimal("0")
-    product_type: ProductType = ProductType.INTRADAY
-    validity: Validity = Validity.DAY
-    trigger_price: Decimal = Decimal("0")
-    correlation_id: str = ""
-
-
 class PlaceOrderUseCase:
     """Encapsulates the Dhan place-order pipeline."""
 
@@ -57,8 +43,7 @@ class PlaceOrderUseCase:
         client: _HttpClient,
         resolver: _Resolver,
         *,
-        idempotency: DhanIdempotencyCache[OrderResponse],
-        allow_live_orders: bool = True,
+        idempotency: TypedIdempotencyCache[OrderResponse],
         risk_manager: Any | None = None,
         derivative_segments: frozenset[str],
         equity_only_products: frozenset[str],
@@ -70,7 +55,6 @@ class PlaceOrderUseCase:
         self._client = client
         self._resolver = resolver
         self._idempotency = idempotency
-        self._allow_live_orders = allow_live_orders
         self._risk_manager = risk_manager
         self._derivative_segments = derivative_segments
         self._equity_only_products = equity_only_products
@@ -79,16 +63,9 @@ class PlaceOrderUseCase:
         self._product_type_map = product_type_map
         self._validity_map = validity_map
 
-    def execute(self, request: PlaceOrderRequest) -> tuple[OrderResponse, Order | None]:
+    def execute(self, request: OrderRequest) -> tuple[OrderResponse, Order | None]:
         """Return (response, placed_order_for_events)."""
-        if not self._allow_live_orders:
-            return OrderResponse.live_orders_disabled(), None
-
-        cid = (
-            request.correlation_id
-            or get_current_correlation_id()
-            or str(uuid.uuid4())
-        )
+        cid = request.correlation_id or str(uuid.uuid4())
 
         with self._idempotency.lock(cid):
             cached = self._idempotency.get(cid)
@@ -159,15 +136,11 @@ class PlaceOrderUseCase:
                 "securityId": ref.security_id_str(),
                 "quantity": request.quantity,
                 "orderType": self._order_type_map.get(request.order_type.value, 1),
-                "productType": self._product_type_map.get(
-                    request.product_type.value, "INTRADAY"
-                ),
+                "productType": self._product_type_map.get(request.product_type.value, "INTRADAY"),
                 "validity": self._validity_map.get(request.validity.value, "DAY"),
                 "price": to_wire_float(request.price) if request.price > 0 else 0.0,
                 "triggerPrice": (
-                    to_wire_float(request.trigger_price)
-                    if request.trigger_price > 0
-                    else 0.0
+                    to_wire_float(request.trigger_price) if request.trigger_price > 0 else 0.0
                 ),
                 "correlationId": cid,
             }
@@ -201,17 +174,14 @@ class PlaceOrderUseCase:
                 )
             return response, placed
 
-    def validate(self, ref: Any, request: PlaceOrderRequest) -> str | None:
+    def validate(self, ref: Any, request: OrderRequest) -> str | None:
         if request.order_type == OrderType.LIMIT and request.price <= 0:
             return "Limit order requires price > 0"
         if request.order_type == OrderType.STOP_LOSS and (
             request.price <= 0 or request.trigger_price <= 0
         ):
             return "Stop-Loss (Limit) order requires price > 0 and trigger_price > 0"
-        if (
-            request.order_type == OrderType.STOP_LOSS_MARKET
-            and request.trigger_price <= 0
-        ):
+        if request.order_type == OrderType.STOP_LOSS_MARKET and request.trigger_price <= 0:
             return "Stop-Loss Market order requires trigger_price > 0"
 
         segment = ref.exchange_segment
@@ -225,10 +195,7 @@ class PlaceOrderUseCase:
                 f"{ref.lot_size} for {ref.symbol}"
             )
 
-        if (
-            segment in self._derivative_segments
-            and request.product_type == ProductType.DELIVERY
-        ):
+        if segment in self._derivative_segments and request.product_type == ProductType.DELIVERY:
             return (
                 f"Product type DELIVERY is not valid for {segment}. "
                 "Use INTRADAY or MARGIN for derivatives."
@@ -237,10 +204,7 @@ class PlaceOrderUseCase:
         tick = getattr(ref, "tick_size", None)
         if request.price > 0 and tick is not None and tick > 0:
             if not is_tick_aligned(request.price, Decimal(str(tick))):
-                return (
-                    f"Price {request.price} is not aligned to tick size {tick} "
-                    f"for {ref.symbol}"
-                )
+                return f"Price {request.price} is not aligned to tick size {tick} for {ref.symbol}"
 
         pt_val = request.product_type.value
         if segment in self._derivative_segments and pt_val in self._equity_only_products:

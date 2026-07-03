@@ -6,6 +6,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+from brokers.domain.enums import BrokerID
+
 __all__ = [
     "BrokerCapabilities",
     "CapabilityDescriptor",
@@ -43,7 +45,7 @@ class StreamLimitProfile:
 
 @dataclass(frozen=True)
 class BrokerCapabilities:
-    broker_id: str
+    broker_id: str | BrokerID
     supports_place_order: bool = False
     supports_cancel_order: bool = False
     supports_modify_order: bool = False
@@ -98,7 +100,7 @@ class BrokerCapabilities:
 
 @dataclass(frozen=True)
 class CapabilityDescriptor:
-    broker_id: str
+    broker_id: str | BrokerID
     capabilities: BrokerCapabilities
     extensions: frozenset[str]
     observed_at: datetime

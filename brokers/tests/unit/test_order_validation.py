@@ -7,7 +7,7 @@ from decimal import Decimal
 import pytest
 
 from brokers.domain.enums import OrderType, ProductType
-from brokers.domain.exceptions import OrderRejectedError
+from brokers.domain.exceptions import OrderRejectedError, ValidationError
 from brokers.services.order_validation import (
     check_notional_warning,
     validate_lot_size,
@@ -19,50 +19,42 @@ from brokers.services.order_validation import (
 
 class TestValidateOrderFields:
     def test_empty_symbol_raises(self):
-        with pytest.raises(OrderRejectedError, match="symbol"):
-            validate_order_fields(
-                "", "NSE", 10, OrderType.MARKET, Decimal("0"), Decimal("0")
-            )
+        with pytest.raises(ValidationError, match="symbol"):
+            validate_order_fields("", "NSE", 10, OrderType.MARKET, Decimal("0"), Decimal("0"))
 
     def test_empty_exchange_raises(self):
-        with pytest.raises(OrderRejectedError, match="exchange"):
-            validate_order_fields(
-                "RELIANCE", "", 10, OrderType.MARKET, Decimal("0"), Decimal("0")
-            )
+        with pytest.raises(ValidationError, match="exchange"):
+            validate_order_fields("RELIANCE", "", 10, OrderType.MARKET, Decimal("0"), Decimal("0"))
 
     def test_zero_quantity_raises(self):
-        with pytest.raises(OrderRejectedError, match="quantity"):
+        with pytest.raises(ValidationError, match="quantity"):
             validate_order_fields(
                 "RELIANCE", "NSE", 0, OrderType.MARKET, Decimal("0"), Decimal("0")
             )
 
     def test_negative_quantity_raises(self):
-        with pytest.raises(OrderRejectedError, match="quantity"):
+        with pytest.raises(ValidationError, match="quantity"):
             validate_order_fields(
                 "RELIANCE", "NSE", -5, OrderType.MARKET, Decimal("0"), Decimal("0")
             )
 
     def test_limit_order_zero_price_raises(self):
-        with pytest.raises(OrderRejectedError, match="price"):
+        with pytest.raises(ValidationError, match="price"):
             validate_order_fields(
                 "RELIANCE", "NSE", 10, OrderType.LIMIT, Decimal("0"), Decimal("0")
             )
 
     def test_stop_order_zero_trigger_raises(self):
-        with pytest.raises(OrderRejectedError, match="trigger_price"):
+        with pytest.raises(ValidationError, match="trigger_price"):
             validate_order_fields(
                 "RELIANCE", "NSE", 10, OrderType.STOP_LOSS, Decimal("100"), Decimal("0")
             )
 
     def test_valid_market_order(self):
-        validate_order_fields(
-            "RELIANCE", "NSE", 10, OrderType.MARKET, Decimal("0"), Decimal("0")
-        )
+        validate_order_fields("RELIANCE", "NSE", 10, OrderType.MARKET, Decimal("0"), Decimal("0"))
 
     def test_valid_limit_order(self):
-        validate_order_fields(
-            "RELIANCE", "NSE", 10, OrderType.LIMIT, Decimal("2500"), Decimal("0")
-        )
+        validate_order_fields("RELIANCE", "NSE", 10, OrderType.LIMIT, Decimal("2500"), Decimal("0"))
 
 
 class TestValidateLotSize:

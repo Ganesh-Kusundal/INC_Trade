@@ -54,3 +54,21 @@ class StreamingPort(Protocol):
     ) -> None:
         """Unsubscribe from real-time market quotes."""
         ...
+
+
+@runtime_checkable
+class StreamHandle(Protocol):
+    """Protocol for a stream handle returned by synchronous streaming facades.
+
+    Provides a minimal interface to control an active stream subscription:
+    disconnect from the stream and check connection status.
+    """
+
+    def disconnect(self) -> None:
+        """Disconnect from the stream."""
+        ...
+
+    @property
+    def is_connected(self) -> bool:
+        """Return connection status."""
+        ...

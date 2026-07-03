@@ -9,6 +9,7 @@ Provides:
 
 from __future__ import annotations
 
+import atexit
 import hashlib
 import json
 import logging
@@ -20,6 +21,7 @@ from typing import Any, Callable, Optional
 import websocket
 
 from brokers.domain.exceptions import BrokerDegradedError
+from brokers.infrastructure.reconnect_strategy import ReconnectStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +57,6 @@ class WebSocketConnection:
         self._subscriptions: set[str] = set()
         self._pending_subscriptions: set[str] = set()
         self._ref_count = 0
-        self._current_delay = reconnect_delay
 
     @property
     def is_connected(self) -> bool:
@@ -153,9 +154,6 @@ class WebSocketConnection:
                 return
             self._running = True
             self._connection_state = "connecting"
-            self._current_delay = (
-                self.reconnect_delay
-            )  # Reset retry backoff delay on start
 
             if self._thread is None or not self._thread.is_alive():
                 self._thread = threading.Thread(
@@ -179,25 +177,26 @@ class WebSocketConnection:
 
     def _run_connection(self) -> None:
         """Main connection loop with automatic reconnection."""
+        strategy = ReconnectStrategy(
+            base_delay=self.reconnect_delay,
+            max_delay=self.max_reconnect_delay,
+            max_retries=10,
+        )
         while self._running:
             try:
                 self._connect()
-                self._current_delay = self.reconnect_delay  # Reset delay on success
+                strategy.reset()
             except Exception as exc:
                 logger.warning(
                     "websocket_connection_error",
                     extra={"url": self.ws_url, "error": str(exc)},
                 )
                 if self._running:
-                    # Add timeout to prevent infinite hanging
-                    for _ in range(10):  # Max 10 retries
+                    while strategy.should_retry():
                         if not self._running:
-                            return  # Exit method completely if stopped
-                        time.sleep(self._current_delay)
-                        self._current_delay = min(
-                            self._current_delay * 2, self.max_reconnect_delay
-                        )
-                    return  # Exit method after max retries to prevent infinite loop
+                            return
+                        strategy.wait()
+                    return
 
     def _connect(self) -> None:
         """Establish WebSocket connection."""
@@ -294,9 +293,7 @@ class WebSocketConnectionPool:
     _lock = threading.Lock()
 
     @classmethod
-    def _make_key(
-        cls, ws_url: str, headers: dict[str, str], on_message_type: str
-    ) -> str:
+    def _make_key(cls, ws_url: str, headers: dict[str, str], on_message_type: str) -> str:
         """Create unique key for connection pooling."""
         # Sort headers for consistent key generation
         sorted_headers = json.dumps(headers, sort_keys=True)
@@ -435,10 +432,15 @@ class WebSocketConnectionPool:
                     )
             cls._instances.clear()
 
-        logger.info("websocket_pool_cleaned_up")
+        # NOTE: Cannot use logger in atexit context — logging may already be shut down.
+        # Use sys.stderr directly as the safest fallback.
+        import sys
+
+        try:
+            sys.stderr.write("websocket_pool_cleaned_up\n")
+        except (ValueError, RuntimeError, AttributeError):
+            pass
 
 
 # Global cleanup on process exit
-import atexit
-
 atexit.register(WebSocketConnectionPool.cleanup)

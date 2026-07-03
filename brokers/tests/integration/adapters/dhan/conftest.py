@@ -10,7 +10,6 @@ from pathlib import Path
 
 import pytest
 
-from brokers.adapters.dhan.compat_gateway import DhanCompatibilityGateway
 from brokers.adapters.dhan.gateway import DhanGateway
 from brokers.infrastructure.credentials import CredentialResolver
 
@@ -70,8 +69,8 @@ def _throttle_seconds() -> float:
 
 
 @pytest.fixture(scope="session")
-def live_gateway() -> DhanCompatibilityGateway:
-    """Session-scoped DhanCompatibilityGateway for regression tests."""
+def live_gateway() -> DhanGateway:
+    """Session-scoped DhanGateway for regression tests."""
     if not _has_live_credentials():
         pytest.skip(
             ".env.local with DHAN_CLIENT_ID and credentials required for Dhan regression"
@@ -87,10 +86,9 @@ def live_gateway() -> DhanCompatibilityGateway:
         auto_refresh=True,
     )
     gw.instruments.load()
-    compat = DhanCompatibilityGateway(gw)
-    yield compat
+    yield gw
     with contextlib.suppress(Exception):
-        compat.close()
+        gw.close()
 
 
 @pytest.fixture(autouse=True)

@@ -6,7 +6,6 @@ import logging
 from decimal import Decimal
 
 from brokers.adapters.dhan.config import ENDPOINTS
-from brokers.adapters.dhan.http import DhanHttpClient
 from brokers.adapters.dhan.mapper import (
     map_balance,
     map_holding,
@@ -14,12 +13,13 @@ from brokers.adapters.dhan.mapper import (
     map_trade,
 )
 from brokers.domain import Balance, Holding, Position, Trade
+from brokers.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 
 
 class DhanPortfolio:
-    def __init__(self, client: DhanHttpClient):
+    def __init__(self, client: HttpClientPort):
         self._client = client
 
     def positions(self) -> list[Position]:

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from brokers.adapters.upstox.http import UpstoxHttpClient
 from brokers.adapters.upstox.urls import resolve_upstox_urls
+from brokers.ports.http_client_port import HttpClientPort
 
 
 def _extract_authorized_url(body: Any) -> str:
@@ -24,7 +24,7 @@ class UpstoxFeedAuthorizer:
 
     def __init__(
         self,
-        http_client: UpstoxHttpClient,
+        http_client: HttpClientPort,
         *,
         environment: str = "LIVE",
     ) -> None:
@@ -39,12 +39,8 @@ class UpstoxFeedAuthorizer:
         body = self._http.get(self._urls.feed_authorize_v3_url())
         return _extract_authorized_url(body)
 
-    def authorize_portfolio_stream(
-        self, update_types: list[str] | None = None
-    ) -> str:
+    def authorize_portfolio_stream(self, update_types: list[str] | None = None) -> str:
         types = update_types or ["order", "position", "holding", "gtt_order"]
         params = {"update_types": ",".join(types)}
-        body = self._http.get(
-            self._urls.portfolio_stream_authorize_url(), params=params
-        )
+        body = self._http.get(self._urls.portfolio_stream_authorize_url(), params=params)
         return _extract_authorized_url(body)

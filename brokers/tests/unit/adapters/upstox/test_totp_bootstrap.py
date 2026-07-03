@@ -38,14 +38,16 @@ class TestTotpBootstrap:
         settings = _make_settings()
         mock_jwt_expiry.return_value = 9999999999999
 
+        from brokers.infrastructure.storage.token_store import TokenState, TokenSource
+        from datetime import datetime, timedelta, timezone
         mock_store = MagicMock()
-        mock_store.load.return_value = {
-            "access_token": "persisted-token",
-            "refresh_token": None,
-            "expires_at_ms": 9999999999999,
-            "issued_at_ms": 1000,
-            "source": "TOTP",
-        }
+        mock_store.load.return_value = TokenState(
+            access_token="persisted-token",
+            refresh_token=None,
+            expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+            issued_at=datetime.now(timezone.utc),
+            source=TokenSource.TOTP,
+        )
 
         token_manager = UpstoxTokenManager(settings, state_store=mock_store)
         state = token_manager.bootstrap()
@@ -149,14 +151,16 @@ class TestTotpBootstrap:
         """Transient 401 should not trigger a fresh TOTP login when token is still valid."""
         settings = _make_settings()
         token_manager = UpstoxTokenManager(settings, state_store=MagicMock())
+        from brokers.infrastructure.storage.token_store import TokenState, TokenSource
+        from datetime import datetime, timedelta, timezone
         state = token_manager._from_persisted(
-            {
-                "access_token": "still-valid-token",
-                "refresh_token": None,
-                "expires_at_ms": 9_999_999_999_999,
-                "issued_at_ms": 1_000,
-                "source": "TOTP",
-            }
+            TokenState(
+                access_token="still-valid-token",
+                refresh_token=None,
+                expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+                issued_at=datetime.now(timezone.utc),
+                source=TokenSource.TOTP,
+            )
         )
         token_manager._apply_token_state(state, label="Upstox token (test)")
 

@@ -6,20 +6,19 @@ from datetime import datetime, timezone
 
 import pytest
 
-from brokers.core.di import Container, Scope, ServiceNotFoundError, CircularDependencyError
+from brokers.core.di import CircularDependencyError, Container, Scope, ServiceNotFoundError
 from brokers.core.di_scopes import ScopeManager
-from brokers.infrastructure.lifecycle import LifecycleManager, ManagedService
+from brokers.domain.lifecycle_health import HealthState, HealthStatus
+from brokers.infrastructure.bootstrap import Bootstrap, BootstrapError, BootstrapResult
 from brokers.infrastructure.jwt_expiry import parse_jwt_expiry
-from brokers.infrastructure.totp_cooldown import TOTPCooldown
+from brokers.infrastructure.lifecycle import LifecycleManager, ManagedService
 from brokers.infrastructure.registry import (
     BrokerHealthSnapshot,
     BrokerRegistry,
     GatewayRegistry,
     ServiceRegistry,
 )
-from brokers.infrastructure.bootstrap import Bootstrap, BootstrapError, BootstrapResult
-from brokers.domain.lifecycle_health import HealthState, HealthStatus
-
+from brokers.infrastructure.totp_cooldown import TOTPCooldown
 
 # ── DI Container ────────────────────────────────────────────────────────────
 
@@ -234,22 +233,22 @@ class TestTOTPCooldown:
 
 class TestGatewayRegistry:
     def test_get_or_create(self):
-        GatewayRegistry.clear()
+        reg = GatewayRegistry()
         calls = [0]
 
         def factory():
             calls[0] += 1
             return {"id": calls[0]}
 
-        gw1 = GatewayRegistry.get_or_create("dhan", "client1", factory)
-        gw2 = GatewayRegistry.get_or_create("dhan", "client1", factory)
+        gw1 = reg.get_or_create("dhan", "client1", factory)
+        gw2 = reg.get_or_create("dhan", "client1", factory)
         assert gw1 is gw2
         assert calls[0] == 1
 
     def test_different_keys(self):
-        GatewayRegistry.clear()
-        gw1 = GatewayRegistry.get_or_create("dhan", "c1", lambda: "dhan_c1")
-        gw2 = GatewayRegistry.get_or_create("upstox", "c1", lambda: "upstox_c1")
+        reg = GatewayRegistry()
+        gw1 = reg.get_or_create("dhan", "c1", lambda: "dhan_c1")
+        gw2 = reg.get_or_create("upstox", "c1", lambda: "upstox_c1")
         assert gw1 != gw2
 
 
@@ -345,9 +344,7 @@ class TestServiceRegistry:
 class TestBootstrap:
     def test_bootstrap_run(self, monkeypatch):
         monkeypatch.setenv("APP_ENV", "dev")
-        result = asyncio.run(
-            Bootstrap.run(skip_validation=True, broker_names=["dhan"])
-        )
+        result = asyncio.run(Bootstrap.run(skip_validation=True, broker_names=["dhan"]))
         assert isinstance(result, BootstrapResult)
         assert result.config is not None
         assert result.lifecycle is not None
@@ -355,9 +352,7 @@ class TestBootstrap:
 
     def test_bootstrap_with_validation(self, monkeypatch):
         monkeypatch.setenv("APP_ENV", "dev")
-        result = asyncio.run(
-            Bootstrap.run(skip_validation=False, broker_names=["dhan"])
-        )
+        result = asyncio.run(Bootstrap.run(skip_validation=False, broker_names=["dhan"]))
         assert isinstance(result, BootstrapResult)
 
     def test_bootstrap_error_type(self):

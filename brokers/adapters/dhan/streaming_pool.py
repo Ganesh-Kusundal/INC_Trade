@@ -22,22 +22,33 @@ WS_DEPTH200_URL = "wss://full-depth-api.dhan.co/twohundreddepth"
 WS_ORDER_URL = "wss://api-order-update.dhan.co"
 
 
-class Depth20Connection(WebSocketConnection):
-    """Custom connection class for Depth20 message format."""
+class DhanStreamChannel(WebSocketConnection):
+    """Parameterized Dhan WebSocket channel — replaces the near-identical
+    Depth20Connection and Depth200Connection classes.
+
+    Usage:
+        depth20 = DhanStreamChannel(
+            ws_url=WS_DEPTH20_URL,
+            headers=headers,
+            on_message=on_depth20,
+            request_code=23,
+        )
+    """
+
+    def __init__(self, *args, request_code: int = 23, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._request_code = request_code
 
     def _send_subscribe(self, keys: list[str]) -> None:
         instrument_list = []
         for key in keys:
             parts = key.split("|")
             if len(parts) == 2:
-                instrument_list.append(
-                    {"ExchangeSegment": parts[0], "SecurityId": parts[1]}
-                )
-
+                instrument_list.append({"ExchangeSegment": parts[0], "SecurityId": parts[1]})
         if self._ws and instrument_list:
             msg = json.dumps(
                 {
-                    "RequestCode": 23,
+                    "RequestCode": self._request_code,
                     "InstrumentCount": len(instrument_list),
                     "InstrumentList": instrument_list,
                 }
@@ -48,34 +59,8 @@ class Depth20Connection(WebSocketConnection):
         self._send_subscribe(keys)
 
 
-class Depth200Connection(WebSocketConnection):
-    """Custom connection class for Depth200 message format."""
-
-    def _send_subscribe(self, keys: list[str]) -> None:
-        instrument_list = []
-        for key in keys:
-            parts = key.split("|")
-            if len(parts) == 2:
-                instrument_list.append(
-                    {"ExchangeSegment": parts[0], "SecurityId": parts[1]}
-                )
-
-        # Dhan limits depth200 to 1 instrument per connection
-        if instrument_list:
-            instrument_list = [instrument_list[0]]
-
-        if self._ws and instrument_list:
-            msg = json.dumps(
-                {
-                    "RequestCode": 23,
-                    "InstrumentCount": len(instrument_list),
-                    "InstrumentList": instrument_list,
-                }
-            )
-            self._ws.send(msg)
-
-    def _send_unsubscribe(self, keys: list[str]) -> None:
-        self._send_subscribe(keys)
+Depth20Connection = DhanStreamChannel  # backward compat
+Depth200Connection = DhanStreamChannel  # backward compat
 
 
 class OrderStreamConnection(WebSocketConnection):
@@ -96,18 +81,20 @@ class OrderStreamConnection(WebSocketConnection):
         client_id: str = "",
     ) -> None:
         super().__init__(
-            ws_url, headers, on_message, on_open, on_close, on_error,
-            reconnect_delay, max_reconnect_delay,
+            ws_url,
+            headers,
+            on_message,
+            on_open,
+            on_close,
+            on_error,
+            reconnect_delay,
+            max_reconnect_delay,
         )
         self._access_token = access_token
         self._client_id = client_id
 
     def _send_subscribe(self, keys: list[str]) -> None:
-        access_token = (
-            self._access_token()
-            if callable(self._access_token)
-            else self._access_token
-        )
+        access_token = self._access_token() if callable(self._access_token) else self._access_token
         if self._ws:
             msg = json.dumps(
                 {
@@ -145,9 +132,7 @@ class PooledDhanStreaming:
 
     def _get_ws_headers(self) -> dict[str, str]:
         """Get WebSocket connection headers."""
-        access_token = (
-            self._access_token() if callable(self._access_token) else self._access_token
-        )
+        access_token = self._access_token() if callable(self._access_token) else self._access_token
         return {
             "access-token": access_token,
             "client-id": self._client_id,
@@ -281,9 +266,7 @@ class PooledDhanDepth20Stream:
 
     def _get_ws_headers(self) -> dict[str, str]:
         """Get WebSocket connection headers."""
-        access_token = (
-            self._access_token() if callable(self._access_token) else self._access_token
-        )
+        access_token = self._access_token() if callable(self._access_token) else self._access_token
         return {
             "access-token": access_token,
             "client-id": self._client_id,
@@ -301,7 +284,7 @@ class PooledDhanDepth20Stream:
                 WS_DEPTH20_URL,
                 headers,
                 on_message,
-                connection_factory=Depth20Connection,
+                connection_factory=lambda *a, **kw: DhanStreamChannel(*a, request_code=23, **kw),
             )
         return self._connection
 
@@ -374,9 +357,7 @@ class PooledDhanDepth200Stream:
 
     def _get_ws_headers(self) -> dict[str, str]:
         """Get WebSocket connection headers."""
-        access_token = (
-            self._access_token() if callable(self._access_token) else self._access_token
-        )
+        access_token = self._access_token() if callable(self._access_token) else self._access_token
         return {
             "access-token": access_token,
             "client-id": self._client_id,
@@ -394,7 +375,7 @@ class PooledDhanDepth200Stream:
                 WS_DEPTH200_URL,
                 headers,
                 on_message,
-                connection_factory=Depth200Connection,
+                connection_factory=lambda *a, **kw: DhanStreamChannel(*a, request_code=23, **kw),
             )
         return self._connection
 
@@ -489,8 +470,14 @@ class PooledDhanOrderStream:
                 max_reconnect_delay: float = 60.0,
             ) -> OrderStreamConnection:
                 return OrderStreamConnection(
-                    ws_url, hdrs, msg_handler, on_open, on_close, on_error,
-                    reconnect_delay, max_reconnect_delay,
+                    ws_url,
+                    hdrs,
+                    msg_handler,
+                    on_open,
+                    on_close,
+                    on_error,
+                    reconnect_delay,
+                    max_reconnect_delay,
                     access_token=self._access_token,
                     client_id=self._client_id,
                 )

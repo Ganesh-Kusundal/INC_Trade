@@ -11,17 +11,17 @@ from brokers.adapters.dhan.config import (
     PRODUCT_TYPE_MAP,
 )
 from brokers.adapters.dhan.extensions.models import MarginResponse
-from brokers.adapters.dhan.http import DhanHttpClient
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
 from brokers.adapters.dhan.invariants import assert_valid_dhan_payload
 from brokers.domain.enums import OrderType, ProductType
+from brokers.ports.http_client_port import HttpClientPort
 from brokers.utils.price import to_wire_float
 
 logger = logging.getLogger(__name__)
 
 
 class DhanMargin:
-    def __init__(self, client: DhanHttpClient, resolver: DhanInstrumentResolver):
+    def __init__(self, client: HttpClientPort, resolver: DhanInstrumentResolver):
         self._client = client
         self._resolver = resolver
 
@@ -39,9 +39,7 @@ class DhanMargin:
         if quantity <= 0:
             raise ValueError(f"Quantity must be positive, got {quantity}")
 
-        if order_type in (OrderType.LIMIT, OrderType.STOP_LOSS) and (
-            not price or price <= 0
-        ):
+        if order_type in (OrderType.LIMIT, OrderType.STOP_LOSS) and (not price or price <= 0):
             raise ValueError("LIMIT/STOP_LOSS orders require price > 0")
 
         ref = self._resolver.resolve(symbol, exchange)
