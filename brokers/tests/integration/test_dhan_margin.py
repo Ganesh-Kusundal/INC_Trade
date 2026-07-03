@@ -1,4 +1,3 @@
-import pytest
 from decimal import Decimal
 from unittest.mock import Mock
 
@@ -14,10 +13,10 @@ def test_calculate_margin():
             "totalMargin": 50000.0,
             "orderMargin": 45000.0,
             "exposureMargin": 5000.0,
-            "availableMargin": 100000.0
+            "availableMargin": 100000.0,
         }
     }
-    
+
     resolver = Mock()
     ref = Mock()
     ref.exchange_segment = "NSE_EQ"
@@ -25,7 +24,7 @@ def test_calculate_margin():
     resolver.resolve.return_value = ref
 
     adapter = DhanMargin(client, resolver)
-    
+
     resp = adapter.calculate_margin(
         symbol="HDFC",
         exchange="NSE",
@@ -34,14 +33,14 @@ def test_calculate_margin():
         product_type=ProductType.INTRADAY,
         price=Decimal("1500.50"),
     )
-    
+
     assert isinstance(resp, MarginResponse)
     assert resp.total_margin == Decimal("50000")
-    
+
     client.post.assert_called_once()
     args, kwargs = client.post.call_args
     payload = kwargs["json"]
-    
+
     assert payload["quantity"] == 100
     assert payload["price"] == 1500.50
     assert payload["orderType"] == 2  # LIMIT

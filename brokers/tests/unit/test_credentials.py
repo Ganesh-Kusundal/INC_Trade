@@ -6,7 +6,6 @@ import os
 import tempfile
 from pathlib import Path
 
-import pytest
 
 from brokers.infrastructure.credentials import (
     CANONICAL_ENV_FILES,
@@ -35,7 +34,7 @@ class TestCredentialResolver:
 
     def test_load_broker_env_sets_variables(self):
         env_file = Path(self._tmpdir) / ".env.local"
-        env_file.write_text('DHAN_TEST_KEY=test_value_123\n# comment\n')
+        env_file.write_text("DHAN_TEST_KEY=test_value_123\n# comment\n")
 
         key = "DHAN_TEST_KEY"
         os.environ.pop(key, None)

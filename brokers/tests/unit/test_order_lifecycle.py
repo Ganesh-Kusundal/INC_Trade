@@ -48,7 +48,9 @@ class TestOrderStatusTransitions:
         assert is_valid_transition(OrderStatus.PARTIALLY_FILLED, OrderStatus.CANCELLED)
 
     def test_partially_cancelled_to_cancelled(self):
-        assert is_valid_transition(OrderStatus.PARTIALLY_CANCELLED, OrderStatus.CANCELLED)
+        assert is_valid_transition(
+            OrderStatus.PARTIALLY_CANCELLED, OrderStatus.CANCELLED
+        )
 
     def test_filled_is_terminal(self):
         assert ORDER_STATUS_TRANSITIONS[OrderStatus.FILLED] == frozenset()

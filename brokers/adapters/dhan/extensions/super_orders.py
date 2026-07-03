@@ -16,9 +16,7 @@ from brokers.adapters.dhan.extensions.models import SuperOrder, SuperOrderLeg
 from brokers.adapters.dhan.http import DhanHttpClient
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
 from brokers.adapters.dhan.invariants import assert_valid_dhan_payload
-from brokers.domain import OrderResponse
 from brokers.domain.enums import OrderType, ProductType, Side, Validity
-from brokers.domain.exceptions import BrokerError
 from brokers.utils.price import to_wire_float
 
 logger = logging.getLogger(__name__)
@@ -44,15 +42,15 @@ class DhanSuperOrders:
         validity: Validity = Validity.DAY,
         correlation_id: str | None = None,
     ) -> SuperOrder:
-        
+
         errors = self._validate_super_order(side, price, target_price, stop_loss_price)
         if errors:
             raise ValueError(f"Super order validation failed: {'; '.join(errors)}")
 
         ref = self._resolver.resolve(symbol, exchange)
-        
+
         payload = {
-            "dhanClientId": self._client._client_id,
+            "dhanClientId": self._client.client_id,
             "exchangeSegment": ref.exchange_segment,
             "securityId": ref.security_id_str(),
             "transactionType": SIDE_MAP.get(side.value, 1),
@@ -71,7 +69,9 @@ class DhanSuperOrders:
 
         assert_valid_dhan_payload(payload, context="super_orders.place_super_order")
 
-        data = self._client.post(f"{ENDPOINTS['orders'].rsplit('/orders', 1)[0]}/super/orders", json=payload)
+        data = self._client.post(
+            f"{ENDPOINTS['orders'].rsplit('/orders', 1)[0]}/super/orders", json=payload
+        )
         order_data = data.get("data", data)
         return self._parse_super_order(order_data)
 
@@ -93,14 +93,14 @@ class DhanSuperOrders:
                 errors.append("target_price must be < entry price for SELL")
             if stop_loss_price <= price:
                 errors.append("stop_loss_price must be > entry price for SELL")
-                
+
         if price <= 0:
             errors.append("price must be positive")
         if target_price <= 0:
             errors.append("target_price must be positive")
         if stop_loss_price <= 0:
             errors.append("stop_loss_price must be positive")
-            
+
         return errors
 
     def _parse_super_order(self, data: dict) -> SuperOrder:
@@ -113,9 +113,13 @@ class DhanSuperOrders:
                     transaction_type=leg.get("transactionType", ""),
                     quantity=leg.get("quantity", 0),
                     price=Decimal(str(leg.get("price", 0))),
-                    trigger_price=Decimal(str(leg.get("triggerPrice"))) if leg.get("triggerPrice") is not None else None,
+                    trigger_price=Decimal(str(leg.get("triggerPrice")))
+                    if leg.get("triggerPrice") is not None
+                    else None,
                     order_status=leg.get("orderStatus", ""),
-                    trailing_jump=Decimal(str(leg.get("trailingJump"))) if leg.get("trailingJump") is not None else None,
+                    trailing_jump=Decimal(str(leg.get("trailingJump")))
+                    if leg.get("trailingJump") is not None
+                    else None,
                 )
             )
 

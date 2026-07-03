@@ -47,12 +47,24 @@ class DhanOrders:
         trigger_price: Decimal = Decimal("0"),
     ) -> OrderResponse:
         if not self._allow_live_orders:
-            logger.warning("Live orders disabled — rejecting place_order for %s", symbol)
+            logger.warning(
+                "Live orders disabled — rejecting place_order for %s", symbol
+            )
             return OrderResponse.live_orders_disabled()
+
+        # Validate order type specific price requirements
+        if order_type == OrderType.LIMIT and price <= 0:
+            raise ValueError("Limit order requires price > 0")
+        if order_type == OrderType.STOP_LOSS and (price <= 0 or trigger_price <= 0):
+            raise ValueError(
+                "Stop-Loss (Limit) order requires price > 0 and trigger_price > 0"
+            )
+        if order_type == OrderType.STOP_LOSS_MARKET and trigger_price <= 0:
+            raise ValueError("Stop-Loss Market order requires trigger_price > 0")
 
         ref = self._resolver.resolve(symbol, exchange)
         payload = {
-            "dhanClientId": self._client._client_id,
+            "dhanClientId": self._client.client_id,
             "transactionType": SIDE_MAP.get(side.value, 1),
             "exchangeSegment": ref.exchange_segment,
             "securityId": ref.security_id_str(),
@@ -69,7 +81,9 @@ class DhanOrders:
 
     def cancel_order(self, order_id: str) -> OrderResponse:
         if not self._allow_live_orders:
-            logger.warning("Live orders disabled — rejecting cancel_order for %s", order_id)
+            logger.warning(
+                "Live orders disabled — rejecting cancel_order for %s", order_id
+            )
             return OrderResponse.live_orders_disabled()
 
         endpoint = ENDPOINTS["cancel_order"].format(order_id=order_id)
@@ -126,7 +140,13 @@ class DhanOrders:
 
     def get_orderbook(self) -> list[Order]:
         data = self._client.get(ENDPOINTS["orderbook"])
-        orders_data = data.get("data", [])
-        if isinstance(orders_data, list):
-            return [map_order(o) for o in orders_data]
-        return []
+        if isinstance(data, list):
+            orders_data = data
+        elif isinstance(data, dict):
+            orders_data = data.get("data", data)
+            if not isinstance(orders_data, list):
+                orders_data = [orders_data]
+        else:
+            orders_data = []
+
+        return [map_order(o) for o in orders_data if isinstance(o, dict)]

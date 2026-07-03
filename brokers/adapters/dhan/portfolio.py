@@ -24,23 +24,26 @@ class DhanPortfolio:
 
     def positions(self) -> list[Position]:
         data = self._client.get(ENDPOINTS["positions"])
-        items = data.get("data", [])
+        items = data if isinstance(data, list) else data.get("data", [])
         if isinstance(items, list):
             return [map_position(p) for p in items]
         return []
 
     def holdings(self) -> list[Holding]:
         data = self._client.get(ENDPOINTS["holdings"])
-        items = data.get("data", [])
+        items = data if isinstance(data, list) else data.get("data", [])
         if isinstance(items, list):
             return [map_holding(h) for h in items]
         return []
 
     def funds(self) -> Balance:
         data = self._client.get(ENDPOINTS["fund_limit"])
-        items = data.get("data", [])
-        if isinstance(items, list) and items:
-            return map_balance(items[0])
+        if isinstance(data, dict):
+            if "availabelBalance" in data or "sodLimit" in data:
+                return map_balance(data)
+            items = data.get("data", [])
+            if isinstance(items, list) and items:
+                return map_balance(items[0])
         return Balance(available_cash=Decimal("0"))
 
     def trades(self) -> list[Trade]:

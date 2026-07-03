@@ -70,7 +70,9 @@ class UpstoxHistorical:
         resolution: str,
     ) -> list[Candle]:
         """Alias for get_historical_candles for protocol compatibility."""
-        return self.get_historical_candles(symbol, exchange, start_time, end_time, resolution)
+        return self.get_historical_candles(
+            symbol, exchange, start_time, end_time, resolution
+        )
 
     @staticmethod
     def _parse(data: dict, symbol: str) -> list[Candle]:

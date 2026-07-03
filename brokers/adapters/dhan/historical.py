@@ -89,7 +89,9 @@ class DhanHistorical:
         resolution: str,
     ) -> list[Candle]:
         """Alias for get_historical_candles for protocol compatibility."""
-        return self.get_historical_candles(symbol, exchange, start_time, end_time, resolution)
+        return self.get_historical_candles(
+            symbol, exchange, start_time, end_time, resolution
+        )
 
     @staticmethod
     def _parse(data: dict, symbol: str) -> list[Candle]:
@@ -100,19 +102,21 @@ class DhanHistorical:
             return []
         if isinstance(raw, dict):
             # Dhan sometimes returns column arrays instead of row dicts for chart data
-            if "start_Time" in raw and "open" in raw:
+            if ("start_Time" in raw or "timestamp" in raw) and "open" in raw:
                 # Columnar format
-                times = raw.get("start_Time", [])
+                times = raw.get("start_Time", raw.get("timestamp", []))
                 opens = raw.get("open", [])
                 highs = raw.get("high", [])
                 lows = raw.get("low", [])
                 closes = raw.get("close", [])
                 vols = raw.get("volume", [])
-                
+
                 candles = []
                 for i in range(len(times)):
                     try:
-                        ts = datetime.fromtimestamp(times[i], tz=ZoneInfo("Asia/Kolkata"))
+                        ts = datetime.fromtimestamp(
+                            times[i], tz=ZoneInfo("Asia/Kolkata")
+                        )
                     except Exception:
                         continue
                     candles.append(

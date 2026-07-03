@@ -1,10 +1,10 @@
-import pytest
 from datetime import datetime
 from decimal import Decimal
 from unittest.mock import Mock
 
 from brokers.adapters.dhan.historical import DhanHistorical
 from brokers.domain.entities import Candle
+
 
 def test_dhan_get_historical_candles():
     client = Mock()
@@ -17,10 +17,10 @@ def test_dhan_get_historical_candles():
             "high": [2510.0],
             "low": [2490.0],
             "close": [2505.0],
-            "volume": [10000]
-        }
+            "volume": [10000],
+        },
     }
-    
+
     resolver = Mock()
     ref = Mock()
     ref.exchange_segment = "NSE_EQ"
@@ -37,7 +37,7 @@ def test_dhan_get_historical_candles():
         exchange="NSE",
         start_time=start,
         end_time=end,
-        resolution="1D"
+        resolution="1D",
     )
 
     assert len(candles) == 1
@@ -49,7 +49,7 @@ def test_dhan_get_historical_candles():
     assert c.low == Decimal("2490")
     assert c.close == Decimal("2505")
     assert c.volume == 10000
-    
+
     client.post.assert_called_once()
     args, kwargs = client.post.call_args
     payload = kwargs["json"]

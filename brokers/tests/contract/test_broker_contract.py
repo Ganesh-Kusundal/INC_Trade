@@ -93,7 +93,9 @@ class _FakeAuth:
 
 
 class _FakeHistorical:
-    def get_historical_candles(self, symbol, exchange, start_time, end_time, resolution):
+    def get_historical_candles(
+        self, symbol, exchange, start_time, end_time, resolution
+    ):
         return []
 
 

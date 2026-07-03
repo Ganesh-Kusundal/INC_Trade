@@ -14,28 +14,36 @@ class OrderStateError(Exception):
 
 
 ORDER_STATUS_TRANSITIONS: dict[OrderStatus, frozenset[OrderStatus]] = {
-    OrderStatus.PENDING: frozenset({
-        OrderStatus.OPEN,
-        OrderStatus.REJECTED,
-        OrderStatus.CANCELLED,
-        OrderStatus.EXPIRED,
-    }),
-    OrderStatus.OPEN: frozenset({
-        OrderStatus.PARTIALLY_FILLED,
-        OrderStatus.FILLED,
-        OrderStatus.CANCELLED,
-        OrderStatus.PARTIALLY_CANCELLED,
-        OrderStatus.EXPIRED,
-        OrderStatus.REJECTED,
-    }),
-    OrderStatus.PARTIALLY_FILLED: frozenset({
-        OrderStatus.FILLED,
-        OrderStatus.CANCELLED,
-        OrderStatus.PARTIALLY_CANCELLED,
-    }),
-    OrderStatus.PARTIALLY_CANCELLED: frozenset({
-        OrderStatus.CANCELLED,
-    }),
+    OrderStatus.PENDING: frozenset(
+        {
+            OrderStatus.OPEN,
+            OrderStatus.REJECTED,
+            OrderStatus.CANCELLED,
+            OrderStatus.EXPIRED,
+        }
+    ),
+    OrderStatus.OPEN: frozenset(
+        {
+            OrderStatus.PARTIALLY_FILLED,
+            OrderStatus.FILLED,
+            OrderStatus.CANCELLED,
+            OrderStatus.PARTIALLY_CANCELLED,
+            OrderStatus.EXPIRED,
+            OrderStatus.REJECTED,
+        }
+    ),
+    OrderStatus.PARTIALLY_FILLED: frozenset(
+        {
+            OrderStatus.FILLED,
+            OrderStatus.CANCELLED,
+            OrderStatus.PARTIALLY_CANCELLED,
+        }
+    ),
+    OrderStatus.PARTIALLY_CANCELLED: frozenset(
+        {
+            OrderStatus.CANCELLED,
+        }
+    ),
     OrderStatus.FILLED: frozenset(),
     OrderStatus.CANCELLED: frozenset(),
     OrderStatus.REJECTED: frozenset(),

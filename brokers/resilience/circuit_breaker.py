@@ -1,13 +1,3 @@
-"""Circuit breaker — 3-state failure protection.
-
-States:
-- CLOSED: normal operation, requests pass through
-- OPEN: failures exceeded threshold, requests fast-fail
-- HALF_OPEN: recovery timeout elapsed, probing with limited requests
-
-Thread-safe with threading.Lock.
-"""
-
 from __future__ import annotations
 
 import threading
@@ -26,6 +16,29 @@ class CircuitState(Enum):
 
 
 @dataclass
+class CircuitBreakerConfig:
+    """Configuration for a circuit breaker."""
+
+    failure_threshold: int = 5
+    success_threshold: int = 3
+    open_duration_ms: int = 30_000  # 30 seconds default
+
+    def __post_init__(self):
+        if self.failure_threshold <= 0:
+            raise ValueError(
+                f"failure_threshold must be positive, got {self.failure_threshold}"
+            )
+        if self.success_threshold <= 0:
+            raise ValueError(
+                f"success_threshold must be positive, got {self.success_threshold}"
+            )
+        if self.open_duration_ms <= 0:
+            raise ValueError(
+                f"open_duration_ms must be positive, got {self.open_duration_ms}"
+            )
+
+
+@dataclass
 class CircuitBreakerMetrics:
     total_calls: int = 0
     success_count: int = 0
@@ -34,30 +47,46 @@ class CircuitBreakerMetrics:
 
 
 class CircuitBreaker:
+    """Explicit state machine (OPEN, CLOSED, HALF_OPEN) for broker 5XX errors.
+
+    Bridges the legacy config-based signature and new positional-arguments signature.
+    """
+
     def __init__(
         self,
-        failure_threshold: int = 5,
-        recovery_timeout: float = 30.0,
+        failure_threshold: int | str = 5,
+        recovery_timeout: CircuitBreakerConfig | float = 30.0,
         success_threshold: int = 1,
     ):
-        if failure_threshold <= 0:
-            raise ValueError(
-                f"failure_threshold must be positive, got {failure_threshold}"
-            )
-        if recovery_timeout <= 0:
-            raise ValueError(
-                f"recovery_timeout must be positive, got {recovery_timeout}"
-            )
-
-        self._failure_threshold = failure_threshold
-        self._recovery_timeout = recovery_timeout
-        self._success_threshold = success_threshold
-        self._state = CircuitState.CLOSED
-        self._failure_count = 0
-        self._success_count = 0
-        self._last_failure_time: float = 0
         self._lock = threading.Lock()
         self.metrics = CircuitBreakerMetrics()
+        self._failure_count = 0
+        self._success_count = 0
+        self._last_failure_time: float = 0.0
+
+        if isinstance(failure_threshold, str):
+            # Legacy constructor: (name, config)
+            self.name = failure_threshold
+            config = recovery_timeout
+            if not isinstance(config, CircuitBreakerConfig):
+                config = CircuitBreakerConfig()
+            self.config = config
+            self._failure_threshold = config.failure_threshold
+            self._recovery_timeout = config.open_duration_ms / 1000.0
+            self._success_threshold = config.success_threshold
+        else:
+            # Greenfield constructor: (failure_threshold, recovery_timeout, success_threshold)
+            self.name = "default"
+            self._failure_threshold = failure_threshold
+            self._recovery_timeout = float(recovery_timeout)
+            self._success_threshold = success_threshold
+            self.config = CircuitBreakerConfig(
+                failure_threshold=self._failure_threshold,
+                success_threshold=self._success_threshold,
+                open_duration_ms=int(self._recovery_timeout * 1000),
+            )
+
+        self._state = CircuitState.CLOSED
 
     @property
     def state(self) -> CircuitState:
@@ -65,7 +94,15 @@ class CircuitBreaker:
             self._check_recovery()
             return self._state
 
-    def call(self, fn: Callable[[], Any], ignored_exceptions: tuple[type[Exception], ...] = ()) -> Any:
+    def allow_request(self) -> bool:
+        """Check if request is allowed (i.e. circuit is not OPEN)."""
+        return self.state is not CircuitState.OPEN
+
+    def call(
+        self,
+        fn: Callable[[], Any],
+        ignored_exceptions: tuple[type[Exception], ...] = (),
+    ) -> Any:
         with self._lock:
             self._check_recovery()
             if self._state is CircuitState.OPEN:
@@ -75,6 +112,7 @@ class CircuitBreaker:
             result = fn()
         except Exception as exc:
             from brokers.domain.exceptions import BrokerServerError
+
             is_ignored = any(isinstance(exc, t) for t in ignored_exceptions)
             if is_ignored and isinstance(exc, BrokerServerError):
                 is_ignored = False

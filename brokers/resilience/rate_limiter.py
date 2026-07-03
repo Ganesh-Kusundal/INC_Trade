@@ -49,10 +49,10 @@ class TokenBucketRateLimiter:
                 # Calculate time to wait until enough tokens are available
                 needed = tokens - self._tokens
                 wait_time = needed / self._rate
-                
+
                 if deadline is not None:
                     wait_time = min(wait_time, deadline - now)
-                
+
                 # Wait until condition is notified or wait_time elapses
                 self._condition.wait(timeout=wait_time)
 
@@ -61,4 +61,3 @@ class TokenBucketRateLimiter:
         elapsed = now - self._last_refill
         self._tokens = min(self._capacity, self._tokens + elapsed * self._rate)
         self._last_refill = now
-

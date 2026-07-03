@@ -90,6 +90,13 @@ class AuthenticationError(BrokerError):
         super().__init__(message, code=AUTH_ERROR)
 
 
+class TokenRateLimitError(BrokerError):
+    """Token generation rate limit exceeded (e.g., Dhan's 2-minute cooldown)."""
+
+    def __init__(self, message: str = "Token generation rate limit exceeded") -> None:
+        super().__init__(message, code=RATE_LIMITED)
+
+
 class InstrumentNotFoundError(BrokerError):
     """Symbol could not be resolved to a broker instrument."""
 
@@ -108,6 +115,8 @@ class NotSupportedError(BrokerError):
 class BrokerDegradedError(BrokerError):
     """Broker is in a degraded state (health below threshold)."""
 
-    def __init__(self, message: str, health_status: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, message: str, health_status: dict[str, Any] | None = None
+    ) -> None:
         self.health_status = health_status or {}
         super().__init__(message, code=BROKER_DEGRADED)

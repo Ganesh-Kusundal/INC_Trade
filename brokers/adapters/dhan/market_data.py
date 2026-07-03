@@ -28,8 +28,8 @@ class DhanMarketData:
         assert_valid_dhan_payload(payload, context="market_data.ltp")
         data = self._client.post(ENDPOINTS["ltp"], json=payload)
         feed = data.get("data", {})
-        
-        entry = {}
+
+        entry: dict = {}
         if isinstance(feed, dict):
             segment_data = feed.get(segment)
             if isinstance(segment_data, dict):
@@ -41,8 +41,10 @@ class DhanMarketData:
                     or feed.get(symbol)
                     or {}
                 )
-                
-        price = entry.get("last_price") if "last_price" in entry else entry.get("lastPrice")
+
+        price = (
+            entry.get("last_price") if "last_price" in entry else entry.get("lastPrice")
+        )
         if price is None:
             if isinstance(entry, (int, float, str, Decimal)):
                 price = entry

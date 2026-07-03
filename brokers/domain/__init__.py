@@ -18,6 +18,7 @@ from brokers.domain.entities import (
     Trade,
 )
 from brokers.domain.enums import (
+    AuthMode,
     OrderStatus,
     OrderType,
     ProductType,
@@ -37,15 +38,16 @@ from brokers.domain.exceptions import (
     NonRetryableError,
     NotSupportedError,
     OrderRejectedError,
-    OrderStateError,
     RateLimitError,
     RetryableError,
     TradeXV2Error,
     ValidationError,
 )
+from brokers.domain.order_lifecycle import OrderStateError
 
 __all__ = [
     "AuthenticationError",
+    "AuthMode",
     "Balance",
     "BrokerDegradedError",
     "BrokerError",

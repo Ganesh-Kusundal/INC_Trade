@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -62,11 +63,11 @@ class TestDhanHistorical:
         gw = DhanGateway(access_token="tok", client_id="cid")
         _preload_resolver(gw)
         candles = gw.historical.get_candles(
-            "RELIANCE", "NSE", "2024-01-01", "2024-01-31", "1D"
+            "RELIANCE", "NSE", datetime(2024, 1, 1), datetime(2024, 1, 31), "1D"
         )
         assert len(candles) == 2
-        assert candles[0]["open"] == 100.0
-        assert candles[1]["volume"] == 6000
+        assert candles[0].open == Decimal("100.0")
+        assert candles[1].volume == 6000
         gw.close()
 
     @patch("brokers.adapters.dhan.http.requests.Session")
@@ -79,7 +80,7 @@ class TestDhanHistorical:
         gw = DhanGateway(access_token="tok", client_id="cid")
         _preload_resolver(gw)
         candles = gw.historical.get_candles(
-            "RELIANCE", "NSE", "2024-01-01", "2024-01-31"
+            "RELIANCE", "NSE", datetime(2024, 1, 1), datetime(2024, 1, 31), "1D"
         )
         assert candles == []
         gw.close()
@@ -104,12 +105,12 @@ class TestUpstoxHistorical:
 
         gw = UpstoxGateway(access_token="tok")
         candles = gw.historical.get_candles(
-            "RELIANCE", "NSE", "2024-01-01", "2024-01-31", "1D"
+            "RELIANCE", "NSE", datetime(2024, 1, 1), datetime(2024, 1, 31), "1D"
         )
         assert len(candles) == 2
-        assert candles[0]["open"] == 100.0
-        assert candles[0]["close"] == 103.0
-        assert candles[1]["volume"] == 6000
+        assert candles[0].open == Decimal("100.0")
+        assert candles[0].close == Decimal("103.0")
+        assert candles[1].volume == 6000
         gw.close()
 
     @patch("brokers.adapters.upstox.http.requests.Session")
@@ -121,7 +122,7 @@ class TestUpstoxHistorical:
 
         gw = UpstoxGateway(access_token="tok")
         candles = gw.historical.get_candles(
-            "RELIANCE", "NSE", "2024-01-01", "2024-01-31"
+            "RELIANCE", "NSE", datetime(2024, 1, 1), datetime(2024, 1, 31), "1D"
         )
         assert candles == []
         gw.close()

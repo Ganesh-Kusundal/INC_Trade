@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
+
 class IdempotencyCache:
     """
     Prevents duplicate execution of critical commands (like place_order) during network retries.
@@ -15,6 +16,7 @@ class IdempotencyCache:
 
     Thread-safe via RLock. Supports TTL-based and LRU eviction.
     """
+
     def __init__(
         self,
         fallback_dir: str = ".cache/idempotency",
@@ -49,22 +51,28 @@ class IdempotencyCache:
             self._evict_expired()
 
             if correlation_id in self._memory_cache:
-                logger.warning(f"Idempotency hit (Memory): {correlation_id}. Duplicate request blocked.")
+                logger.warning(
+                    f"Idempotency hit (Memory): {correlation_id}. Duplicate request blocked."
+                )
                 return False
 
             file_path = os.path.join(self.fallback_dir, f"{correlation_id}.json")
             if os.path.exists(file_path):
-                logger.warning(f"Idempotency hit (FileSystem): {correlation_id}. Duplicate request blocked.")
+                logger.warning(
+                    f"Idempotency hit (FileSystem): {correlation_id}. Duplicate request blocked."
+                )
                 return False
 
             self._memory_cache[correlation_id] = time.monotonic()
             self._evict_lru()
 
             try:
-                with open(file_path, 'w') as f:
+                with open(file_path, "w") as f:
                     json.dump({"timestamp": datetime.now(timezone.utc).isoformat()}, f)
             except Exception as e:
-                logger.error(f"Failed to write idempotency fallback for {correlation_id}: {e}")
+                logger.error(
+                    f"Failed to write idempotency fallback for {correlation_id}: {e}"
+                )
 
             return True
 

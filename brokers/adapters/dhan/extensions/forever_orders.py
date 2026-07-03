@@ -44,15 +44,23 @@ class DhanForeverOrders:
         validity: Validity = Validity.DAY,
         correlation_id: str | None = None,
     ) -> ForeverOrder:
-        
-        errors = self._validate_forever_order(order_flag, quantity, price, trigger_price, price1, trigger_price1, quantity1)
+
+        errors = self._validate_forever_order(
+            order_flag,
+            quantity,
+            price,
+            trigger_price,
+            price1,
+            trigger_price1,
+            quantity1,
+        )
         if errors:
             raise ValueError(f"Forever order validation failed: {'; '.join(errors)}")
 
         ref = self._resolver.resolve(symbol, exchange)
-        
+
         payload = {
-            "dhanClientId": self._client._client_id,
+            "dhanClientId": self._client.client_id,
             "exchangeSegment": ref.exchange_segment,
             "securityId": ref.security_id_str(),
             "transactionType": SIDE_MAP.get(side.value, 1),
@@ -78,7 +86,10 @@ class DhanForeverOrders:
 
         assert_valid_dhan_payload(payload, context="forever_orders.place_forever_order")
 
-        data = self._client.post(f"{ENDPOINTS['orders'].rsplit('/orders', 1)[0]}/forever/orders", json=payload)
+        data = self._client.post(
+            f"{ENDPOINTS['orders'].rsplit('/orders', 1)[0]}/forever/orders",
+            json=payload,
+        )
         order_data = data.get("data", data)
         return self._parse_forever_order(order_data)
 
@@ -110,7 +121,7 @@ class DhanForeverOrders:
             errors.append("trigger_price must be positive")
         if quantity <= 0:
             errors.append("quantity must be positive")
-            
+
         return errors
 
     def _parse_forever_order(self, data: dict) -> ForeverOrder:

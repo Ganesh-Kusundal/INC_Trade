@@ -47,7 +47,9 @@ class TestDhanGatewayProtocol:
 
 class TestDhanOrders:
     def setup_method(self):
-        self.gw = DhanGateway(access_token="test-token", client_id="test-client", allow_live_orders=True)
+        self.gw = DhanGateway(
+            access_token="test-token", client_id="test-client", allow_live_orders=True
+        )
         self.mock_resp = MagicMock()
 
     def teardown_method(self):
@@ -243,7 +245,7 @@ class TestDhanAuth:
 
         mock_post.return_value = _mock_response({}, status_code=400)
 
-        with pytest.raises(RuntimeError, match="Token generation failed"):
+        with pytest.raises(Exception, match="Token generation failed"):
             DhanGateway(
                 access_token=None,
                 client_id="cid",

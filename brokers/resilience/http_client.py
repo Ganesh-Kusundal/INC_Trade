@@ -30,6 +30,10 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+class TokenRefreshSignal(Exception):
+    """Internal signal that token was refreshed and request should be retried."""
+
+
 class BaseResilientHttpClient(ABC):
     def __init__(
         self,
@@ -58,8 +62,27 @@ class BaseResilientHttpClient(ABC):
             max_retries=3,
             base_delay_ms=500,
             max_delay_ms=5000,
-            retryable_exceptions=(requests.exceptions.RequestException, BrokerServerError),
+            retryable_exceptions=(
+                requests.exceptions.RequestException,
+                BrokerServerError,
+            ),
         )
+
+    @property
+    def _read_breaker(self) -> CircuitBreaker:
+        return self._circuit_breakers["read"]
+
+    @_read_breaker.setter
+    def _read_breaker(self, val: CircuitBreaker) -> None:
+        self._circuit_breakers["read"] = val
+
+    @property
+    def _write_breaker(self) -> CircuitBreaker:
+        return self._circuit_breakers["write"]
+
+    @_write_breaker.setter
+    def _write_breaker(self, val: CircuitBreaker) -> None:
+        self._circuit_breakers["write"] = val
 
     def get(self, endpoint: str, params: dict | None = None) -> dict:
         return self._request("GET", endpoint, params=params)
@@ -89,6 +112,17 @@ class BaseResilientHttpClient(ABC):
                 lambda: self._retry.call(_do_request),
                 ignored_exceptions=(AuthenticationError, RateLimitError, BrokerError),
             )
+        except TokenRefreshSignal:
+            logger.debug("token_refreshed_retrying", extra={"endpoint": endpoint})
+            try:
+                return cb.call(
+                    lambda: self._retry.call(_do_request),
+                    ignored_exceptions=(AuthenticationError, RateLimitError, BrokerError),
+                )
+            except Exception as exc:
+                if isinstance(exc, BrokerError):
+                    raise
+                raise BrokerError(str(exc)) from exc
         except Exception as exc:
             if isinstance(exc, BrokerError):
                 raise

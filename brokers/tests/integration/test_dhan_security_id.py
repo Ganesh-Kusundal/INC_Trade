@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 from brokers.adapters.dhan.gateway import DhanGateway
@@ -13,9 +14,9 @@ SAMPLE_CSV = (
     "SEM_LOT_UNITS,SEM_OPTION_TYPE,SEM_STRIKE_PRICE,SEM_EXPIRY_DATE,SM_SYMBOL_NAME\n"
     "RELIANCE,2885,NSE,EQUITY,1,,,,RELIANCE\n"
     "NIFTY,13,NSE,INDEX,1,,,,NIFTY\n"
-    "NIFTY 26 JUN 25000 CE,55000,NFO,OPTIDX,25,CE,25000,2025-06-26,NIFTY\n"
-    "RELIANCE 2800 PE,55002,NFO,OPTSTK,1,PE,2800,2025-06-26,RELIANCE\n"
-    "NIFTY 26 JUN FUT,51976,NFO,FUTIDX,25,,,2025-06-26,NIFTY\n"
+    "NIFTY 26 JUN 25000 CE,55000,NSE,OPTIDX,25,CE,25000,2025-06-26,NIFTY\n"
+    "RELIANCE 2800 PE,55002,NSE,OPTSTK,1,PE,2800,2025-06-26,RELIANCE\n"
+    "NIFTY 26 JUN FUT,51976,NSE,FUTIDX,25,,,2025-06-26,NIFTY\n"
     "CRUDEOIL 26 JUN FUT,44772,MCX,FUTCOM,100,,,2025-06-26,CRUDEOIL\n"
     "GOLD 60000 CE,44800,MCX,OPTCOM,1,CE,60000,2025-06-26,GOLD\n"
 )
@@ -180,7 +181,9 @@ class TestDhanHistoricalSecurityId:
         mock_session_cls.return_value = mock_session
 
         gw = _make_gateway_with_csv()
-        gw.historical.get_candles("RELIANCE", "NSE", "2025-01-01", "2025-01-31")
+        gw.historical.get_candles(
+            "RELIANCE", "NSE", datetime(2025, 1, 1), datetime(2025, 1, 31), "1D"
+        )
 
         payload = _get_sent_payload(mock_session)
         assert payload["securityId"] == "2885"
@@ -196,7 +199,9 @@ class TestDhanHistoricalSecurityId:
         mock_session_cls.return_value = mock_session
 
         gw = _make_gateway_with_csv()
-        gw.historical.get_candles("RELIANCE", "NSE", "2025-01-01", "2025-01-31")
+        gw.historical.get_candles(
+            "RELIANCE", "NSE", datetime(2025, 1, 1), datetime(2025, 1, 31), "1D"
+        )
 
         payload = _get_sent_payload(mock_session)
         assert payload["instrument"] == "EQUITY"
@@ -211,7 +216,11 @@ class TestDhanHistoricalSecurityId:
 
         gw = _make_gateway_with_csv()
         gw.historical.get_candles(
-            "NIFTY 26 JUN 25000 CE", "NFO", "2025-01-01", "2025-01-31"
+            "NIFTY 26 JUN 25000 CE",
+            "NFO",
+            datetime(2025, 1, 1),
+            datetime(2025, 1, 31),
+            "1D",
         )
 
         payload = _get_sent_payload(mock_session)
@@ -228,7 +237,9 @@ class TestDhanHistoricalSecurityId:
         mock_session_cls.return_value = mock_session
 
         gw = _make_gateway_with_csv()
-        gw.historical.get_candles("NIFTY 26 JUN FUT", "NFO", "2025-01-01", "2025-01-31")
+        gw.historical.get_candles(
+            "NIFTY 26 JUN FUT", "NFO", datetime(2025, 1, 1), datetime(2025, 1, 31), "1D"
+        )
 
         payload = _get_sent_payload(mock_session)
         assert payload["securityId"] == "51976"
@@ -244,7 +255,11 @@ class TestDhanHistoricalSecurityId:
 
         gw = _make_gateway_with_csv()
         gw.historical.get_candles(
-            "CRUDEOIL 26 JUN FUT", "MCX", "2025-01-01", "2025-01-31"
+            "CRUDEOIL 26 JUN FUT",
+            "MCX",
+            datetime(2025, 1, 1),
+            datetime(2025, 1, 31),
+            "1D",
         )
 
         payload = _get_sent_payload(mock_session)
@@ -261,7 +276,9 @@ class TestDhanHistoricalSecurityId:
         mock_session_cls.return_value = mock_session
 
         gw = _make_gateway_with_csv()
-        gw.historical.get_candles("NIFTY", "INDEX", "2025-01-01", "2025-01-31")
+        gw.historical.get_candles(
+            "NIFTY", "INDEX", datetime(2025, 1, 1), datetime(2025, 1, 31), "1D"
+        )
 
         payload = _get_sent_payload(mock_session)
         assert payload["securityId"] == "13"

@@ -24,7 +24,7 @@ _REDACTION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r'(password["\s:=]+)[^\s,}"\']+', re.I), r"\1[REDACTED]"),
     (re.compile(r'(client_secret["\s:=]+)[^\s,}"\']+', re.I), r"\1[REDACTED]"),
     (re.compile(r'(authorization["\s:=]+)[^\s,}"\']+', re.I), r"\1[REDACTED]"),
-    (re.compile(r'\b([a-zA-Z0-9]{32,})\b'), r"[REDACTED_TOKEN]"),
+    (re.compile(r"\b([a-zA-Z0-9]{32,})\b"), r"[REDACTED_TOKEN]"),
 ]
 
 
@@ -44,6 +44,7 @@ class TokenRedactionFilter(logging.Filter):
 class CorrelationFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         from brokers.infrastructure.correlation import get_current_correlation_id
+
         record.correlation_id = get_current_correlation_id()
         return True
 
@@ -51,8 +52,16 @@ class CorrelationFilter(logging.Filter):
 class StructuredFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         extra_fields: dict[str, Any] = {}
-        for key in ("order_id", "symbol", "exchange", "side", "quantity",
-                     "message", "error_code", "latency_ms"):
+        for key in (
+            "order_id",
+            "symbol",
+            "exchange",
+            "side",
+            "quantity",
+            "message",
+            "error_code",
+            "latency_ms",
+        ):
             val = getattr(record, key, None)
             if val is not None:
                 extra_fields[key] = val

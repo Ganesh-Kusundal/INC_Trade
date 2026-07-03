@@ -26,12 +26,12 @@ ENDPOINTS = {
 }
 
 RATE_LIMITS = {
-    "/marketfeed/quote": 1.0,
-    "/marketfeed/ltp": 10.0,
-    "/marketfeed/ohlc": 10.0,
-    "/optionchain": 3.0,
-    "/charts/": 10.0,
-    "/orders": 25.0,
+    "/marketfeed/quote": 1.0,  # 1 req/s
+    "/marketfeed/ltp": 0.15,  # ~6.7 req/s (documented 10 req/s)
+    "/marketfeed/ohlc": 0.15,  # ~6.7 req/s (documented 10 req/s)
+    "/optionchain": 0.35,  # ~2.9 req/s (documented 3 req/s)
+    "/charts/": 0.15,  # ~6.7 req/s (documented 10 req/s)
+    "/orders": 0.04,  # 25 req/s
 }
 
 READ_PREFIXES = (
@@ -48,6 +48,8 @@ WRITE_PREFIXES = (
     "/sliceorder",
 )
 
+# Maps user-facing exchange names → Dhan API wire segment codes (used in order/chart payloads).
+# These segment codes are what Dhan's REST API expects in fields like "exchangeSegment".
 EXCHANGE_MAP = {
     "NSE": "NSE_EQ",
     "NFO": "NSE_FNO",
@@ -59,6 +61,31 @@ EXCHANGE_MAP = {
 }
 
 SEGMENT_TO_EXCHANGE: dict[str, str] = {v: k for k, v in EXCHANGE_MAP.items()}
+
+# Dhan's master CSV (api-scrip-master.csv) uses plain exchange codes in SEM_EXM_EXCH_ID:
+# "NSE", "BSE", "MCX" — NOT the segment codes above.
+# This map translates CSV exchange codes → API wire segment codes for the resolver.
+CSV_EXCHANGE_TO_SEGMENT: dict[str, str] = {
+    "NSE": "NSE_EQ",   # equity; FNO rows are still under "NSE" but instrument type distinguishes them
+    "BSE": "BSE_EQ",
+    "MCX": "MCX_COMM",
+    "CDS": "NSE_CD",
+    "NDX": "IDX_I",
+}
+
+# For FNO/derivatives in the CSV, the exchange is still "NSE" or "BSE" but the instrument
+# name tells us it's a derivative. We use this to override the segment assignment.
+INSTRUMENT_TO_SEGMENT: dict[str, str] = {
+    "OPTIDX": "NSE_FNO",
+    "OPTSTK": "NSE_FNO",
+    "FUTIDX": "NSE_FNO",
+    "FUTSTK": "NSE_FNO",
+    "FUTCOM": "MCX_COMM",
+    "OPTFUT": "MCX_COMM",
+    "OPTCOM": "MCX_COMM",
+    "FUTCUR": "NSE_CD",
+    "OPTCUR": "NSE_CD",
+}
 
 DHAN_SEGMENTS: frozenset[str] = frozenset(
     {"NSE_EQ", "BSE_EQ", "NSE_FNO", "BSE_FNO", "MCX_COMM", "NSE_CD", "IDX_I"}

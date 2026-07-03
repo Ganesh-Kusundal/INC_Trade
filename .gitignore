@@ -11,3 +11,18 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+
+# Cache directories
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.cache/
+
+# IDE / Tool directories
+.vscode/
+.idea/
+.ai/
+.qoder/
+.agents/
+.autoresearch/
+.tradexv2/

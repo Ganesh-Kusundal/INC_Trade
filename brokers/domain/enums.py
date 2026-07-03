@@ -72,3 +72,20 @@ class Validity(str, Enum):
     DAY = "DAY"
     IOC = "IOC"
     GTT = "GTT"
+
+
+class AuthMode(str, Enum):
+    STATIC = "STATIC"
+    TOTP = "TOTP"
+    OAUTH = "OAUTH"
+    INTERACTIVE = "INTERACTIVE"
+    EXTENDED = "EXTENDED"
+    WEBHOOK = "WEBHOOK"
+
+    @property
+    def supports_refresh(self) -> bool:
+        return self in (AuthMode.OAUTH, AuthMode.TOTP, AuthMode.INTERACTIVE)
+
+    @property
+    def is_long_lived(self) -> bool:
+        return self in (AuthMode.EXTENDED, AuthMode.STATIC)

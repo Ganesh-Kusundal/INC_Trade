@@ -44,8 +44,12 @@ class UpstoxOrders:
         trigger_price: Decimal = Decimal("0"),
     ) -> OrderResponse:
         if not self._allow_live_orders:
-            logger.warning("Live orders disabled — rejecting place_order for %s", symbol)
-            raise PermissionError("Live orders disabled. Set allow_live_orders=True to enable.")
+            logger.warning(
+                "Live orders disabled — rejecting place_order for %s", symbol
+            )
+            raise PermissionError(
+                "Live orders disabled. Set allow_live_orders=True to enable."
+            )
         instrument_token = _instrument_key(symbol, exchange)
         payload = {
             "quantity": quantity,
@@ -70,6 +74,35 @@ class UpstoxOrders:
             if status in ("success", "ok"):
                 return OrderResponse(order_id=order_id, success=True)
         return OrderResponse(order_id=order_id, success=True)
+
+    def modify_order(
+        self,
+        order_id: str,
+        quantity: int | None = None,
+        price: Decimal | None = None,
+        order_type: OrderType | None = None,
+        validity: Validity | None = None,
+    ) -> OrderResponse:
+        if not self._allow_live_orders:
+            logger.warning(
+                "Live orders disabled — rejecting modify_order for %s", order_id
+            )
+            raise PermissionError(
+                "Live orders disabled. Set allow_live_orders=True to enable."
+            )
+        endpoint = ENDPOINTS["modify_order"].format(order_id=order_id)
+        payload: dict = {}
+        if quantity is not None:
+            payload["quantity"] = quantity
+        if price is not None:
+            payload["price"] = to_wire_float(price)
+        if order_type is not None:
+            payload["order_type"] = ORDER_TYPE_MAP.get(order_type.value, "MARKET")
+        if validity is not None:
+            payload["validity"] = VALIDITY_MAP.get(validity.value, "DAY")
+
+        data = self._client.put(endpoint, json=payload)
+        return map_order_response(data)
 
     def get_order(self, order_id: str) -> Order | None:
         endpoint = ENDPOINTS["order_details"].format(order_id=order_id)

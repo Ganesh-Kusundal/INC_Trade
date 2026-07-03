@@ -32,6 +32,7 @@ class TestHardenedSSLContext:
 class TestCreatePinnedSession:
     def test_returns_session(self):
         import requests
+
         session = create_pinned_session()
         assert isinstance(session, requests.Session)
         session.close()

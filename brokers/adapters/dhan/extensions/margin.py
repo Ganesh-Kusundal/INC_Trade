@@ -35,17 +35,19 @@ class DhanMargin:
         price: Decimal | None = None,
         trigger_price: Decimal | None = None,
     ) -> MarginResponse:
-        
+
         if quantity <= 0:
             raise ValueError(f"Quantity must be positive, got {quantity}")
 
-        if order_type in (OrderType.LIMIT, OrderType.STOP_LOSS) and (not price or price <= 0):
+        if order_type in (OrderType.LIMIT, OrderType.STOP_LOSS) and (
+            not price or price <= 0
+        ):
             raise ValueError("LIMIT/STOP_LOSS orders require price > 0")
 
         ref = self._resolver.resolve(symbol, exchange)
-        
+
         payload = {
-            "dhanClientId": self._client._client_id,
+            "dhanClientId": self._client.client_id,
             "exchangeSegment": ref.exchange_segment,
             "securityId": ref.security_id_str(),
             "transactionType": 1,  # Default to BUY for margin calc
@@ -61,13 +63,20 @@ class DhanMargin:
 
         assert_valid_dhan_payload(payload, context="margin.calculate")
 
-        data = self._client.post(f"{ENDPOINTS['orders'].rsplit('/orders', 1)[0]}/margincalculator", json=payload)
-        
+        data = self._client.post(
+            f"{ENDPOINTS['orders'].rsplit('/orders', 1)[0]}/margincalculator",
+            json=payload,
+        )
+
         response_data = data.get("data", data)
         return MarginResponse(
             total_margin=Decimal(str(response_data.get("totalMargin", 0))),
             order_margin=Decimal(str(response_data.get("orderMargin", 0))),
             exposure_margin=Decimal(str(response_data.get("exposureMargin", 0))),
-            available_margin=Decimal(str(response_data["availableMargin"])) if "availableMargin" in response_data else None,
-            span_margin=Decimal(str(response_data["spanMargin"])) if "spanMargin" in response_data else None,
+            available_margin=Decimal(str(response_data["availableMargin"]))
+            if "availableMargin" in response_data
+            else None,
+            span_margin=Decimal(str(response_data["spanMargin"]))
+            if "spanMargin" in response_data
+            else None,
         )

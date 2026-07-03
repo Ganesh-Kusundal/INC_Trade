@@ -29,6 +29,7 @@ class TestCorrelationId:
             assert get_current_correlation_id() == "test-123"
         finally:
             from brokers.infrastructure.correlation import _correlation_id_var
+
             _correlation_id_var.reset(token)
 
 

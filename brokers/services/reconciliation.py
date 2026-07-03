@@ -1,17 +1,18 @@
 import asyncio
 import logging
-from typing import Dict, List
+from typing import Dict
 from brokers.domain.entities import OrderResponse
-from brokers.domain.enums import OrderStatus
 from brokers.ports.broker import BrokerGateway
 
 logger = logging.getLogger(__name__)
+
 
 class ReconciliationEngine:
     """
     Background daemon that periodically synchronizes local OMS state against the broker's authoritative ledger.
     Crucial for catching ghost fills or dropped WebSocket events.
     """
+
     def __init__(self, broker: BrokerGateway, sync_interval_seconds: int = 30):
         self.broker = broker
         self.sync_interval_seconds = sync_interval_seconds
@@ -46,7 +47,7 @@ class ReconciliationEngine:
             await asyncio.sleep(self.sync_interval_seconds)
 
     async def _sync_orders(self):
-        # Implementation assumes BrokerPort exposes a get_all_orders method. 
+        # Implementation assumes BrokerPort exposes a get_all_orders method.
         # For MVP, we pass as it requires further broker integration.
         logger.debug("Performing authoritative broker ledger sync...")
         # 1. Fetch broker state

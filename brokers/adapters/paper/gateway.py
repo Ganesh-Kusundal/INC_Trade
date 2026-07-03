@@ -26,6 +26,7 @@ from brokers.domain.enums import OrderStatus, OrderType, ProductType, Validity
 from brokers.ports import (
     InstrumentInfo,
 )
+from brokers.ports.streaming import StreamingPort
 
 
 class _PaperOrders:
@@ -170,11 +171,13 @@ class _PaperAuth:
 
 
 class _PaperHistorical:
-    def get_historical_candles(self, symbol, exchange, start_time, end_time, resolution):
+    def get_historical_candles(
+        self, symbol, exchange, start_time, end_time, resolution
+    ):
         return []
 
 
-class _PaperStreaming:
+class _PaperStreaming(StreamingPort):
     async def connect(self) -> None:
         pass
 
@@ -242,7 +245,7 @@ class PaperGateway:
         return self._historical
 
     @property
-    def streaming(self) -> _PaperStreaming:
+    def streaming(self) -> StreamingPort:
         return self._streaming
 
     def set_quote(self, symbol: str, ltp: Decimal) -> None:

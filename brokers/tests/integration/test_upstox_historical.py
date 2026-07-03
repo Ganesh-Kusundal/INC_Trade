@@ -1,4 +1,3 @@
-import pytest
 from datetime import datetime
 from decimal import Decimal
 from unittest.mock import Mock
@@ -13,16 +12,9 @@ def test_get_historical_candles():
         "status": "success",
         "data": {
             "candles": [
-                [
-                    "2023-11-20T00:00:00+05:30",
-                    2500.0,
-                    2510.0,
-                    2490.0,
-                    2505.0,
-                    10000
-                ]
+                ["2023-11-20T00:00:00+05:30", 2500.0, 2510.0, 2490.0, 2505.0, 10000]
             ]
-        }
+        },
     }
 
     historical = UpstoxHistorical(client)
@@ -34,7 +26,7 @@ def test_get_historical_candles():
         exchange="NSE",
         start_time=start,
         end_time=end,
-        resolution="1D"
+        resolution="1D",
     )
 
     assert len(candles) == 1

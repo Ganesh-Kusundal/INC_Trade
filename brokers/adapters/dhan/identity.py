@@ -19,9 +19,11 @@ from dataclasses import dataclass
 import requests
 
 from brokers.adapters.dhan.config import (
+    CSV_EXCHANGE_TO_SEGMENT,
     DHAN_SEGMENTS,
     ENDPOINTS,
     EXCHANGE_MAP,
+    INSTRUMENT_TO_SEGMENT,
     INSTRUMENT_TYPE_MAP,
 )
 from brokers.domain.exceptions import InstrumentNotFoundError
@@ -109,23 +111,30 @@ class DhanInstrumentResolver:
         security_id = (row.get("SEM_SMST_SECURITY_ID") or "").strip()
         if not symbol or not security_id:
             return None
+        # security_id may be a digit-only string; strip any decimal part first
+        security_id = security_id.split(".")[0]
         if not security_id.isdigit() or int(security_id) <= 0:
             return None
 
+        # CSV uses plain exchange codes: "NSE", "BSE", "MCX"
         exchange_code = (row.get("SEM_EXM_EXCH_ID") or "").strip().upper()
-        segment = EXCHANGE_MAP.get(exchange_code)
+        segment = CSV_EXCHANGE_TO_SEGMENT.get(exchange_code)
         if segment is None:
             return None
 
         instrument_name = (row.get("SEM_INSTRUMENT_NAME") or "").strip().upper()
         instrument_type = INSTRUMENT_TYPE_MAP.get(instrument_name, "EQUITY")
 
-        if instrument_name == "INDEX":
+        # Derivative instrument types override the base segment (e.g. NSE OPTIDX → NSE_FNO)
+        if instrument_name in INSTRUMENT_TO_SEGMENT:
+            segment = INSTRUMENT_TO_SEGMENT[instrument_name]
+        elif instrument_name == "INDEX":
             segment = "IDX_I"
 
+        # lot_size in CSV is a float string like "1.0" or "75.0"
         lot_size_raw = row.get("SEM_LOT_UNITS") or "1"
         try:
-            lot_size = int(lot_size_raw)
+            lot_size = int(float(lot_size_raw))
         except (TypeError, ValueError):
             lot_size = 1
 
@@ -143,24 +152,33 @@ class DhanInstrumentResolver:
     def resolve(self, symbol: str, exchange: str) -> DhanInstrumentRef:
         """Resolve symbol+exchange to a DhanInstrumentRef.
 
+        Accepts user-facing exchange names ("NSE", "NFO", "MCX", "BSE", "BFO")
+        or direct segment codes ("NSE_EQ", "NSE_FNO", "MCX_COMM").
         Raises InstrumentNotFoundError if not found.
         """
         if not self._loaded:
             self.load()
 
-        exchange_upper = exchange.upper()
-        segment = EXCHANGE_MAP.get(exchange_upper, exchange_upper)
-        key = (symbol.upper(), segment)
+        symbol_upper = symbol.strip().upper()
+        if not symbol_upper:
+            raise InstrumentNotFoundError(symbol)
 
+        exchange_upper = exchange.strip().upper()
+        # Translate user-facing exchange alias → segment code
+        segment = EXCHANGE_MAP.get(exchange_upper, exchange_upper)
+
+        key = (symbol_upper, segment)
         with self._lock:
             ref = self._by_symbol.get(key)
-
         if ref is not None:
             return ref
 
+        # Broader scan: match symbol across all segments within the exchange family
+        # e.g. user asks ("NIFTY", "NSE") but it lives in NSE_FNO
+        exchange_prefix = exchange_upper.split("_")[0]  # "NSE_FNO" → "NSE"
         with self._lock:
             for (sym, seg), candidate in self._by_symbol.items():
-                if sym.upper() == symbol.upper() and seg == segment:
+                if sym == symbol_upper and seg.startswith(exchange_prefix):
                     return candidate
 
         raise InstrumentNotFoundError(symbol)

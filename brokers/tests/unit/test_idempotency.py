@@ -5,7 +5,6 @@ from __future__ import annotations
 import threading
 import time
 
-import pytest
 
 from brokers.core.idempotency import IdempotencyCache
 
@@ -13,8 +12,11 @@ from brokers.core.idempotency import IdempotencyCache
 class TestIdempotencyCache:
     def setup_method(self, tmp_path=None):
         import tempfile
+
         self._tmpdir = tempfile.mkdtemp()
-        self.cache = IdempotencyCache(fallback_dir=self._tmpdir, ttl_seconds=60.0, max_size=100)
+        self.cache = IdempotencyCache(
+            fallback_dir=self._tmpdir, ttl_seconds=60.0, max_size=100
+        )
 
     def test_first_call_returns_true(self):
         assert self.cache.check_and_set("order-1") is True
@@ -36,13 +38,17 @@ class TestIdempotencyCache:
 class TestIdempotencyTTL:
     def setup_method(self):
         import tempfile
+
         self._tmpdir = tempfile.mkdtemp()
 
     def test_expired_entries_evicted(self):
-        cache = IdempotencyCache(fallback_dir=self._tmpdir, ttl_seconds=0.05, max_size=100)
+        cache = IdempotencyCache(
+            fallback_dir=self._tmpdir, ttl_seconds=0.05, max_size=100
+        )
         cache.check_and_set("order-1")
         time.sleep(0.1)
         import os
+
         file_path = os.path.join(self._tmpdir, "order-1.json")
         if os.path.exists(file_path):
             os.remove(file_path)
@@ -52,10 +58,13 @@ class TestIdempotencyTTL:
 class TestIdempotencyLRU:
     def setup_method(self):
         import tempfile
+
         self._tmpdir = tempfile.mkdtemp()
 
     def test_max_size_eviction(self):
-        cache = IdempotencyCache(fallback_dir=self._tmpdir, ttl_seconds=3600, max_size=3)
+        cache = IdempotencyCache(
+            fallback_dir=self._tmpdir, ttl_seconds=3600, max_size=3
+        )
         cache.check_and_set("a")
         cache.check_and_set("b")
         cache.check_and_set("c")
@@ -66,10 +75,13 @@ class TestIdempotencyLRU:
 class TestIdempotencyThreadSafety:
     def setup_method(self):
         import tempfile
+
         self._tmpdir = tempfile.mkdtemp()
 
     def test_concurrent_check_and_set(self):
-        cache = IdempotencyCache(fallback_dir=self._tmpdir, ttl_seconds=60, max_size=100)
+        cache = IdempotencyCache(
+            fallback_dir=self._tmpdir, ttl_seconds=60, max_size=100
+        )
         results = []
         barrier = threading.Barrier(10)
 
@@ -90,8 +102,11 @@ class TestIdempotencyThreadSafety:
 class TestIdempotencyLock:
     def setup_method(self):
         import tempfile
+
         self._tmpdir = tempfile.mkdtemp()
-        self.cache = IdempotencyCache(fallback_dir=self._tmpdir, ttl_seconds=60, max_size=100)
+        self.cache = IdempotencyCache(
+            fallback_dir=self._tmpdir, ttl_seconds=60, max_size=100
+        )
 
     def test_lock_acquired_first_time(self):
         with self.cache.lock("key-1") as lk:

@@ -51,7 +51,9 @@ class OrderResponse:
         return cls(success=False, message=message, error_code=error_code)
 
     @classmethod
-    def ok(cls, order_id: str, status: OrderStatus = OrderStatus.PENDING) -> OrderResponse:
+    def ok(
+        cls, order_id: str, status: OrderStatus = OrderStatus.PENDING
+    ) -> OrderResponse:
         return cls(order_id=order_id, success=True, status=status)
 
     @classmethod
@@ -164,4 +166,3 @@ class Candle:
     low: Decimal
     close: Decimal
     volume: int
-

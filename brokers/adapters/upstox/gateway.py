@@ -10,6 +10,7 @@ from brokers.adapters.upstox.market_data import UpstoxMarketData
 from brokers.adapters.upstox.orders import UpstoxOrders
 from brokers.adapters.upstox.portfolio import UpstoxPortfolio
 from brokers.adapters.upstox.streaming import UpstoxStreaming
+from brokers.ports.streaming import StreamingPort
 
 
 class UpstoxGateway:
@@ -54,7 +55,7 @@ class UpstoxGateway:
         return self._historical
 
     @property
-    def streaming(self) -> UpstoxStreaming:
+    def streaming(self) -> StreamingPort:
         return self._streaming
 
     def close(self) -> None:

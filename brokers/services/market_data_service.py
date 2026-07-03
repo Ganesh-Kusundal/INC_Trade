@@ -10,14 +10,14 @@ import logging
 import threading
 import time
 from decimal import Decimal
-from typing import Union, cast
+from typing import cast
 
 from brokers.domain import MarketDepth, Quote
 from brokers.ports.market_data import MarketDataPort
 
 logger = logging.getLogger(__name__)
 
-_CacheEntry = tuple[float, Union[Quote, MarketDepth]]
+_CacheEntry = tuple[float, Quote | MarketDepth]
 
 
 class MarketDataService:

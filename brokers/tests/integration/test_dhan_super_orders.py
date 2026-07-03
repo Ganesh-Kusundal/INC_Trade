@@ -2,9 +2,8 @@ import pytest
 from decimal import Decimal
 from unittest.mock import Mock
 
-from brokers.adapters.dhan.extensions.models import SuperOrder, SuperOrderLeg
 from brokers.adapters.dhan.extensions.super_orders import DhanSuperOrders
-from brokers.domain.enums import Side, OrderType, ProductType
+from brokers.domain.enums import Side
 
 
 def test_place_super_order_success():
@@ -13,11 +12,9 @@ def test_place_super_order_success():
         "orderId": "12345",
         "orderStatus": "PENDING",
         "transactionType": "BUY",
-        "legDetails": [
-            {"legName": "ENTRY_LEG", "orderStatus": "PENDING"}
-        ]
+        "legDetails": [{"legName": "ENTRY_LEG", "orderStatus": "PENDING"}],
     }
-    
+
     resolver = Mock()
     ref = Mock()
     ref.exchange_segment = "NSE_EQ"
@@ -25,7 +22,7 @@ def test_place_super_order_success():
     resolver.resolve.return_value = ref
 
     adapter = DhanSuperOrders(client, resolver)
-    
+
     order = adapter.place_super_order(
         symbol="RELIANCE",
         exchange="NSE",
@@ -36,16 +33,16 @@ def test_place_super_order_success():
         stop_loss_price=Decimal("2400"),
         trailing_jump=Decimal("10"),
     )
-    
+
     assert order.order_id == "12345"
     assert len(order.leg_details) == 1
     assert order.leg_details[0].leg_name == "ENTRY_LEG"
-    
+
     # Verify payload format (especially float serialization)
     client.post.assert_called_once()
     args, kwargs = client.post.call_args
     payload = kwargs["json"]
-    
+
     assert payload["price"] == 2500.0
     assert payload["targetPrice"] == 2600.0
     assert payload["stopLossPrice"] == 2400.0

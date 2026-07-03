@@ -46,28 +46,44 @@ from brokers.domain.exceptions import (
     OrderRejectedError as OrderRejectedError,
     RateLimitError as RateLimitError,
     RetryableError as RetryableError,
+    TokenRateLimitError as TokenRateLimitError,
     TradeXV2Error as TradeXV2Error,
     ValidationError as ValidationError,
 )
 from brokers.ports import (
     AuthPort as AuthPort,
     BrokerGateway as BrokerGateway,
+    ClockPort as ClockPort,
+    HistoricalPort as HistoricalPort,
     InstrumentInfo as InstrumentInfo,
     InstrumentPort as InstrumentPort,
     MarketDataPort as MarketDataPort,
     OrderExecutionPort as OrderExecutionPort,
     PortfolioPort as PortfolioPort,
+    StreamingPort as StreamingPort,
 )
 
 
-def create_broker(name: str, allow_live_orders: bool = False, **credentials: Any) -> BrokerGateway:
+def create_broker(
+    name: str,
+    allow_live_orders: bool = False,
+    env_path: str | None = None,
+    token_state_dir: str | None = None,
+    auto_refresh: bool = True,
+    lifecycle: Any | None = None,
+    **credentials: Any,
+) -> BrokerGateway:
     """Factory — create a broker gateway by name.
 
     Args:
         name: Broker name — "dhan", "upstox", or "paper".
         allow_live_orders: Enable live order placement (kill switch). Defaults to False for safety.
+        env_path: Path to .env file for token persistence (Dhan only).
+        token_state_dir: Directory for JSON token state persistence (Dhan only).
+        auto_refresh: Enable background token refresh scheduler (Dhan only).
+        lifecycle: Optional lifecycle manager to register scheduler with (Dhan only).
         **credentials: Broker-specific credentials.
-            - dhan: access_token, client_id
+            - dhan: access_token, client_id, pin, totp_secret
             - upstox: access_token
             - paper: initial_cash (optional)
 
@@ -77,6 +93,8 @@ def create_broker(name: str, allow_live_orders: bool = False, **credentials: Any
     Raises:
         ValueError: If broker name is unknown.
     """
+    from pathlib import Path
+
     name = name.lower().strip()
     if name == "dhan":
         from brokers.adapters.dhan.gateway import DhanGateway
@@ -87,6 +105,10 @@ def create_broker(name: str, allow_live_orders: bool = False, **credentials: Any
             pin=credentials.get("pin"),
             totp_secret=credentials.get("totp_secret"),
             allow_live_orders=allow_live_orders,
+            env_path=Path(env_path) if env_path else None,
+            token_state_dir=Path(token_state_dir) if token_state_dir else None,
+            auto_refresh=auto_refresh,
+            lifecycle=lifecycle,
         )
     if name == "upstox":
         from brokers.adapters.upstox.gateway import UpstoxGateway
