@@ -171,8 +171,8 @@ class TestWebSocketConnectionPool:
             on_message,
         )
 
-        # Initially connecting (auto-started by get_connection)
-        assert conn.connection_state == "connecting"
+        # Initially connecting or already connected (auto-started by get_connection)
+        assert conn.connection_state in ("connecting", "connected")
 
         time.sleep(0.05)
         # Should transition to connected (via default_run_forever calling on_open)

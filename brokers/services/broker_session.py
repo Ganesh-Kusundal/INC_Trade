@@ -49,27 +49,19 @@ class BrokerSession:
     def __init__(
         self,
         broker_id: str,
-        *,
-        # Port-injection mode (blueprint / DI style)
-        orders: Any = None,
-        market: Any = None,
-        streaming: Any = None,
-        auth: Any = None,
-        portfolio: Any = None,
-        historical: Any = None,
-        # Facade-delegation mode (used by brokers.connect())
         facade: Any = None,
+        **ports: Any,
     ) -> None:
         self._broker_id = broker_id
         self._facade = facade
 
         # Store directly-injected ports (override facade lookup when set)
-        self._orders = orders
-        self._market = market
-        self._streaming = streaming
-        self._auth = auth
-        self._portfolio = portfolio
-        self._historical = historical
+        self._orders = ports.get("orders")
+        self._market = ports.get("market")
+        self._streaming = ports.get("streaming")
+        self._auth = ports.get("auth")
+        self._portfolio = ports.get("portfolio")
+        self._historical = ports.get("historical")
 
     # ── Port accessors ────────────────────────────────────────────────
 

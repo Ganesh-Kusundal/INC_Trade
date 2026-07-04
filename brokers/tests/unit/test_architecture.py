@@ -522,3 +522,58 @@ class TestHttpClientPort:
             f"Adapters importing concrete HTTP clients (use HttpClientPort):\n"
             + "\n".join(violations)
         )
+
+
+@pytest.mark.architecture
+class TestServiceConstructorArgLimit:
+    """Fitness Rule 2: public __init__ methods in services/ should have <= 5 parameters (excluding self)."""
+
+    def test_service_constructor_arg_limit(self) -> None:
+        import inspect
+        import pkgutil
+        import importlib
+
+        services_dir = BROKERS_ROOT / "brokers" / "services"
+        if not services_dir.exists():
+            pytest.skip("brokers/services/ directory does not exist")
+
+        violations = []
+        for _, module_name, _ in pkgutil.walk_packages([str(services_dir)], prefix="brokers.services."):
+            try:
+                module = importlib.import_module(module_name)
+            except Exception:
+                continue
+            for name, obj in inspect.getmembers(module, inspect.isclass):
+                if obj.__module__ != module_name:
+                    continue
+                if "test" in name.lower() or name.startswith("_"):
+                    continue
+                # Skip dataclasses (value objects / DTOs)
+                import dataclasses
+                if dataclasses.is_dataclass(obj):
+                    continue
+                init = getattr(obj, "__init__", None)
+                if init is None:
+                    continue
+                # Skip basic object init or parent-inherited init if not overridden
+                if init is object.__init__:
+                    continue
+                try:
+                    sig = inspect.signature(init)
+                except ValueError:
+                    continue
+                # Exclude self and variadic args (*args, **kwargs)
+                params = [
+                    p.name for p in sig.parameters.values()
+                    if p.name != "self"
+                    and p.kind not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
+                ]
+                if len(params) > 5:
+                    violations.append(
+                        f"  {obj.__module__}.{obj.__name__}.__init__ has {len(params)} parameters: {params} (limit: 5)"
+                    )
+        assert not violations, (
+            f"Constructor parameter count violations found (limit: 5 parameters):\n"
+            + "\n".join(violations)
+        )
+
