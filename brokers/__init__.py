@@ -142,6 +142,7 @@ from brokers.ports import (
 from brokers.services.broker_facade import (
     BrokerFacade as BrokerFacade,
 )
+from brokers.services.broker_session import BrokerSession as BrokerSession
 
 
 def create_broker(
@@ -199,7 +200,7 @@ def create_broker(
         )
         from brokers.ports.extension_registry import DictExtensionRegistry
         from brokers.ports.capabilities import (
-            KillSwitchProvider, 
+            KillSwitchProvider,
             SliceOrderProvider,
             MarginProvider,
             ForeverOrderProvider,
@@ -212,7 +213,7 @@ def create_broker(
         registry.register("dhan", MarginProvider, dhan_gw.margin)
         registry.register("dhan", ForeverOrderProvider, dhan_gw.forever_orders)
         registry.register("dhan", SuperOrderProvider, dhan_gw.super_orders)
-        
+
         return BrokerFacade(cast(BrokerGateway, dhan_gw), allow_live_orders=allow_live_orders, extension_registry=registry)
     if name == "upstox":
         from brokers.adapters.upstox.gateway import UpstoxGateway
@@ -241,3 +242,43 @@ def create_broker(
         registry = DictExtensionRegistry()
         return BrokerFacade(cast(BrokerGateway, paper_gw), allow_live_orders=allow_live_orders, extension_registry=registry)
     raise ValueError(f"Unknown broker: {name!r}. Choose from: dhan, upstox, paper")
+
+
+def connect(
+    name: str | BrokerID,
+    allow_live_orders: bool = False,
+    env_path: str | None = None,
+    token_state_dir: str | None = None,
+    auto_refresh: bool = True,
+    lifecycle: Any | None = None,
+    **credentials: Any,
+) -> BrokerSession:
+    """Create a BrokerSession — the recommended public API.
+
+    Wraps create_broker() and returns a typed BrokerSession composition root
+    with named port properties (orders, market, streaming, auth, portfolio, historical).
+
+    Example::
+
+        broker = brokers.connect("paper")
+        broker.orders.place_order("RELIANCE", "NSE", Side.BUY, 10)
+
+        broker = brokers.connect("dhan", access_token="...", client_id="...")
+        broker.streaming.subscribe("NSE:RELIANCE", on_tick)
+        broker.close()
+    """
+    facade = create_broker(
+        name,
+        allow_live_orders=allow_live_orders,
+        env_path=env_path,
+        token_state_dir=token_state_dir,
+        auto_refresh=auto_refresh,
+        lifecycle=lifecycle,
+        **credentials,
+    )
+    broker_id_str = name.value if isinstance(name, BrokerID) else str(name)
+    return BrokerSession(
+        broker_id=broker_id_str,
+        facade=facade,
+    )
+

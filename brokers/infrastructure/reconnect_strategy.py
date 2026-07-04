@@ -10,7 +10,10 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
+
+if TYPE_CHECKING:
+    from brokers.resilience.backoff_policy import BackoffPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +42,13 @@ class ReconnectStrategy:
         max_delay: float = 60.0,
         max_retries: int = 10,
         retry_logger: Callable[[str], None] | None = None,
+        policy: "BackoffPolicy | None" = None,
     ) -> None:
         self._base_delay = base_delay
         self._max_delay = max_delay
         self._max_retries = max_retries
         self._retry_logger = retry_logger or logger.warning
+        self._policy = policy
         self._attempt = 0
         self._current_delay = base_delay
 
@@ -60,17 +65,23 @@ class ReconnectStrategy:
     def wait(self) -> None:
         """Sleep for the current backoff delay.
 
-        After sleeping, increments the attempt counter and doubles the delay
-        (capped at *max_delay*).
+        If a BackoffPolicy is set, delegates delay calculation to the policy.
+        Otherwise uses built-in exponential doubling (capped at max_delay).
         """
-        time.sleep(self._current_delay)
+        if self._policy is not None:
+            delay = self._policy.next_delay(self._attempt)
+        else:
+            delay = self._current_delay
+            self._current_delay = min(self._current_delay * 2, self._max_delay)
+        time.sleep(delay)
         self._attempt += 1
-        self._current_delay = min(self._current_delay * 2, self._max_delay)
 
     def reset(self) -> None:
         """Reset backoff after a successful connection."""
         self._attempt = 0
         self._current_delay = self._base_delay
+        if self._policy is not None:
+            self._policy.reset()
 
     @property
     def attempt(self) -> int:

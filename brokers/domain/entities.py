@@ -163,6 +163,7 @@ class Quote:
     close: Decimal = Decimal("0")
     volume: int = 0
     timestamp: datetime | None = None
+    seq_no: int = 0  # Monotonic sequence number (Kleppmann ordering guarantee)
 
     def is_stale(self, max_age_seconds: float = 5.0) -> bool:
         """Check if quote data is stale based on timestamp."""

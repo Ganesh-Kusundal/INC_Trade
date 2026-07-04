@@ -12,6 +12,7 @@ import websocket
 
 from brokers.domain.entities import Quote
 from brokers.infrastructure.reconnect_strategy import ReconnectStrategy
+from brokers.infrastructure.seq_counter import SequenceCounter
 from brokers.ports.streaming import StreamHandle, StreamingPort
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,9 @@ __all__ = [
     "ConnectCallback",
     "DisconnectCallback",
 ]
+
+# Module-level monotonic tick sequence counter (Kleppmann ordering guarantee)
+_TICK_SEQ = SequenceCounter()
 
 
 class BaseWebSocketStreaming(StreamingPort):
@@ -83,6 +87,8 @@ class BaseWebSocketStreaming(StreamingPort):
             self._tick_handlers.pop(subscription_key, None)
 
     def _dispatch_tick(self, tick: dict[str, Any], subscription_key: str | None = None) -> None:
+        # Stamp monotonic sequence number for ordering guarantee (Kleppmann blueprint)
+        tick["seq_no"] = _TICK_SEQ.next()
         if self._on_tick:
             self._on_tick(tick)
         if subscription_key:
@@ -253,6 +259,7 @@ class BaseWebSocketStreaming(StreamingPort):
                     low=Decimal(str(tick.get("low", 0))),
                     close=Decimal(str(tick.get("close", 0))),
                     volume=int(tick.get("volume", 0)),
+                    seq_no=int(tick.get("seq_no", 0)),
                 )
                 on_tick(quote)
 

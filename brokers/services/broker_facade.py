@@ -13,6 +13,7 @@ Usage::
 from __future__ import annotations
 
 import logging
+import warnings
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
@@ -291,4 +292,10 @@ class BrokerFacade:
         This is provided for backward compatibility. New code should
         use the facade methods directly.
         """
+        warnings.warn(
+            "_underlying_gateway is deprecated. Use facade service methods directly "
+            "(e.g. broker.orders, broker.market_data, broker.portfolio).",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._gateway
