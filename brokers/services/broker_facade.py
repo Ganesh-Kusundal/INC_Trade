@@ -36,6 +36,7 @@ from brokers.ports.extension_registry import ExtensionRegistryPort
 from brokers.services.historical_service import HistoricalService
 from brokers.services.instrument_service import InstrumentService
 from brokers.services.market_data_service import MarketDataService
+from brokers.services.options_service import OptionsService
 from brokers.services.order_service import OrderService
 from brokers.services.portfolio_service import PortfolioService
 from brokers.utils.idempotency_cache import TypedIdempotencyCache
@@ -75,6 +76,7 @@ class BrokerFacade:
         self._portfolio_service = PortfolioService(gateway.portfolio)
         self._historical_service = HistoricalService(gateway.historical)
         self._instrument_service = InstrumentService(gateway.instruments)
+        self._options_service = OptionsService(getattr(gateway, "options", None))
 
     # --- Identity ---
 
@@ -184,7 +186,7 @@ class BrokerFacade:
         """Get market depth."""
         return self._market_data_service.depth(symbol, exchange)
 
-    def get_candles(
+    def get_historical_candles(
         self,
         symbol: str,
         exchange: str = "NSE",
@@ -192,14 +194,14 @@ class BrokerFacade:
         from_date: str | None = None,
         to_date: str | None = None,
     ) -> list[Candle]:
-        """Get historical candles via the gateway's historical port."""
+        """Get historical candles via the historical service."""
         from datetime import datetime
 
         if from_date is None or to_date is None:
             return []
         start = datetime.fromisoformat(from_date)
         end = datetime.fromisoformat(to_date)
-        return self._gateway.historical.get_historical_candles(
+        return self._historical_service.fetch_candles(
             symbol=symbol,
             exchange=exchange,
             start_time=start,
@@ -213,26 +215,16 @@ class BrokerFacade:
         exchange: str = "NFO",
         expiry: str | None = None,
     ) -> Any:
-        """Get full option chain for a specific expiry via the gateway's options port."""
-        options = self._gateway.options
-        if options is None:
-            from brokers.domain.exceptions import NotSupportedError
-
-            raise NotSupportedError("Options not supported by this broker")
-        return options.get_option_chain(
+        """Get full option chain for a specific expiry via the options service."""
+        return self._options_service.get_option_chain(
             underlying=underlying,
             exchange=exchange,
             expiry=expiry,
         )
 
     def get_expiries(self, underlying: str, exchange: str = "NFO") -> list[str]:
-        """Get available option expiries for an underlying."""
-        options = self._gateway.options
-        if options is None:
-            from brokers.domain.exceptions import NotSupportedError
-
-            raise NotSupportedError("Options not supported by this broker")
-        return options.get_expiries(
+        """Get available option expiries for an underlying via the options service."""
+        return self._options_service.get_expiries(
             underlying=underlying,
             exchange=exchange,
         )
@@ -276,6 +268,16 @@ class BrokerFacade:
     def extensions(self) -> ExtensionRegistryPort:
         """Access broker-specific capabilities via the extension registry."""
         return self._registry
+
+    @property
+    def auth(self) -> Any:
+        """Access the authentication service/port."""
+        return self._gateway.auth
+
+    @property
+    def streaming(self) -> Any:
+        """Access the streaming WebSocket service/port."""
+        return self._gateway.streaming
 
     # --- Lifecycle ---
 

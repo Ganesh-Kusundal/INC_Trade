@@ -11,6 +11,7 @@ from brokers.services.historical_service import HistoricalService
 from brokers.services.market_data_service import MarketDataService
 from brokers.services.order_service import OrderService
 from brokers.services.portfolio_service import PortfolioService
+from brokers.services.options_service import OptionsService
 from brokers.services.shadow_broker import ShadowBroker
 
 __all__ = [
@@ -20,5 +21,6 @@ __all__ = [
     "MarketDataService",
     "OrderService",
     "PortfolioService",
+    "OptionsService",
     "ShadowBroker",
 ]

@@ -367,9 +367,7 @@ class TestNoHasattrOnGateway:
 class TestNoAdapterImportsService:
     """Adapters must not import from services/."""
 
-    ALLOWED_PATTERNS = [
-        "INC_Trade/brokers/adapters/dhan/reconciliation.py",  # Phase 2 target (inject port)
-    ]
+    ALLOWED_PATTERNS: list[str] = []
 
     def test_adapters_not_import_services(self) -> None:
         adapter_dir = BROKERS_ROOT / "brokers" / "adapters"

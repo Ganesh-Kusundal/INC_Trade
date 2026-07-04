@@ -89,17 +89,23 @@ class ReconnectingServiceMixin(Generic[_CallbackT]):
     # ── Backoff ───────────────────────────────────────────────────────────
 
     def _backoff_sleep(self, current: float) -> float:
-        """Sleep for backoff and return next value.
+        """Sleep for backoff and return next value using central backoff policy.
 
         Uses Event.wait so stop() interrupts immediately.
         """
-        wait = min(current, self.MAX_BACKOFF)
-        self._stop_event.wait(timeout=wait)
-        return min(current * 2, self.MAX_BACKOFF)
+        from brokers.resilience.backoff_policy import JitteredExponentialBackoff
+        policy = JitteredExponentialBackoff(base=current, max_delay=self.MAX_BACKOFF)
+        # Attempt 1 doubles the base value (current) and adds jitter
+        wait = policy.next_delay(attempt=1)
+        self._stop_event.wait(timeout=min(current, self.MAX_BACKOFF))
+        return wait
 
     def _on_clean_disconnect(self) -> float:
         """Reset state after clean disconnect. Always resets backoff to initial."""
         self._reconnect_count += 1
+        self._reconnect_attempt = 0
+        if hasattr(self, "_backoff_policy"):
+            self._backoff_policy.reset()
         return self.INITIAL_BACKOFF
 
     def _on_reconnect_failure(self, current: float) -> float:

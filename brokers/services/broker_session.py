@@ -90,9 +90,7 @@ class BrokerSession:
         if self._streaming is not None:
             return self._streaming
         if self._facade is not None:
-            gw = getattr(self._facade, "_gateway", None)
-            if gw is not None:
-                return getattr(gw, "streaming", self._facade)
+            return getattr(self._facade, "streaming", self._facade)
         return self._facade
 
     @property
@@ -101,9 +99,7 @@ class BrokerSession:
         if self._auth is not None:
             return self._auth
         if self._facade is not None:
-            gw = getattr(self._facade, "_gateway", None)
-            if gw is not None:
-                return getattr(gw, "auth", self._facade)
+            return getattr(self._facade, "auth", self._facade)
         return self._facade
 
     @property
@@ -138,34 +134,46 @@ class BrokerSession:
 
     def close(self) -> None:
         """Close the broker session and release all resources."""
+        import time
+
         streaming = self.streaming
         if streaming is not None:
             disconnect = getattr(streaming, "disconnect", None)
             if disconnect is not None:
-                try:
-                    result = disconnect()
-                    import inspect
-                    if inspect.isawaitable(result):
-                        import asyncio
-                        try:
-                            loop = asyncio.get_event_loop()
-                            if loop.is_running():
-                                loop.create_task(result)
-                            else:
-                                loop.run_until_complete(result)
-                        except RuntimeError:
-                            pass
-                except Exception as exc:  # noqa: BLE001
-                    logger.warning("Error closing streaming: %s", exc)
+                for attempt in range(3):
+                    try:
+                        result = disconnect()
+                        import inspect
+                        if inspect.isawaitable(result):
+                            import asyncio
+                            try:
+                                loop = asyncio.get_event_loop()
+                                if loop.is_running():
+                                    loop.create_task(result)
+                                else:
+                                    loop.run_until_complete(result)
+                            except RuntimeError:
+                                pass
+                        break
+                    except Exception as exc:  # noqa: BLE001
+                        if attempt == 2:
+                            logger.warning("Error closing streaming: %s", exc)
+                        else:
+                            time.sleep(0.1)
 
         # Delegate to facade close if available
         if self._facade is not None:
             close_fn = getattr(self._facade, "close", None)
             if close_fn is not None:
-                try:
-                    close_fn()
-                except Exception as exc:  # noqa: BLE001
-                    logger.warning("Error closing facade: %s", exc)
+                for attempt in range(3):
+                    try:
+                        close_fn()
+                        break
+                    except Exception as exc:  # noqa: BLE001
+                        if attempt == 2:
+                            logger.warning("Error closing facade: %s", exc)
+                        else:
+                            time.sleep(0.1)
 
     def __repr__(self) -> str:
         return f"BrokerSession(broker_id={self._broker_id!r})"

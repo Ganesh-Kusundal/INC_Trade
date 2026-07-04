@@ -264,7 +264,8 @@ class BinaryDepthFeed(ReconnectingServiceMixin, ManagedService):
 
             if not self._stop_event.is_set():
                 self._reconnect_count += 1
-                time.sleep(min(2 ** min(self._reconnect_count, 5), 30))
+                delay = float(min(2 ** min(self._reconnect_count, 5), 30))
+                self._backoff_sleep(delay)
 
     def _connect_and_run(self) -> None:
         """Establish WebSocket and process messages."""

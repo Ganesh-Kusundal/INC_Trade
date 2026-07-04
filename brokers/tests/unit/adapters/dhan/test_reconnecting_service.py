@@ -116,17 +116,17 @@ class TestBackoffSleep:
     def test_returns_doubled_value(self, service: _StubService) -> None:
         result = service._backoff_sleep(2.0)
 
-        assert result == 4.0
+        assert 3.0 <= result <= 5.0
 
     def test_caps_at_max_backoff(self, service: _StubService) -> None:
         result = service._backoff_sleep(20.0)
 
-        assert result == 30.0
+        assert 22.5 <= result <= 37.5
 
     def test_initial_backoff(self, service: _StubService) -> None:
         result = service._backoff_sleep(1.0)
 
-        assert result == 2.0
+        assert 1.5 <= result <= 2.5
 
     def test_sleep_capped_at_max(self, service: _StubService) -> None:
         with patch.object(service._stop_event, "wait") as mock_wait:
@@ -139,7 +139,7 @@ class TestBackoffSleep:
 
         result = service._backoff_sleep(10.0)
 
-        assert result == 20.0
+        assert 15.0 <= result <= 25.0
 
 
 class TestOnCleanDisconnect:

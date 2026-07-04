@@ -110,112 +110,22 @@ class DhanGateway:
         risk_manager: RiskManagerPort | None = None,
         token_store: TokenStorePort | None = None,
     ):
-        self._env_path = env_path
-        self._token_state_dir = token_state_dir
-        self._auto_refresh = auto_refresh
-
-        # Create token store if directory provided (backward compat fallback)
-        self._token_store = token_store
-        if self._token_store is None and token_state_dir:
-            token_state_dir.mkdir(parents=True, exist_ok=True)
-            from brokers.infrastructure.storage.token_store import JsonTokenStateStore
-
-            self._token_store = JsonTokenStateStore(token_state_dir / "dhan-token-state.json")
-
-        self._auth = DhanAuth(
+        builder = DhanGatewayBuilder(self)
+        builder.build(
             access_token=access_token,
             client_id=client_id,
             pin=pin,
             totp_secret=totp_secret,
-            token_store=self._token_store,
-        )
-
-        # Connection manager — owns token lifecycle, broadcast, scheduler
-        self._conn_mgr = DhanConnectionManager(
-            auth=self._auth,
-            client_id=client_id or "",
-            pin=pin,
-            totp_secret=totp_secret,
-            token_store=self._token_store,
+            allow_live_orders=allow_live_orders,
             env_path=env_path,
             token_state_dir=token_state_dir,
             auto_refresh=auto_refresh,
             refresh_interval_seconds=refresh_interval_seconds,
             refresh_buffer_seconds=refresh_buffer_seconds,
             lifecycle=lifecycle,
-        )
-
-        token = self._auth.get_token()
-
-        self._client = create_dhan_http_client(
-            client_id=client_id or "",
-            access_token=token,
-            token_refresh_fn=self._conn_mgr.refresh_token_for_http,
-        )
-
-        self._resolver = DhanInstrumentResolver()
-        self._orders = DhanOrders(
-            self._client,
-            self._resolver,
             event_bus=event_bus,
             risk_manager=risk_manager,
-        )
-        self._market_data = DhanMarketData(self._client, self._resolver)
-        self._portfolio = DhanPortfolio(self._client)
-        self._instruments = DhanInstruments(self._resolver)
-        self._historical = DhanHistorical(self._client, self._resolver)
-        self._options = DhanOptions(self._client, self._instruments)
-
-        # Extensions
-        self._margin = DhanMargin(self._client, self._resolver)
-        self._forever_orders = DhanForeverOrders(self._client, self._resolver)
-        self._super_orders = DhanSuperOrders(self._client, self._resolver)
-
-        self._streaming = DhanStreaming(
-            access_token=self._auth.get_token,
-            client_id=client_id or "",
-            resolver=self._resolver,
-        )
-
-        self._order_stream = DhanOrderStream(
-            access_token=self._auth.get_token,
-            client_id=client_id or "",
-        )
-
-        self._depth20_stream = DhanDepth20Stream(
-            access_token=self._auth.get_token,
-            client_id=client_id or "",
-            resolver=self._resolver,
-        )
-
-        self._depth200_stream = DhanDepth200Stream(
-            access_token=self._auth.get_token,
-            client_id=client_id or "",
-            resolver=self._resolver,
-        )
-
-        # Register token consumers on the connection manager
-        for consumer in (
-            self._client.update_token,
-            self._streaming.update_token,
-            self._order_stream.update_token,
-            self._depth20_stream.update_token,
-            self._depth200_stream.update_token,
-        ):
-            self._conn_mgr.register_consumer(consumer)
-
-        # Persist initial token if configured
-        self._conn_mgr.persist_initial_token()
-
-        # Health reporter — aggregated health, connection status, metrics
-        self._health_reporter = DhanHealthReporter(
-            auth=self._auth,
-            connection_manager=self._conn_mgr,
-            http_client=self._client,
-            streaming=self._streaming,
-            order_stream=self._order_stream,
-            depth20_stream=self._depth20_stream,
-            depth200_stream=self._depth200_stream,
+            token_store=token_store,
         )
 
     @property
@@ -347,3 +257,136 @@ class DhanGateway:
         if admission is not None:
             with contextlib.suppress(Exception):
                 admission.release()
+
+
+class DhanGatewayBuilder:
+    """Builder class extracting complex subcomponent wiring from DhanGateway."""
+
+    def __init__(self, gateway: DhanGateway) -> None:
+        self.gateway = gateway
+
+    def build(
+        self,
+        access_token: str | None = None,
+        client_id: str | None = None,
+        pin: str | None = None,
+        totp_secret: str | None = None,
+        allow_live_orders: bool = False,
+        env_path: Path | None = None,
+        token_state_dir: Path | None = None,
+        auto_refresh: bool = True,
+        refresh_interval_seconds: int = 60,
+        refresh_buffer_seconds: float = 300.0,
+        lifecycle: LifecycleManager | None = None,
+        event_bus: EventPublisherPort | None = None,
+        risk_manager: RiskManagerPort | None = None,
+        token_store: TokenStorePort | None = None,
+    ) -> None:
+        gw = self.gateway
+        gw._env_path = env_path
+        gw._token_state_dir = token_state_dir
+        gw._auto_refresh = auto_refresh
+
+        # Create token store if directory provided (backward compat fallback)
+        gw._token_store = token_store
+        if gw._token_store is None and token_state_dir:
+            token_state_dir.mkdir(parents=True, exist_ok=True)
+            from brokers.infrastructure.storage.token_store import JsonTokenStateStore
+
+            gw._token_store = JsonTokenStateStore(token_state_dir / "dhan-token-state.json")
+
+        gw._auth = DhanAuth(
+            access_token=access_token,
+            client_id=client_id,
+            pin=pin,
+            totp_secret=totp_secret,
+            token_store=gw._token_store,
+        )
+
+        # Connection manager — owns token lifecycle, broadcast, scheduler
+        gw._conn_mgr = DhanConnectionManager(
+            auth=gw._auth,
+            client_id=client_id or "",
+            pin=pin,
+            totp_secret=totp_secret,
+            token_store=gw._token_store,
+            env_path=env_path,
+            token_state_dir=token_state_dir,
+            auto_refresh=auto_refresh,
+            refresh_interval_seconds=refresh_interval_seconds,
+            refresh_buffer_seconds=refresh_buffer_seconds,
+            lifecycle=lifecycle,
+        )
+
+        token = gw._auth.get_token()
+
+        gw._client = create_dhan_http_client(
+            client_id=client_id or "",
+            access_token=token,
+            token_refresh_fn=gw._conn_mgr.refresh_token_for_http,
+        )
+
+        gw._resolver = DhanInstrumentResolver()
+        gw._orders = DhanOrders(
+            gw._client,
+            gw._resolver,
+            event_bus=event_bus,
+            risk_manager=risk_manager,
+        )
+        gw._market_data = DhanMarketData(gw._client, gw._resolver)
+        gw._portfolio = DhanPortfolio(gw._client)
+        gw._instruments = DhanInstruments(gw._resolver)
+        gw._historical = DhanHistorical(gw._client, gw._resolver)
+        gw._options = DhanOptions(gw._client, gw._instruments)
+
+        # Extensions
+        gw._margin = DhanMargin(gw._client, gw._resolver)
+        gw._forever_orders = DhanForeverOrders(gw._client, gw._resolver)
+        gw._super_orders = DhanSuperOrders(gw._client, gw._resolver)
+
+        gw._streaming = DhanStreaming(
+            access_token=gw._auth.get_token,
+            client_id=client_id or "",
+            resolver=gw._resolver,
+        )
+
+        gw._order_stream = DhanOrderStream(
+            access_token=gw._auth.get_token,
+            client_id=client_id or "",
+        )
+
+        gw._depth20_stream = DhanDepth20Stream(
+            access_token=gw._auth.get_token,
+            client_id=client_id or "",
+            resolver=gw._resolver,
+        )
+
+        gw._depth200_stream = DhanDepth200Stream(
+            access_token=gw._auth.get_token,
+            client_id=client_id or "",
+            resolver=gw._resolver,
+        )
+
+        # Register token consumers on the connection manager
+        for consumer in (
+            gw._client.update_token,
+            gw._streaming.update_token,
+            gw._order_stream.update_token,
+            gw._depth20_stream.update_token,
+            gw._depth200_stream.update_token,
+        ):
+            gw._conn_mgr.register_consumer(consumer)
+
+        # Persist initial token if configured
+        gw._conn_mgr.persist_initial_token()
+
+        # Health reporter — aggregated health, connection status, metrics
+        gw._health_reporter = DhanHealthReporter(
+            auth=gw._auth,
+            connection_manager=gw._conn_mgr,
+            http_client=gw._client,
+            streaming=gw._streaming,
+            order_stream=gw._order_stream,
+            depth20_stream=gw._depth20_stream,
+            depth200_stream=gw._depth200_stream,
+        )
