@@ -3,63 +3,62 @@
 Decorator pattern wraps a base Instrument to add support for
 non-standard depth levels (20, 30, 200) via a DepthProvider.
 
-Usage::
+All depth decorators extend ``InstrumentDecorator``, enabling stacking::
 
     from inc_trade.market.depth_decorators import Depth200Decorator
+    from inc_trade.market.cache_decorator import CachedDecorator
 
-    inst = Depth200Decorator(base_instrument, dhan_depth_provider)
-    depth = inst.depth_200()  # 200-level market depth
+    inst = CachedDecorator(Depth200Decorator(base_instrument, provider))
+    depth = inst.depth(200)  # 200-level market depth
+    quote = inst.quote()     # cached quote via CachedDecorator
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from inc_trade.market.decorators import InstrumentDecorator
 from inc_trade.market.instrument import Instrument
 
 
-class DepthDecorator:
+class DepthDecorator(InstrumentDecorator):
     """Abstract base for depth-level decorators.
 
-    Wraps an Instrument and delegates all attribute access to it,
-    except for depth-related methods which use a DepthProvider.
+    Wraps an Instrument and delegates all attribute access to it
+    (via ``InstrumentDecorator.__getattr__``), except for depth-related
+    methods which use a ``DepthProvider``.
 
     Attributes:
-        _instrument: The wrapped Instrument instance.
+        _wrapped: The wrapped Instrument instance (via InstrumentDecorator).
         _depth_provider: DepthProvider protocol implementation.
     """
 
     def __init__(self, instrument: Instrument, depth_provider: Any) -> None:
-        object.__setattr__(self, "_instrument", instrument)
+        super().__init__(instrument)
         object.__setattr__(self, "_depth_provider", depth_provider)
 
     def depth(self, levels: int = 5) -> Any:
         """Get market depth with requested levels."""
         return self._depth_provider.depth(
-            self._instrument.symbol,
-            self._instrument.exchange,
+            self._wrapped.symbol,
+            self._wrapped.exchange,
             levels,
         )
 
     def supports_depth(self, levels: int) -> bool:
         """Check if this decorator supports the requested depth level."""
-        caps = self._instrument.capabilities()
+        caps = getattr(self._wrapped, "_capabilities", None)
         if caps is not None:
             return caps.supports_depth(levels)
-        return False
-
-    def __getattr__(self, name: str) -> Any:
-        """Delegate all other attributes to the wrapped instrument."""
-        return getattr(self._instrument, name)
-
-    def __repr__(self) -> str:
-        cls = type(self).__name__
-        inst = self._instrument
-        return f"{cls}({inst.composite_key})"
+        return levels <= 5  # Default: only 5-level depth assumed
 
 
 class Depth20Decorator(DepthDecorator):
-    """Decorator adding 20-level depth support."""
+    """Decorator adding 20-level depth support.
+
+    Dhan-specific: wraps an instrument to enable 20-level market depth
+    via WebSocket or REST. Max 50 instruments per connection.
+    """
 
     def depth_20(self) -> Any:
         """Get 20-level market depth."""
@@ -67,7 +66,10 @@ class Depth20Decorator(DepthDecorator):
 
 
 class Depth30Decorator(DepthDecorator):
-    """Decorator adding 30-level depth support."""
+    """Decorator adding 30-level depth support.
+
+    Upstox-specific: wraps an instrument to enable 30-level market depth.
+    """
 
     def depth_30(self) -> Any:
         """Get 30-level market depth."""
@@ -75,7 +77,12 @@ class Depth30Decorator(DepthDecorator):
 
 
 class Depth200Decorator(Depth20Decorator):
-    """Decorator adding 200-level depth support (inherits 20-level too)."""
+    """Decorator adding 200-level depth support.
+
+    Dhan-specific: wraps an instrument to enable 200-level market depth
+    via WebSocket. CRITICAL: Only 1 instrument per connection allowed.
+    Inherits ``depth_20()`` from ``Depth20Decorator``.
+    """
 
     def depth_200(self) -> Any:
         """Get 200-level market depth."""

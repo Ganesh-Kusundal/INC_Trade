@@ -1,4 +1,27 @@
-"""InstrumentFactory — creates the correct Instrument subclass."""
+"""InstrumentFactory — creates the correct Instrument subclass with providers.
+
+The factory handles:
+1. **Content-based type detection** — automatically creates ``Equity``,
+   ``Future``, ``Option``, or ``Index`` based on symbol/exchange/strike.
+2. **Provider injection** — wires ``_provider``, ``_depth_provider``,
+   ``_order_provider``, ``_historical_provider``, ``_streaming_provider``.
+3. **Decorator pipeline** — applies broker-specific extensions (depth 20,
+   30, 200) via ``with_depth()``.
+
+Usage::
+
+    inst = InstrumentFactory.create(
+        symbol="RELIANCE",
+        exchange="NSE",
+        provider=dhan_adapter,          # InstrumentDataProvider
+        depth_provider=dhan_adapter,    # 200-level depth capable
+        order_provider=dhan_adapter,    # Order placement
+        apply_depth=200,                # Auto-wrap with Depth200Decorator
+    )
+    inst.quote()       # → Quote
+    inst.depth(200)    # → 200-level MarketDepth via decorator
+    inst.buy(qty=10)   # → OrderResponse via order_provider
+"""
 
 from __future__ import annotations
 
@@ -62,7 +85,10 @@ class InstrumentFactory:
         provider: Any = None,
         historical_provider: Any = None,
         streaming_provider: Any = None,
+        depth_provider: Any = None,
+        order_provider: Any = None,
         capabilities: Any = None,
+        apply_depth: int = 0,
     ) -> Instrument:
         """Create the correct Instrument subclass based on content.
 
@@ -79,14 +105,20 @@ class InstrumentFactory:
             option_type: ``"CE"`` or ``"PE"`` for options.
             context: Market data context attached to the instrument.
             extensions: Arbitrary extension data (fundamentals, etc.).
-            provider: InstrumentDataProvider protocol implementation.
+            provider: InstrumentDataProvider protocol implementation (general).
             historical_provider: HistoricalDataProvider protocol implementation.
             streaming_provider: StreamingDataProvider protocol implementation.
+            depth_provider: DepthProvider protocol implementation (dedicated).
+            order_provider: OrderProvider protocol implementation (dedicated).
             capabilities: InstrumentCapabilities for this instrument.
+            apply_depth: If > 0, auto-wrap with the depth decorator
+                for the given number of levels. E.g., 200 wraps with
+                ``Depth200Decorator``. Uses ``depth_provider`` or falls
+                back to ``provider``.
 
         Returns:
             An :class:`Equity`, :class:`Future`, :class:`Option`,
-            or :class:`Index` instance.
+            or :class:`Index` instance, possibly wrapped in depth decorators.
         """
         sym = normalize_symbol(symbol)
         ex = exchange.upper().strip()
@@ -117,9 +149,11 @@ class InstrumentFactory:
                 tick_size=tick_size,
                 isin=isin,
                 expiry=expiry,
-                underlying=underlying,
-                contract_size=lot_size,
             )
+            # Future's underlying/contract_size are class-level annotations
+            # (not dataclass fields), set them post-construction:
+            object.__setattr__(inst, "underlying", underlying)
+            object.__setattr__(inst, "contract_size", lot_size)
         elif _is_index(sym):
             inst = Index(
                 symbol=sym,
@@ -147,9 +181,19 @@ class InstrumentFactory:
         object.__setattr__(inst, "_delegate_context", context)  # backward compat
         object.__setattr__(inst, "_extensions", extensions or {})
 
-        # Phase 3: Rich instrument provider injection
+        # Provider injection
         object.__setattr__(inst, "_provider", provider)
         object.__setattr__(inst, "_historical_provider", historical_provider)
         object.__setattr__(inst, "_streaming_provider", streaming_provider)
+        object.__setattr__(inst, "_depth_provider", depth_provider or provider)
+        object.__setattr__(inst, "_order_provider", order_provider or provider)
         object.__setattr__(inst, "_capabilities", capabilities)
+
+        # Decorator pipeline: apply depth extension if requested
+        if apply_depth > 0:
+            from inc_trade.market.decorators import with_depth
+
+            dp = depth_provider or provider
+            inst = with_depth(inst, levels=apply_depth, depth_provider=dp)
+
         return inst

@@ -7,13 +7,12 @@ Risk models operate on instrument portfolios. Broker APIs are implementation det
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, ClassVar
-
-import logging
 
 from inc_trade.domain.entities import AggregatedExposure, Position
 
@@ -270,6 +269,8 @@ class Instrument:
     _provider = None  # type: ignore  # InstrumentDataProvider protocol
     _historical_provider = None  # type: ignore  # HistoricalDataProvider protocol
     _streaming_provider = None  # type: ignore  # StreamingDataProvider protocol
+    _depth_provider = None  # type: ignore  # DepthProvider protocol
+    _order_provider = None  # type: ignore  # OrderProvider protocol
     _quote_state_obj = None  # type: ignore  # QuoteState instance
     _observers: list | None = None  # type: ignore  # list[QuoteObserver]
     _capabilities = None  # type: ignore  # InstrumentCapabilities
@@ -310,9 +311,15 @@ class Instrument:
     def depth(self, levels: int = 5) -> Any:
         """Get market depth (order book) for this instrument.
 
+        Checks ``_depth_provider`` first (dedicated depth provider), then
+        ``_provider`` (general provider), then ``_context`` (legacy path).
+
         Args:
             levels: Number of depth levels requested (default 5).
         """
+        dp = self._depth_provider
+        if dp is not None:
+            return dp.depth(self.symbol, self.exchange, levels)
         if self._provider is not None:
             return self._provider.depth(self.symbol, self.exchange, levels)
         ctx = self._context or self._delegate_context
@@ -487,7 +494,8 @@ class Instrument:
         others. Slow observers (>1ms) are logged as warnings.
         """
         import time
-        for obs in (self._observers or []):
+
+        for obs in self._observers or []:
             try:
                 t0 = time.monotonic()
                 obs.on_quote(self, quote)
@@ -495,12 +503,104 @@ class Instrument:
                 if elapsed > 0.001:  # 1ms threshold
                     logger.warning(
                         "slow_observer: %s took %.2fms for %s",
-                        type(obs).__name__, elapsed * 1000, self.composite_key,
+                        type(obs).__name__,
+                        elapsed * 1000,
+                        self.composite_key,
                     )
             except Exception as exc:
-                logger.warning(
-                    "observer_error: %s: %s", type(obs).__name__, exc
-                )
+                logger.warning("observer_error: %s: %s", type(obs).__name__, exc)
+
+    # ── Order Methods (Instrument-Centric Trading) ────────────────────────
+
+    def buy(
+        self,
+        quantity: int,
+        order_type: Any = None,
+        price: Decimal = Decimal("0"),
+        trigger_price: Decimal = Decimal("0"),
+        **kwargs: Any,
+    ) -> Any:
+        """Place a buy order for this instrument.
+
+        Delegates to the injected order provider (``_order_provider``) or
+        falls back to the general provider (``_provider``) if the dedicated
+        order provider is not set.
+
+        Args:
+            quantity: Number of units to buy.
+            order_type: ``OrderType`` enum value (default: ``OrderType.MARKET``).
+            price: Limit price (required for LIMIT orders).
+            trigger_price: Trigger price (required for STOP_LOSS orders).
+            **kwargs: Additional broker-specific order parameters.
+
+        Returns:
+            ``OrderResponse`` from the broker adapter.
+
+        Raises:
+            RuntimeError: If no order provider is configured.
+        """
+        from inc_trade.domain.enums import OrderType as OT
+
+        provider = self._order_provider or self._provider
+        if provider is None:
+            raise RuntimeError(
+                f"No order provider configured for {self.composite_key}. "
+                "Obtain instruments via broker.market.instrument() or "
+                "set _order_provider."
+            )
+        return provider.place_order(
+            symbol=self.symbol,
+            exchange=self.exchange,
+            side="BUY",
+            quantity=quantity,
+            order_type=order_type or OT.MARKET,
+            price=price,
+            trigger_price=trigger_price,
+            **kwargs,
+        )
+
+    def sell(
+        self,
+        quantity: int,
+        order_type: Any = None,
+        price: Decimal = Decimal("0"),
+        trigger_price: Decimal = Decimal("0"),
+        **kwargs: Any,
+    ) -> Any:
+        """Place a sell order for this instrument.
+
+        Args:
+            quantity: Number of units to sell.
+            order_type: ``OrderType`` enum value (default: ``OrderType.MARKET``).
+            price: Limit price (required for LIMIT orders).
+            trigger_price: Trigger price (required for STOP_LOSS orders).
+            **kwargs: Additional broker-specific order parameters.
+
+        Returns:
+            ``OrderResponse`` from the broker adapter.
+
+        Raises:
+            RuntimeError: If no order provider is configured.
+        """
+        from inc_trade.domain.enums import OrderType as OT
+
+        provider = self._order_provider or self._provider
+        if provider is None:
+            raise RuntimeError(
+                f"No order provider configured for {self.composite_key}. "
+                "Obtain instruments via broker.market.instrument() or "
+                "set _order_provider."
+            )
+        return provider.place_order(
+            symbol=self.symbol,
+            exchange=self.exchange,
+            side="SELL",
+            quantity=quantity,
+            order_type=order_type or OT.MARKET,
+            price=price,
+            trigger_price=trigger_price,
+            **kwargs,
+        )
 
     # ── Capabilities (Phase 3) ──────────────────────────────────────────
 
