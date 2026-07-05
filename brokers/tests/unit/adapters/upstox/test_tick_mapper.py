@@ -5,7 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from brokers.adapters.upstox.tick_mapper import frame_to_quote
-from brokers.domain import Quote
+from inc_trade.domain import Quote
 
 
 class TestTickMapper:

@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 from brokers import create_broker
-from brokers.ports.capabilities import ForeverOrderProvider, NewsProvider
+from inc_trade.ports.capabilities import ForeverOrderProvider, NewsProvider
 from brokers.adapters.paper.gateway import PaperGateway
 import pytest
 
 def test_broker_facade_options_exposure():
     facade = create_broker("paper")
     
-    from brokers.domain.exceptions import NotSupportedError
+    from inc_trade.domain.exceptions import NotSupportedError
     import pytest
 
     # Test getting expiries throws error for paper
@@ -33,7 +33,7 @@ def test_broker_facade_extensions_dhan():
 
 
 def test_broker_facade_extensions_upstox():
-    from brokers.ports.capabilities import GTTProvider
+    from inc_trade.ports.capabilities import GTTProvider
 
     # Upstox factory
     facade = create_broker("upstox", access_token="test")

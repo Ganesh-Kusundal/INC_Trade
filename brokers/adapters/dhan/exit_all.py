@@ -6,7 +6,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from brokers.adapters.dhan.config import ENDPOINTS
-from brokers.ports.http_client_port import HttpClientPort
+from inc_trade.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 

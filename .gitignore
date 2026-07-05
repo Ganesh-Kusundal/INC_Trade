@@ -26,3 +26,12 @@ build/
 .agents/
 .autoresearch/
 .tradexv2/
+
+# Runtime state files
+runtime/
+
+# Local tool configs
+.poolside/
+.benchmarks/
+.mimocode/
+.graphify/

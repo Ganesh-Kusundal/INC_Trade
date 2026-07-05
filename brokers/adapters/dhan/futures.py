@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Literal
 
 from brokers.adapters.dhan.identity import DhanInstrumentRef, DhanInstrumentResolver
-from brokers.ports.http_client_port import HttpClientPort
+from inc_trade.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 

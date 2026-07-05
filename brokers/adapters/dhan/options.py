@@ -8,12 +8,12 @@ from decimal import Decimal
 from typing import Any, Literal
 
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
-from brokers.ports.http_client_port import HttpClientPort
+from inc_trade.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 
 
-from brokers.domain.entities import OptionChain, OptionLeg, OptionStrike
+from inc_trade.domain.entities import OptionChain, OptionLeg, OptionStrike
 
 
 class DhanOptions:
@@ -178,7 +178,7 @@ class DhanOptions:
             # or just take the first one returned
             return candidates[0].security_id, candidates[0].exchange_segment
 
-        from brokers.domain.exceptions import InstrumentNotFoundError
+        from inc_trade.domain.exceptions import InstrumentNotFoundError
 
         raise InstrumentNotFoundError(underlying)
 

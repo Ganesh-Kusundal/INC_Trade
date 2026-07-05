@@ -5,10 +5,10 @@ from __future__ import annotations
 from decimal import Decimal
 
 from brokers.adapters.paper.gateway import PaperGateway
-from brokers.domain import (
+from inc_trade.domain import (
     Side,
 )
-from brokers.ports import BrokerGateway
+from inc_trade.ports import BrokerGateway
 
 
 class TestPaperGateway:

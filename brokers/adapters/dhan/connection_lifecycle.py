@@ -14,8 +14,8 @@ from typing import Any
 from brokers.adapters.dhan.depth20 import DhanDepth20Stream
 from brokers.adapters.dhan.depth200 import Depth200ConnectionPool
 from brokers.adapters.dhan.order_stream import DhanOrderStream
-from brokers.config.endpoints import Dhan
-from brokers.infrastructure.lifecycle import LifecycleManager
+from inc_trade.config.endpoints import Dhan
+from inc_trade.infrastructure.lifecycle import LifecycleManager
 
 logger = logging.getLogger(__name__)
 

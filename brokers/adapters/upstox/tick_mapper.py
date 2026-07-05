@@ -5,8 +5,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from brokers.domain import Quote
-from brokers.utils.price import to_decimal
+from inc_trade.domain import Quote
+from inc_trade.utils.price import to_decimal
 
 
 def frame_to_quote(frame: dict[str, Any]) -> Quote | None:

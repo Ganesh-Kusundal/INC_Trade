@@ -7,7 +7,7 @@ import logging
 from typing import Callable, Any
 
 from brokers.adapters.base_streaming import BaseWebSocketStreaming
-from brokers.domain.entities import Order
+from inc_trade.domain.entities import Order
 
 logger = logging.getLogger(__name__)
 

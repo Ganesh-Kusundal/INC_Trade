@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from brokers.infrastructure.correlation import (
+from inc_trade.infrastructure.correlation import (
     generate_correlation_id,
     get_current_correlation_id,
     set_current_correlation_id,
@@ -28,7 +28,7 @@ class TestCorrelationId:
         try:
             assert get_current_correlation_id() == "test-123"
         finally:
-            from brokers.infrastructure.correlation import _correlation_id_var
+            from inc_trade.infrastructure.correlation import _correlation_id_var
 
             _correlation_id_var.reset(token)
 

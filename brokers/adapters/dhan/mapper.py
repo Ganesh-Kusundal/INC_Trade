@@ -6,7 +6,7 @@ Converts raw Dhan API responses into frozen domain value objects.
 from __future__ import annotations
 
 
-from brokers.domain import (
+from inc_trade.domain import (
     Balance,
     DepthLevel,
     Holding,
@@ -17,7 +17,7 @@ from brokers.domain import (
     Quote,
     Trade,
 )
-from brokers.domain.enums import (
+from inc_trade.domain.enums import (
     OrderStatus,
     OrderType,
     ProductType,
@@ -25,7 +25,7 @@ from brokers.domain.enums import (
     Validity,
 )
 from brokers.adapters.dhan.config import SEGMENT_TO_EXCHANGE
-from brokers.utils.price import to_decimal
+from inc_trade.utils.price import to_decimal
 
 _STATUS_MAP = {
     "PENDING": OrderStatus.PENDING,

@@ -8,8 +8,8 @@ import pytest
 import requests
 
 from brokers.adapters.upstox.http import UpstoxHttpClient
-from brokers.domain.exceptions import AuthenticationError, BrokerError
-from brokers.infrastructure.http.resilient_client import TokenRefreshSignal
+from inc_trade.domain.exceptions import AuthenticationError, BrokerError
+from inc_trade.infrastructure.http.resilient_client import TokenRefreshSignal
 
 
 def _mock_response(status_code=200, json_data=None):

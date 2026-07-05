@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from brokers.domain.constants.timeouts import DEFAULT_HTTP_TIMEOUT_SECONDS
+from inc_trade.domain.constants.timeouts import DEFAULT_HTTP_TIMEOUT_SECONDS
 
 UPSTOX_PREFIX = "UPSTOX"
 UPSTOX_DEFAULT_RATE_PER_SECOND: float = 10.0

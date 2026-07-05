@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 
-from brokers.domain import Quote
+from inc_trade.domain import Quote
 from brokers.tests.integration.upstox.conftest import requires_pre_prod, ws_teardown
 
 

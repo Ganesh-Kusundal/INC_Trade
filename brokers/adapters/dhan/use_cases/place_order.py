@@ -7,18 +7,19 @@ import uuid
 from decimal import Decimal
 from typing import Any, Protocol
 
-from brokers.config.endpoints import Dhan as _DhanEndpoints
+from inc_trade.config.endpoints import Dhan as _DhanEndpoints
 
 ENDPOINTS = _DhanEndpoints.ENDPOINTS
 from brokers.adapters.dhan.invariants import assert_valid_dhan_payload
 from brokers.adapters.dhan.mapper import map_order_response
+from brokers.adapters.dhan.payload import build_dhan_order_payload
 from brokers.adapters.dhan.segments import resolve_segment
-from brokers.domain import Order, OrderRequest, OrderResponse, RiskCheckRequest
-from brokers.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
-from brokers.domain.exceptions import InstrumentNotFoundError
-from brokers.domain.validators.order_validator import check_notional_warning
-from brokers.utils.idempotency_cache import TypedIdempotencyCache
-from brokers.utils.price import is_tick_aligned, to_wire_float
+from inc_trade.domain import Order, OrderRequest, OrderResponse, RiskCheckRequest
+from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
+from inc_trade.domain.exceptions import InstrumentNotFoundError, ValidationError
+from inc_trade.domain.validators.order_validator import check_notional_warning, validate_order
+from inc_trade.utils.idempotency_cache import TypedIdempotencyCache
+from inc_trade.utils.price import is_tick_aligned, to_wire_float
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,7 @@ class PlaceOrderUseCase:
         client: _HttpClient,
         resolver: _Resolver,
         *,
+        endpoints: dict[str, str],
         idempotency: TypedIdempotencyCache[OrderResponse],
         risk_manager: Any | None = None,
         derivative_segments: frozenset[str],
@@ -54,6 +56,7 @@ class PlaceOrderUseCase:
     ) -> None:
         self._client = client
         self._resolver = resolver
+        self._endpoints = endpoints
         self._idempotency = idempotency
         self._risk_manager = risk_manager
         self._derivative_segments = derivative_segments
@@ -129,23 +132,18 @@ class PlaceOrderUseCase:
                     reason = getattr(risk_result, "reason", "risk check failed")
                     return OrderResponse.fail(f"Risk check failed: {reason}"), None
 
-            payload = {
-                "dhanClientId": self._client.client_id,
-                "transactionType": self._side_map.get(request.side.value, 1),
-                "exchangeSegment": ref.exchange_segment,
-                "securityId": ref.security_id_str(),
-                "quantity": request.quantity,
-                "orderType": self._order_type_map.get(request.order_type.value, 1),
-                "productType": self._product_type_map.get(request.product_type.value, "INTRADAY"),
-                "validity": self._validity_map.get(request.validity.value, "DAY"),
-                "price": to_wire_float(request.price) if request.price > 0 else 0.0,
-                "triggerPrice": (
-                    to_wire_float(request.trigger_price) if request.trigger_price > 0 else 0.0
-                ),
-                "correlationId": cid,
-            }
+            payload = build_dhan_order_payload(
+                client_id=self._client.client_id,
+                request=request,
+                ref=ref,
+                side_map=self._side_map,
+                order_type_map=self._order_type_map,
+                product_type_map=self._product_type_map,
+                validity_map=self._validity_map,
+            )
+            payload["correlationId"] = cid
             assert_valid_dhan_payload(payload, context="orders.place_order")
-            data = self._client.post(ENDPOINTS["orders"], json=payload)
+            data = self._client.post(self._endpoints["orders"], json=payload)
             response = map_order_response(data)
             placed: Order | None = None
             if response.success:
@@ -175,6 +173,18 @@ class PlaceOrderUseCase:
             return response, placed
 
     def validate(self, ref: Any, request: OrderRequest) -> str | None:
+        try:
+            validate_order(
+                symbol=request.symbol,
+                exchange=request.exchange,
+                quantity=request.quantity,
+                order_type=request.order_type,
+                price=request.price,
+                trigger_price=request.trigger_price,
+            )
+        except ValidationError as e:
+            return str(e)
+
         if request.order_type == OrderType.LIMIT and request.price <= 0:
             return "Limit order requires price > 0"
         if request.order_type == OrderType.STOP_LOSS and (

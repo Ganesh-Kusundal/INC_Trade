@@ -93,7 +93,7 @@ class ReconnectingServiceMixin(Generic[_CallbackT]):
 
         Uses Event.wait so stop() interrupts immediately.
         """
-        from brokers.resilience.backoff_policy import JitteredExponentialBackoff
+        from inc_trade.resilience.backoff_policy import JitteredExponentialBackoff
         policy = JitteredExponentialBackoff(base=current, max_delay=self.MAX_BACKOFF)
         # Attempt 1 doubles the base value (current) and adds jitter
         wait = policy.next_delay(attempt=1)

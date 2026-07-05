@@ -11,138 +11,139 @@ Usage::
 
 from __future__ import annotations
 
+import warnings
 from typing import Any, cast
 
-from brokers.domain import (
+from inc_trade.domain import (
     Balance as Balance,
 )
-from brokers.domain import (
+from inc_trade.domain import (
     DepthLevel as DepthLevel,
 )
-from brokers.domain import (
+from inc_trade.domain import (
     Holding as Holding,
 )
-from brokers.domain import (
+from inc_trade.domain import (
     MarketDepth as MarketDepth,
 )
-from brokers.domain import (
+from inc_trade.domain import (
     Order as Order,
 )
-from brokers.domain import (
+from inc_trade.domain import (
     OrderResponse as OrderResponse,
 )
-from brokers.domain import (
+from inc_trade.domain import (
     Position as Position,
 )
-from brokers.domain import (
+from inc_trade.domain import (
     Quote as Quote,
 )
-from brokers.domain import (
+from inc_trade.domain import (
     Trade as Trade,
 )
-from brokers.domain.enums import (
+from inc_trade.domain.enums import (
     BrokerID as BrokerID,
 )
-from brokers.domain.enums import (
+from inc_trade.domain.enums import (
     OrderStatus as OrderStatus,
 )
-from brokers.domain.enums import (
+from inc_trade.domain.enums import (
     OrderType as OrderType,
 )
-from brokers.domain.enums import (
+from inc_trade.domain.enums import (
     ProductType as ProductType,
 )
-from brokers.domain.enums import (
+from inc_trade.domain.enums import (
     Side as Side,
 )
-from brokers.domain.enums import (
+from inc_trade.domain.enums import (
     Validity as Validity,
 )
-from brokers.domain.exceptions import (
+from inc_trade.domain.exceptions import (
     AuthenticationError as AuthenticationError,
 )
-from brokers.domain.exceptions import (
+from inc_trade.domain.exceptions import (
     BrokerDegradedError as BrokerDegradedError,
 )
-from brokers.domain.exceptions import (
+from inc_trade.domain.exceptions import (
     BrokerError as BrokerError,
 )
-from brokers.domain.exceptions import (
+from inc_trade.domain.exceptions import (
     BrokerServerError as BrokerServerError,
 )
-from brokers.domain.exceptions import (
+from inc_trade.domain.exceptions import (
     CircuitOpenError as CircuitOpenError,
 )
-from brokers.domain.exceptions import (
+from inc_trade.domain.exceptions import (
     ConfigError as ConfigError,
 )
-from brokers.domain.exceptions import (
+from inc_trade.domain.exceptions import (
     DataError as DataError,
 )
-from brokers.domain.exceptions import (
+from inc_trade.domain.exceptions import (
     InstrumentNotFoundError as InstrumentNotFoundError,
 )
-from brokers.domain.exceptions import (
+from inc_trade.domain.exceptions import (
     NetworkError as NetworkError,
 )
-from brokers.domain.exceptions import (
+from inc_trade.domain.exceptions import (
     NonRetryableError as NonRetryableError,
 )
-from brokers.domain.exceptions import (
+from inc_trade.domain.exceptions import (
     NotSupportedError as NotSupportedError,
 )
-from brokers.domain.exceptions import (
+from inc_trade.domain.exceptions import (
     OrderRejectedError as OrderRejectedError,
 )
-from brokers.domain.exceptions import (
+from inc_trade.domain.exceptions import (
     RateLimitError as RateLimitError,
 )
-from brokers.domain.exceptions import (
+from inc_trade.domain.exceptions import (
     RetryableError as RetryableError,
 )
-from brokers.domain.exceptions import (
+from inc_trade.domain.exceptions import (
     TokenRateLimitError as TokenRateLimitError,
 )
-from brokers.domain.exceptions import (
+from inc_trade.domain.exceptions import (
     TradeXV2Error as TradeXV2Error,
 )
-from brokers.domain.exceptions import (
+from inc_trade.domain.exceptions import (
     ValidationError as ValidationError,
 )
-from brokers.ports import (
+from inc_trade.ports import (
     AuthPort as AuthPort,
 )
-from brokers.ports import (
+from inc_trade.ports import (
     BrokerGateway as BrokerGateway,
 )
-from brokers.ports import (
+from inc_trade.ports import (
     ClockPort as ClockPort,
 )
-from brokers.ports import (
+from inc_trade.ports import (
     HistoricalPort as HistoricalPort,
 )
-from brokers.ports import (
+from inc_trade.ports import (
     InstrumentInfo as InstrumentInfo,
 )
-from brokers.ports import (
+from inc_trade.ports import (
     InstrumentPort as InstrumentPort,
 )
-from brokers.ports import (
+from inc_trade.ports import (
     MarketDataPort as MarketDataPort,
 )
-from brokers.ports import (
+from inc_trade.ports import (
     OrderExecutionPort as OrderExecutionPort,
 )
-from brokers.ports import (
+from inc_trade.ports import (
     PortfolioPort as PortfolioPort,
 )
-from brokers.ports import (
+from inc_trade.ports import (
     StreamingPort as StreamingPort,
 )
-from brokers.services.broker_facade import (
+from inc_trade.services.broker_facade import (
     BrokerFacade as BrokerFacade,
 )
-from brokers.services.broker_session import BrokerSession as BrokerSession
+from inc_trade.services.broker_session import BrokerSession as BrokerSession
 
 
 def create_broker(
@@ -155,6 +156,9 @@ def create_broker(
     **credentials: Any,
 ) -> "BrokerFacade":
     """Factory — create a broker facade by name.
+
+    .. deprecated::
+        Use :func:`brokers.connect()` instead.
 
     Returns a BrokerFacade that enforces service layer usage.
 
@@ -176,9 +180,14 @@ def create_broker(
     Raises:
         ValueError: If broker name is unknown.
     """
+    warnings.warn(
+        "create_broker() is deprecated, use brokers.connect() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     from pathlib import Path
 
-    from brokers.services.broker_facade import BrokerFacade
+    from inc_trade.services.broker_facade import BrokerFacade
 
     # Normalize BrokerID enum to string
     if isinstance(name, BrokerID):
@@ -198,14 +207,14 @@ def create_broker(
             auto_refresh=auto_refresh,
             lifecycle=lifecycle,
         )
-        from brokers.ports.extension_registry import DictExtensionRegistry
-        from brokers.ports.capabilities import (
-            KillSwitchProvider,
-            SliceOrderProvider,
-            MarginProvider,
+        from inc_trade.ports.capabilities import (
             ForeverOrderProvider,
+            KillSwitchProvider,
+            MarginProvider,
+            SliceOrderProvider,
             SuperOrderProvider,
         )
+        from inc_trade.ports.extension_registry import DictExtensionRegistry
 
         registry = DictExtensionRegistry()
         registry.register("dhan", cast(type, KillSwitchProvider), dhan_gw.orders)
@@ -214,7 +223,11 @@ def create_broker(
         registry.register("dhan", ForeverOrderProvider, dhan_gw.forever_orders)
         registry.register("dhan", SuperOrderProvider, dhan_gw.super_orders)
 
-        return BrokerFacade(cast(BrokerGateway, dhan_gw), allow_live_orders=allow_live_orders, extension_registry=registry)
+        return BrokerFacade(
+            cast(BrokerGateway, dhan_gw),
+            allow_live_orders=allow_live_orders,
+            extension_registry=registry,
+        )
     if name == "upstox":
         from brokers.adapters.upstox.gateway import UpstoxGateway
 
@@ -222,12 +235,17 @@ def create_broker(
             access_token=credentials["access_token"],
             allow_live_orders=allow_live_orders,
         )
-        from brokers.ports.extension_registry import DictExtensionRegistry
-        from brokers.ports.capabilities import NewsProvider, GTTProvider
+        from inc_trade.ports.capabilities import GTTProvider, NewsProvider
+        from inc_trade.ports.extension_registry import DictExtensionRegistry
+
         registry = DictExtensionRegistry()
         registry.register("upstox", cast(type, NewsProvider), upstox_gw.news)
         registry.register("upstox", cast(type, GTTProvider), upstox_gw.gtt)
-        return BrokerFacade(cast(BrokerGateway, upstox_gw), allow_live_orders=allow_live_orders, extension_registry=registry)
+        return BrokerFacade(
+            cast(BrokerGateway, upstox_gw),
+            allow_live_orders=allow_live_orders,
+            extension_registry=registry,
+        )
     if name == "paper":
         from decimal import Decimal
 
@@ -238,9 +256,14 @@ def create_broker(
             paper_gw = PaperGateway(initial_cash=Decimal(str(initial_cash)))
         else:
             paper_gw = PaperGateway()
-        from brokers.ports.extension_registry import DictExtensionRegistry
+        from inc_trade.ports.extension_registry import DictExtensionRegistry
+
         registry = DictExtensionRegistry()
-        return BrokerFacade(cast(BrokerGateway, paper_gw), allow_live_orders=allow_live_orders, extension_registry=registry)
+        return BrokerFacade(
+            cast(BrokerGateway, paper_gw),
+            allow_live_orders=allow_live_orders,
+            extension_registry=registry,
+        )
     raise ValueError(f"Unknown broker: {name!r}. Choose from: dhan, upstox, paper")
 
 
@@ -267,6 +290,9 @@ def connect(
         broker.streaming.subscribe("NSE:RELIANCE", on_tick)
         broker.close()
     """
+    from inc_trade.services.audit_facade import AuditFacade
+    from inc_trade.trading.order_repository import OrderRepository
+
     facade = create_broker(
         name,
         allow_live_orders=allow_live_orders,
@@ -280,5 +306,5 @@ def connect(
     return BrokerSession(
         broker_id=broker_id_str,
         facade=facade,
+        audit=AuditFacade(OrderRepository()),
     )
-

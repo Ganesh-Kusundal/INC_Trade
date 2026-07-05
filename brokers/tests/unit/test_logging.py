@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 
-from brokers.infrastructure.logging import (
+from inc_trade.infrastructure.logging import (
     CorrelationFilter,
     StructuredFormatter,
     TokenRedactionFilter,
@@ -58,7 +58,7 @@ class TestTokenRedactionFilter:
 
 class TestCorrelationFilter:
     def test_injects_correlation_id(self):
-        from brokers.infrastructure.correlation import with_correlation
+        from inc_trade.infrastructure.correlation import with_correlation
 
         cf = CorrelationFilter()
         with with_correlation("test-corr-123"):

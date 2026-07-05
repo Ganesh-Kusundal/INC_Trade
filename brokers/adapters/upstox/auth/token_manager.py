@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
-from brokers.infrastructure.jwt_expiry import parse_jwt_expiry as _parse_jwt
+from inc_trade.infrastructure.jwt_expiry import parse_jwt_expiry as _parse_jwt
 
 from .exceptions import UpstoxAuthError
 from .holders import (
@@ -25,7 +25,7 @@ from .holders import (
     UpstoxStaticTokenHolder,
     UpstoxTokenHolder,
 )
-from brokers.infrastructure.storage.token_store import JsonTokenStateStore, TokenState, TokenSource
+from inc_trade.infrastructure.storage.token_store import JsonTokenStateStore, TokenState, TokenSource
 from .oauth_client import UpstoxOAuthClient
 from .pkce import PkcePair, UpstoxPkceUtil
 from .token_expiry import UpstoxTokenExpiry

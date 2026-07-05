@@ -10,8 +10,8 @@ from pathlib import Path
 from brokers.adapters.upstox.config import EXCHANGE_TO_SEGMENT
 from brokers.adapters.upstox.instrument_definition import UpstoxInstrumentDefinition
 from brokers.adapters.upstox.instrument_loader import UpstoxInstrumentLoader
-from brokers.config.indices import index_upstox_key, upstox_index_segment
-from brokers.ports.instruments import InstrumentInfo
+from inc_trade.config.indices import index_upstox_key, upstox_index_segment
+from inc_trade.ports.instruments import InstrumentInfo
 
 logger = logging.getLogger(__name__)
 

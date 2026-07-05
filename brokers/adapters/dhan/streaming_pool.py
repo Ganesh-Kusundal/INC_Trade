@@ -8,7 +8,7 @@ from decimal import Decimal
 from typing import Any, Callable
 
 from brokers.adapters.dhan.segments import resolve_segment
-from brokers.infrastructure.websocket_pool import (
+from inc_trade.infrastructure.websocket_pool import (
     WebSocketConnection,
     WebSocketConnectionPool,
 )
@@ -251,14 +251,24 @@ class PooledDhanStreaming:
             self._connection = None
 
 
-class PooledDhanDepth20Stream:
-    """Dhan Depth 20 streaming using connection pool."""
+class _PooledDhanStreamBase:
+    """Base class for pooled Dhan streaming channels (depth / order).
+
+    Consolidates the common logic of ``PooledDhanDepth20Stream`` and
+    ``PooledDhanDepth200Stream``, which are identical except for the
+    WebSocket URL.
+    """
+
+    WS_URL: str = ""
+    REQUEST_CODE: int = 23
 
     def __init__(
         self,
+        ws_url: str,
         access_token: str | Callable[[], str],
         client_id: str,
     ) -> None:
+        self._ws_url = ws_url
         self._access_token = access_token
         self._client_id = client_id
         self._connection: WebSocketConnection | None = None
@@ -281,10 +291,12 @@ class PooledDhanDepth20Stream:
                 self._handle_message(message)
 
             self._connection = WebSocketConnectionPool.get_connection(
-                WS_DEPTH20_URL,
+                self._ws_url,
                 headers,
                 on_message,
-                connection_factory=lambda *a, **kw: DhanStreamChannel(*a, request_code=23, **kw),
+                connection_factory=lambda *a, **kw: DhanStreamChannel(
+                    *a, request_code=self.REQUEST_CODE, **kw
+                ),
             )
         return self._connection
 
@@ -309,8 +321,34 @@ class PooledDhanDepth20Stream:
     @property
     def is_connected(self) -> bool:
         """Check if connected to WebSocket."""
-        conn = self._get_connection()
-        return conn.is_connected
+        if self._connection is None:
+            return False
+        return self._connection.is_connected
+
+    def subscribe(self, symbol: str, exchange: str = "NSE") -> None:
+        """Subscribe to symbol (delegates to _PooledDhanStreamBase stub)."""
+        # Subclasses may override for broker-specific subscribe logic
+        _ = symbol, exchange
+
+    def close(self) -> None:
+        """Close WebSocket connection."""
+        if self._connection is not None:
+            self._connection.close()
+            self._connection = None
+
+
+class PooledDhanDepth20Stream(_PooledDhanStreamBase):
+    """Dhan Depth 20 streaming using connection pool."""
+
+    WS_URL = WS_DEPTH20_URL
+    REQUEST_CODE = 23
+
+    def __init__(
+        self,
+        access_token: str | Callable[[], str],
+        client_id: str,
+    ) -> None:
+        super().__init__(WS_DEPTH20_URL, access_token, client_id)
 
     def subscribe(self, symbol: str, exchange: str = "NSE") -> None:
         """Subscribe to symbol."""
@@ -342,66 +380,18 @@ class PooledDhanDepth20Stream:
             self._connection = None
 
 
-class PooledDhanDepth200Stream:
+class PooledDhanDepth200Stream(_PooledDhanStreamBase):
     """Dhan Depth 200 streaming using connection pool."""
+
+    WS_URL = WS_DEPTH200_URL
+    REQUEST_CODE = 23
 
     def __init__(
         self,
         access_token: str | Callable[[], str],
         client_id: str,
     ) -> None:
-        self._access_token = access_token
-        self._client_id = client_id
-        self._connection: WebSocketConnection | None = None
-        self._on_depth_update: Callable[[dict[str, Any]], None] | None = None
-
-    def _get_ws_headers(self) -> dict[str, str]:
-        """Get WebSocket connection headers."""
-        access_token = self._access_token() if callable(self._access_token) else self._access_token
-        return {
-            "access-token": access_token,
-            "client-id": self._client_id,
-        }
-
-    def _get_connection(self) -> WebSocketConnection:
-        """Get pooled connection."""
-        if self._connection is None:
-            headers = self._get_ws_headers()
-
-            def on_message(message: str) -> None:
-                self._handle_message(message)
-
-            self._connection = WebSocketConnectionPool.get_connection(
-                WS_DEPTH200_URL,
-                headers,
-                on_message,
-                connection_factory=lambda *a, **kw: DhanStreamChannel(*a, request_code=23, **kw),
-            )
-        return self._connection
-
-    def _handle_message(self, message: str) -> None:
-        """Handle incoming depth update message."""
-        try:
-            data = json.loads(message)
-        except (json.JSONDecodeError, TypeError):
-            return
-
-        if self._on_depth_update:
-            self._on_depth_update(data)
-
-    @property
-    def on_depth_update(self) -> Callable[[dict[str, Any]], None] | None:
-        return self._on_depth_update
-
-    @on_depth_update.setter
-    def on_depth_update(self, callback: Callable[[dict[str, Any]], None] | None) -> None:
-        self._on_depth_update = callback
-
-    @property
-    def is_connected(self) -> bool:
-        """Check if connected to WebSocket."""
-        conn = self._get_connection()
-        return conn.is_connected
+        super().__init__(WS_DEPTH200_URL, access_token, client_id)
 
     def subscribe(self, symbol: str, exchange: str = "NSE") -> None:
         """Subscribe to symbol."""

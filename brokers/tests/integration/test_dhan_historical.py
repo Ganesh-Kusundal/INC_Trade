@@ -3,7 +3,7 @@ from decimal import Decimal
 from unittest.mock import Mock
 
 from brokers.adapters.dhan.historical import DhanHistorical
-from brokers.domain.entities import Candle
+from inc_trade.domain.entities import Candle
 
 
 def test_dhan_get_historical_candles():

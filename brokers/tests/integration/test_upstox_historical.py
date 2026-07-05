@@ -3,8 +3,8 @@ from decimal import Decimal
 from unittest.mock import Mock
 
 from brokers.adapters.upstox.historical import UpstoxHistorical
-from brokers.config.endpoints import Upstox
-from brokers.domain.entities import Candle
+from inc_trade.config.endpoints import Upstox
+from inc_trade.domain.entities import Candle
 
 
 def test_get_historical_candles():

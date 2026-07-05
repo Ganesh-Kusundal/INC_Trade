@@ -9,9 +9,9 @@ import pytest
 
 from brokers.adapters.dhan.gateway import DhanGateway
 from brokers.adapters.dhan.identity import DhanInstrumentRef
-from brokers.domain import Side
-from brokers.infrastructure.totp_cooldown import TOTPCooldown
-from brokers.ports import BrokerGateway
+from inc_trade.domain import Side
+from inc_trade.infrastructure.totp_cooldown import TOTPCooldown
+from inc_trade.ports import BrokerGateway
 
 
 @pytest.fixture(autouse=True)

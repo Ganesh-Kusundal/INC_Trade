@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from brokers.domain.capabilities import (
+from inc_trade.domain.capabilities import (
     BrokerCapabilities,
     HistoricalWindowConstraint,
     RateLimitProfile,
     StreamLimitProfile,
 )
-from brokers.domain.enums import BrokerID
+from inc_trade.domain.enums import BrokerID
 
 
 def upstox_capabilities() -> BrokerCapabilities:

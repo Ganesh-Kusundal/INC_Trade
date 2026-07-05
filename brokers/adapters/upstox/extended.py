@@ -6,8 +6,8 @@ from decimal import Decimal
 from typing import Any
 
 from brokers.adapters.upstox.urls import resolve_upstox_urls
-from brokers.domain.entities import IpoInfo, MutualFundHolding, UserProfile
-from brokers.ports.http_client_port import HttpClientPort
+from inc_trade.domain.entities import IpoInfo, MutualFundHolding, UserProfile
+from inc_trade.ports.http_client_port import HttpClientPort
 
 
 def _parse_user_profile(raw: dict[str, Any]) -> UserProfile:

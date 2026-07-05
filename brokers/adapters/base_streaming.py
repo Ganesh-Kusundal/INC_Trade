@@ -10,10 +10,10 @@ from typing import Any, Callable
 
 import websocket
 
-from brokers.domain.entities import Quote
-from brokers.infrastructure.reconnect_strategy import ReconnectStrategy
-from brokers.infrastructure.seq_counter import SequenceCounter
-from brokers.ports.streaming import StreamHandle, StreamingPort
+from inc_trade.domain.entities import Quote
+from inc_trade.infrastructure.reconnect_strategy import run_reconnect_loop
+from inc_trade.infrastructure.seq_counter import SequenceCounter
+from inc_trade.ports.streaming import StreamHandle, StreamingPort
 
 logger = logging.getLogger(__name__)
 
@@ -146,12 +146,7 @@ class BaseWebSocketStreaming(StreamingPort):
         return self._ws_url
 
     def _run(self) -> None:
-        strategy = ReconnectStrategy(
-            base_delay=self._reconnect_delay,
-            max_delay=self._max_reconnect_delay,
-            max_retries=0,  # retry indefinitely until stopped
-        )
-        while self._running:
+        def connect() -> None:
             self._ws = websocket.WebSocketApp(
                 self._get_ws_url(),
                 header=self._get_ws_headers(),
@@ -161,12 +156,15 @@ class BaseWebSocketStreaming(StreamingPort):
                 on_close=self._on_close,
             )
             self._ws.run_forever(ping_interval=30, ping_timeout=10)
-            if self._running:
-                logger.warning(
-                    f"{self._log_prefix}_reconnecting",
-                    extra={"delay": strategy.current_delay},
-                )
-                strategy.wait()
+
+        run_reconnect_loop(
+            connect=connect,
+            is_running=lambda: self._running,
+            base_delay=self._reconnect_delay,
+            max_delay=self._max_reconnect_delay,
+            max_retries=0,
+            label=self._log_prefix,
+        )
 
     def _on_open(self, ws: Any) -> None:
         logger.info(f"{self._log_prefix}_connected")

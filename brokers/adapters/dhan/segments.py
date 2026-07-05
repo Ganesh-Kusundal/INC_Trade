@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from brokers.adapters.dhan.config import EXCHANGE_MAP
-from brokers.domain.constants.segments import SEGMENT_TO_EXCHANGE as _BASE_SEGMENT_TO_EXCHANGE
+from inc_trade.domain.constants.segments import SEGMENT_TO_EXCHANGE as _BASE_SEGMENT_TO_EXCHANGE
 
 SEGMENT_TO_EXCHANGE: dict[str, str] = {
     **_BASE_SEGMENT_TO_EXCHANGE,

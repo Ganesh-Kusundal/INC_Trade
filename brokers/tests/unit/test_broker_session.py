@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 import brokers
-from brokers.services.broker_session import BrokerSession
+from inc_trade.services.broker_session import BrokerSession
 
 
 # ---------------------------------------------------------------------------
@@ -170,7 +170,7 @@ class TestBrokersConnect:
         assert session.historical is not None
 
     def test_connect_with_broker_id_enum(self) -> None:
-        from brokers.domain.enums import BrokerID
+        from inc_trade.domain.enums import BrokerID
 
         session = brokers.connect(BrokerID.PAPER)
         assert isinstance(session, BrokerSession)
@@ -188,9 +188,9 @@ class TestBrokersConnect:
 class TestUnderlyingGatewayDeprecation:
     def test_deprecation_warning_raised(self) -> None:
         from brokers.adapters.paper.gateway import PaperGateway
-        from brokers.ports.broker import BrokerGateway
-        from brokers.ports.extension_registry import DictExtensionRegistry
-        from brokers.services.broker_facade import BrokerFacade
+        from inc_trade.ports.broker import BrokerGateway
+        from inc_trade.ports.extension_registry import DictExtensionRegistry
+        from inc_trade.services.broker_facade import BrokerFacade
         from typing import cast
 
         gw = PaperGateway()
@@ -207,9 +207,9 @@ class TestUnderlyingGatewayDeprecation:
     def test_deprecation_warning_stacklevel(self) -> None:
         """stacklevel=2 means the warning points to the caller, not broker_facade.py."""
         from brokers.adapters.paper.gateway import PaperGateway
-        from brokers.ports.broker import BrokerGateway
-        from brokers.ports.extension_registry import DictExtensionRegistry
-        from brokers.services.broker_facade import BrokerFacade
+        from inc_trade.ports.broker import BrokerGateway
+        from inc_trade.ports.extension_registry import DictExtensionRegistry
+        from inc_trade.services.broker_facade import BrokerFacade
         from typing import cast
 
         gw = PaperGateway()

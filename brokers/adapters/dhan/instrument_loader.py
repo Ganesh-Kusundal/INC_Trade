@@ -20,7 +20,7 @@ from pathlib import Path
 
 import requests
 
-from brokers.config.endpoints import Dhan
+from inc_trade.config.endpoints import Dhan
 
 logger = logging.getLogger(__name__)
 

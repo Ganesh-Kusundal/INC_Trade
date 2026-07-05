@@ -24,10 +24,10 @@ from brokers.adapters.dhan.connection_admission import (
     NoopAdmission,
 )
 from brokers.adapters.dhan.reconnecting_service import ReconnectingServiceMixin
-from brokers.config.endpoints import Dhan
-from brokers.domain import DepthLevel, MarketDepth
-from brokers.domain.lifecycle_health import HealthState, HealthStatus
-from brokers.infrastructure.lifecycle import ManagedService
+from inc_trade.config.endpoints import Dhan
+from inc_trade.domain import DepthLevel, MarketDepth
+from inc_trade.domain.lifecycle_health import HealthState, HealthStatus
+from inc_trade.infrastructure.lifecycle import ManagedService
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +138,7 @@ class BinaryDepthFeed(ReconnectingServiceMixin, ManagedService):
 
     def register_symbol(self, security_id: int, symbol: str) -> None:
         """Map security_id to canonical symbol for event routing."""
-        from brokers.domain.symbols import normalize_symbol
+        from inc_trade.domain.symbols import normalize_symbol
 
         self._sec_id_to_symbol[int(security_id)] = normalize_symbol(symbol)
 

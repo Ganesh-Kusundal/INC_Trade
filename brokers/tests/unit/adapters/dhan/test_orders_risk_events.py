@@ -7,9 +7,9 @@ from unittest.mock import MagicMock
 
 from brokers.adapters.dhan.identity import DhanInstrumentRef
 from brokers.adapters.dhan.orders import DhanOrders
-from brokers.domain import RiskCheckRequest, RiskCheckResult
-from brokers.domain.enums import Side
-from brokers.infrastructure.event_bus import EventBus
+from inc_trade.domain import RiskCheckRequest, RiskCheckResult
+from inc_trade.domain.enums import Side
+from inc_trade.infrastructure.event_bus import EventBus
 
 
 def _equity_ref() -> DhanInstrumentRef:

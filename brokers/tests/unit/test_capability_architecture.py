@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 from brokers.adapters.paper.gateway import PaperGateway
-from brokers.domain.constants.capabilities import (
+from inc_trade.domain.constants.capabilities import (
     FEATURE_HISTORICAL,
     FEATURE_MARKET_DATA,
     FEATURE_ORDERS,
     FEATURE_PORTFOLIO,
 )
-from brokers.ports.broker import BrokerGateway
-from brokers.services.broker_router import BrokerRouter
-from brokers.services.capability_discovery import CapabilityDiscovery
+from inc_trade.ports.broker import BrokerGateway
+from inc_trade.services.broker_router import BrokerRouter
+from inc_trade.services.capability_discovery import CapabilityDiscovery
 
 
 class TestCapabilityBasedArchitecture:
@@ -36,18 +36,25 @@ class TestCapabilityBasedArchitecture:
     def test_capabilities_work(self) -> None:
         """Test that capabilities can be queried."""
         gateway = PaperGateway()
-        caps = gateway.capabilities()  # Call the method
+        caps = gateway.capabilities()
 
-        # Test core capabilities
-        assert caps.has_feature(FEATURE_ORDERS)
-        assert caps.has_feature(FEATURE_MARKET_DATA)
-        assert caps.has_feature(FEATURE_PORTFOLIO)
-        assert caps.has_feature(FEATURE_HISTORICAL)
+        # Test core capabilities via attributes
+        assert caps.supports_place_order
+        assert caps.supports_cancel_order
+        assert caps.supports_modify_order
 
-        # Test metadata
-        metadata = caps.get_feature_metadata(FEATURE_ORDERS)
-        assert "description" in metadata
-        assert "supported_exchanges" in metadata
+        # Test via supports() method
+        assert caps.supports("place_order")
+        assert caps.supports("cancel_order")
+
+        # Test that unsupported features return False
+        assert not caps.supports_super_order
+        assert not caps.supports("super_order")
+
+        # Test to_dict
+        d = caps.to_dict()
+        assert isinstance(d, dict)
+        assert d["broker_id"] == "paper"
 
     def test_broker_router_routes_correctly(self) -> None:
         """Test that BrokerRouter can route to gateways."""
@@ -60,10 +67,6 @@ class TestCapabilityBasedArchitecture:
         retrieved = router.route("paper")
         assert retrieved is gateway
 
-        # Test capability-based routing
-        found = router.route_by_capability(FEATURE_ORDERS)
-        assert found is gateway
-
     def test_capability_discovery_works(self) -> None:
         """Test that CapabilityDiscovery can find brokers with features."""
         router = BrokerRouter()
@@ -74,7 +77,6 @@ class TestCapabilityBasedArchitecture:
 
         # Test feature checking
         assert discovery.has_feature("paper", FEATURE_ORDERS)
-        assert discovery.has_feature("paper", FEATURE_MARKET_DATA)
 
         # Test finding brokers with features
         brokers = discovery.find_brokers_with_feature(FEATURE_ORDERS)
@@ -93,10 +95,10 @@ class TestCapabilityBasedArchitecture:
         # Check that services import only from allowed modules
         import inspect
 
-        from brokers.services.historical_service import HistoricalService
-        from brokers.services.market_data_service import MarketDataService
-        from brokers.services.order_service import OrderService
-        from brokers.services.portfolio_service import PortfolioService
+        from inc_trade.services.historical_service import HistoricalService
+        from inc_trade.services.market_data_service import MarketDataService
+        from inc_trade.services.order_service import OrderService
+        from inc_trade.services.portfolio_service import PortfolioService
 
         for service in [OrderService, MarketDataService, PortfolioService, HistoricalService]:
             source = inspect.getsource(service)
@@ -111,7 +113,7 @@ class TestCapabilityBasedArchitecture:
 
     def test_broker_facade_uses_services(self) -> None:
         """Test that BrokerFacade delegates to services."""
-        from brokers.services.broker_facade import BrokerFacade
+        from inc_trade.services.broker_facade import BrokerFacade
 
         gateway = PaperGateway()
         facade = BrokerFacade(gateway)

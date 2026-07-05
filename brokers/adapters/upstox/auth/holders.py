@@ -7,7 +7,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from brokers.infrastructure.jwt_expiry import parse_jwt_expiry as _parse_jwt
+from inc_trade.infrastructure.jwt_expiry import parse_jwt_expiry as _parse_jwt
 
 from .token_expiry import UpstoxTokenExpiry
 

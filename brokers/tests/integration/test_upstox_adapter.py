@@ -7,9 +7,9 @@ from unittest.mock import MagicMock, patch
 
 
 from brokers.adapters.upstox.gateway import UpstoxGateway
-from brokers.domain import Side
-from brokers.domain.enums import OrderStatus, OrderType
-from brokers.ports import BrokerGateway
+from inc_trade.domain import Side
+from inc_trade.domain.enums import OrderStatus, OrderType
+from inc_trade.ports import BrokerGateway
 
 
 def _mock_response(json_data, status_code=200):

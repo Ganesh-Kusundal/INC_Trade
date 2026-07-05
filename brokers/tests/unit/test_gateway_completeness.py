@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 from brokers.adapters.paper.gateway import PaperGateway
-from brokers.domain.enums import OrderType, ProductType, Side, Validity
+from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
 
 
 class TestGatewayCompleteness:
@@ -21,9 +21,9 @@ class TestGatewayCompleteness:
 
         # Test capabilities
         caps = gateway.capabilities()
-        assert caps.has_feature("orders")
-        assert caps.has_feature("market_data")
-        assert caps.has_feature("portfolio")
+        assert caps.supports_place_order
+        assert caps.supports_cancel_order
+        assert caps.supports_modify_order
 
         # Test orders
         resp = gateway.orders.place_order(
@@ -91,8 +91,9 @@ class TestGatewayCompleteness:
         end_time = datetime.now()
         start_time = end_time - timedelta(days=7)
 
-        from brokers.domain.exceptions import NotSupportedError
         import pytest
+
+        from inc_trade.domain.exceptions import NotSupportedError
 
         with pytest.raises(NotSupportedError):
             candles = gateway.historical.get_historical_candles(
@@ -159,8 +160,9 @@ class TestGatewayCompleteness:
         end_time = datetime.now()
         start_time = end_time - timedelta(days=1)
 
-        from brokers.domain.exceptions import NotSupportedError
         import pytest
+
+        from inc_trade.domain.exceptions import NotSupportedError
 
         with pytest.raises(NotSupportedError):
             candles = gateway.historical.get_historical_candles(
@@ -174,24 +176,20 @@ class TestGatewayCompleteness:
         # Test capabilities
         caps = gateway.capabilities()
 
-        # Test has_feature
-        assert caps.has_feature("orders")
-        assert caps.has_feature("market_data")
-        assert caps.has_feature("portfolio")
-        assert caps.has_feature("historical")
-        assert caps.has_feature("instruments")
-        assert caps.has_feature("auth")
-        assert caps.has_feature("streaming")
+        # Test supports method
+        assert caps.supports("place_order")
+        assert caps.supports("cancel_order")
+        assert caps.supports("modify_order")
 
-        # Test get_feature_metadata
-        metadata = caps.get_feature_metadata("orders")
-        assert "description" in metadata
-        assert "supported_exchanges" in metadata
-        assert "limitations" in metadata
+        # Test negative features
+        assert not caps.supports_live_market_data
+        assert not caps.supports("live_market_data")
 
-        # Test unknown feature
-        unknown_meta = caps.get_feature_metadata("unknown_feature")
-        assert "Not supported by paper trading" in unknown_meta["limitations"]
+        # Test to_dict
+        d = caps.to_dict()
+        assert isinstance(d, dict)
+        assert d["broker_id"] == "paper"
+        assert d["latency_class"] == "simulated"
 
     def test_paper_gateway_extension_registry(self) -> None:
         """Test that extension registry works."""

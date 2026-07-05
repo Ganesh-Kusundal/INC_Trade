@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from brokers.domain.exceptions import BrokerError
+from inc_trade.domain.exceptions import BrokerError
 
 
 class UpstoxApiError(BrokerError):

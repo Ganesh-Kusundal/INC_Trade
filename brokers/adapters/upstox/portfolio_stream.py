@@ -9,7 +9,7 @@ from collections.abc import Callable
 from typing import Any
 
 from brokers.adapters.upstox.feed_authorizer import UpstoxFeedAuthorizer
-from brokers.infrastructure.websocket_runner import ReconnectingWebSocketRunner
+from inc_trade.infrastructure.websocket_runner import ReconnectingWebSocketRunner
 
 logger = logging.getLogger(__name__)
 

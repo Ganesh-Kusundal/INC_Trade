@@ -6,8 +6,8 @@ import pytest
 
 from brokers.adapters.dhan.orders import DhanOrders
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
-from brokers.domain.enums import OrderType, ProductType, Side
-from brokers.domain.exceptions import InstrumentNotFoundError
+from inc_trade.domain.enums import OrderType, ProductType, Side
+from inc_trade.domain.exceptions import InstrumentNotFoundError
 
 
 SAMPLE_ROWS = [

@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 
 
-from brokers.infrastructure.credentials import (
+from inc_trade.infrastructure.credentials import (
     CANONICAL_ENV_FILES,
     CredentialResolver,
     read_secret,

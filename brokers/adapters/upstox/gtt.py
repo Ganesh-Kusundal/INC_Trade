@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from brokers.adapters.upstox.urls import resolve_upstox_urls
-from brokers.domain import OrderResponse
-from brokers.ports.http_client_port import HttpClientPort
+from inc_trade.domain import OrderResponse
+from inc_trade.ports.http_client_port import HttpClientPort
 
 
 class UpstoxGtt:

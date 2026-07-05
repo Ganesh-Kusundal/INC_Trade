@@ -22,7 +22,7 @@ from brokers.adapters.upstox.auth.config import (
     UpstoxConnectionSettings,
     UpstoxSettingsLoader,
 )
-from brokers.infrastructure.storage.token_store import JsonTokenStateStore
+from inc_trade.infrastructure.storage.token_store import JsonTokenStateStore
 from brokers.adapters.upstox.auth.oauth_client import TokenResponse, UpstoxOAuthClient
 from brokers.adapters.upstox.auth.pkce import PkcePair, UpstoxPkceUtil
 from brokers.adapters.upstox.auth.token_expiry import UpstoxTokenExpiry

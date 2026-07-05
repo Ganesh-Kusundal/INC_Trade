@@ -7,13 +7,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from brokers.adapters.dhan.auth import DhanAuth
-from brokers.domain.exceptions import AuthenticationError, TokenRateLimitError
-from brokers.infrastructure.storage.token_store import TokenSource
+from inc_trade.domain.exceptions import AuthenticationError, TokenRateLimitError
+from inc_trade.infrastructure.storage.token_store import TokenSource
 
 
 @pytest.fixture(autouse=True)
 def _mock_totp_cooldown(monkeypatch):
-    from brokers.infrastructure.totp_cooldown import TOTPCooldown
+    from inc_trade.infrastructure.totp_cooldown import TOTPCooldown
     monkeypatch.setattr(TOTPCooldown, "check_allowed", lambda self: None)
     monkeypatch.setattr(TOTPCooldown, "remaining_cooldown_seconds", lambda self: 0.0)
     TOTPCooldown._instances.clear()

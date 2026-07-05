@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from brokers.config.endpoints import _UpstoxUrls
-from brokers.domain.entities import NewsItem
-from brokers.ports.http_client_port import HttpClientPort
+from inc_trade.config.endpoints import _UpstoxUrls
+from inc_trade.domain.entities import NewsItem
+from inc_trade.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 

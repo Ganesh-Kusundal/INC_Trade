@@ -17,7 +17,7 @@ from brokers.adapters.upstox.mapper import (
     map_trade,
     unwrap_data,
 )
-from brokers.domain.enums import (
+from inc_trade.domain.enums import (
     OrderStatus,
     OrderType,
     ProductType,

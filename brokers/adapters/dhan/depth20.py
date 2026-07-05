@@ -16,8 +16,8 @@ from typing import Any, Callable
 from brokers.adapters.dhan.segments import resolve_segment
 from brokers.adapters.dhan.depth_feed_base import BinaryDepthFeed
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
-from brokers.config.endpoints import Dhan
-from brokers.domain import MarketDepth
+from inc_trade.config.endpoints import Dhan
+from inc_trade.domain import MarketDepth
 
 logger = logging.getLogger(__name__)
 

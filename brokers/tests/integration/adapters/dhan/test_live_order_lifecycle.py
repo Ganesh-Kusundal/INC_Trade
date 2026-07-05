@@ -15,7 +15,7 @@ from pathlib import Path
 
 from brokers.adapters.dhan.orders import DhanOrders
 from brokers.adapters.dhan.gateway import DhanGateway
-from brokers.domain.enums import OrderStatus, OrderType, ProductType, Side
+from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Side
 
 import pytest
 pytestmark = [pytest.mark.dhan, pytest.mark.off_market_safe, pytest.mark.regression]

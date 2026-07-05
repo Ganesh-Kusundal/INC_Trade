@@ -44,7 +44,7 @@ class UpstoxTotpClient:
         if not self._client:
             raise RuntimeError("TOTP client not initialized")
 
-        from brokers.infrastructure.totp_cooldown import (
+        from inc_trade.infrastructure.totp_cooldown import (
             TOTPCooldown,
             TotpRateLimitError,
         )

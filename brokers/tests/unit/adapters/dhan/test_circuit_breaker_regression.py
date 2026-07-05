@@ -12,8 +12,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from brokers.adapters.dhan.http_client import create_dhan_http_client
-from brokers.domain.exceptions import BrokerServerError
-from brokers.resilience.circuit_breaker import (
+from inc_trade.domain.exceptions import BrokerServerError
+from inc_trade.resilience.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
     CircuitState,

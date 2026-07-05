@@ -8,9 +8,9 @@ from unittest.mock import MagicMock
 
 
 from brokers.adapters.dhan.auth import DhanAuth
-from brokers.domain.exceptions import TokenRateLimitError
-from brokers.infrastructure.storage.token_store import TokenSource, TokenState
-from brokers.resilience.token_scheduler import TokenRefreshScheduler
+from inc_trade.domain.exceptions import TokenRateLimitError
+from inc_trade.infrastructure.storage.token_store import TokenSource, TokenState
+from inc_trade.resilience.token_scheduler import TokenRefreshScheduler
 
 
 class TestTokenRefreshScheduler:

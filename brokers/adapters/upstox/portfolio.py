@@ -11,9 +11,9 @@ from brokers.adapters.upstox.mapper import (
     map_trade,
     unwrap_data,
 )
-from brokers.config.endpoints import _UpstoxUrls
-from brokers.domain import Balance, Holding, Position, Trade
-from brokers.ports.http_client_port import HttpClientPort
+from inc_trade.config.endpoints import _UpstoxUrls
+from inc_trade.domain import Balance, Holding, Position, Trade
+from inc_trade.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 

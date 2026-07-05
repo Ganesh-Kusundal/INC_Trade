@@ -3,7 +3,7 @@ from decimal import Decimal
 from unittest.mock import Mock
 
 from brokers.adapters.dhan.extensions.super_orders import DhanSuperOrders
-from brokers.domain.enums import Side
+from inc_trade.domain.enums import Side
 
 
 def test_place_super_order_success():

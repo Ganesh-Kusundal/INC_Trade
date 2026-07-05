@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from brokers.adapters.dhan.config import SEGMENT_TO_EXCHANGE
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
-from brokers.ports.instruments import InstrumentInfo
+from inc_trade.ports.instruments import InstrumentInfo
 
 
 class DhanInstruments:

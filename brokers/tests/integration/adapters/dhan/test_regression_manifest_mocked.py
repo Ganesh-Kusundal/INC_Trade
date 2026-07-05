@@ -9,8 +9,8 @@ import pytest
 
 from brokers.adapters.dhan.gateway import DhanGateway
 from brokers.adapters.dhan.identity import DhanInstrumentRef
-from brokers.domain import Balance, MarketDepth, Quote
-from brokers.domain.entities import DepthLevel, OptionChain, OptionLeg, OptionStrike
+from inc_trade.domain import Balance, MarketDepth, Quote
+from inc_trade.domain.entities import DepthLevel, OptionChain, OptionLeg, OptionStrike
 from brokers.tests.integration.adapters.dhan.regression_manifest import (
     MARKET_HOURS_CASES,
     OFF_MARKET_CASES,

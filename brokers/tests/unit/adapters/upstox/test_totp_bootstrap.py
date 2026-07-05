@@ -38,7 +38,7 @@ class TestTotpBootstrap:
         settings = _make_settings()
         mock_jwt_expiry.return_value = 9999999999999
 
-        from brokers.infrastructure.storage.token_store import TokenState, TokenSource
+        from inc_trade.infrastructure.storage.token_store import TokenState, TokenSource
         from datetime import datetime, timedelta, timezone
         mock_store = MagicMock()
         mock_store.load.return_value = TokenState(
@@ -151,7 +151,7 @@ class TestTotpBootstrap:
         """Transient 401 should not trigger a fresh TOTP login when token is still valid."""
         settings = _make_settings()
         token_manager = UpstoxTokenManager(settings, state_store=MagicMock())
-        from brokers.infrastructure.storage.token_store import TokenState, TokenSource
+        from inc_trade.infrastructure.storage.token_store import TokenState, TokenSource
         from datetime import datetime, timedelta, timezone
         state = token_manager._from_persisted(
             TokenState(

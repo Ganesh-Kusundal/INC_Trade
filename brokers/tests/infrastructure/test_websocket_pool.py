@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from brokers.infrastructure.websocket_pool import (
+from inc_trade.infrastructure.websocket_pool import (
     WebSocketConnection,
     WebSocketConnectionPool,
 )

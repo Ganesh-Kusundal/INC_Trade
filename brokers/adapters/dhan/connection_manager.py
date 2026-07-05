@@ -14,11 +14,10 @@ from typing import Any, Callable
 
 from brokers.adapters.dhan.auth import DhanAuth
 from brokers.adapters.dhan.token_broadcast import TokenBroadcast
-from brokers.infrastructure.lifecycle import LifecycleManager
-from brokers.infrastructure.storage.token_store import update_env_token
-from brokers.infrastructure.token_broadcast import TokenManager
-from brokers.ports.token_store import TokenStorePort
-from brokers.resilience.token_scheduler import TokenRefreshScheduler
+from inc_trade.infrastructure.lifecycle import LifecycleManager
+from inc_trade.infrastructure.token_broadcast import TokenManager
+from inc_trade.ports.token_store import TokenStorePort
+from inc_trade.resilience.token_scheduler import TokenRefreshScheduler
 
 logger = logging.getLogger(__name__)
 
@@ -46,11 +45,17 @@ class DhanConnectionManager:
         refresh_interval_seconds: int = 60,
         refresh_buffer_seconds: float = 300.0,
         lifecycle: LifecycleManager | None = None,
+        env_updater: Callable[[Path, str], None] | None = None,
     ):
         self._auth = auth
         self._env_path = env_path
         self._token_state_dir = token_state_dir
         self._token_store = token_store
+        # ``env_updater`` is the .env mutator. Default is the
+        # ``update_env_token`` helper from ``brokers.infrastructure.storage``,
+        # resolved lazily so this adapter module does not bind the
+        # concrete storage module at import time.
+        self._env_updater: Callable[[Path, str], None] = env_updater or self._default_env_updater
         self._refresh_lock = threading.Lock()
 
         # Token broadcast (legacy) and manager (new)
@@ -125,9 +130,19 @@ class DhanConnectionManager:
 
         if self._env_path is not None:
             try:
-                update_env_token(self._env_path, token)
+                self._env_updater(self._env_path, token)
             except Exception as exc:
                 logger.warning("env_token_persist_failed", extra={"error": str(exc)})
+
+    @staticmethod
+    def _default_env_updater(env_path: Path, token: str) -> None:
+        """Default .env mutator. Lazily imports the storage helper so this
+        adapter file does not bind the concrete storage module at import
+        time.
+        """
+        from inc_trade.infrastructure.storage.token_store import update_env_token
+
+        update_env_token(env_path, token)
 
     # ── Metrics ────────────────────────────────────────────────────────
 

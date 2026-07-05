@@ -21,7 +21,7 @@ from brokers.adapters.upstox.feed_authorizer import UpstoxFeedAuthorizer
 from brokers.adapters.upstox.instruments import resolve_upstox_instrument_key
 from brokers.adapters.upstox.instruments import UpstoxInstruments
 from brokers.adapters.upstox.tick_mapper import frame_to_quote, frame_to_tick_dict
-from brokers.domain import Quote
+from inc_trade.domain import Quote
 
 logger = logging.getLogger(__name__)
 
@@ -247,7 +247,7 @@ class UpstoxStreaming(BaseWebSocketStreaming):
                         self._on_tick(tick)  # type: ignore[arg-type]
 
                     if quote and "depth" in frame and self._on_depth:
-                        from brokers.domain import DepthLevel, MarketDepth
+                        from inc_trade.domain import DepthLevel, MarketDepth
 
                         depth_data = frame["depth"]
                         bids = [

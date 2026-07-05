@@ -6,8 +6,8 @@ from typing import Any, Callable
 import requests
 
 from brokers.adapters.dhan.config import ENDPOINTS, RATE_LIMITS, READ_PREFIXES, WRITE_PREFIXES
-from brokers.domain.exceptions import BrokerError, BrokerServerError, RateLimitError
-from brokers.infrastructure.http.resilient_client import ResilientHttpClient, TokenRefreshSignal
+from inc_trade.domain.exceptions import BrokerError, BrokerServerError, RateLimitError
+from inc_trade.infrastructure.http.resilient_client import ResilientHttpClient, TokenRefreshSignal
 
 
 def _dhan_categorize(endpoint: str) -> str:

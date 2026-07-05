@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from brokers.domain.enums import (
+from inc_trade.domain.enums import (
     OrderStatus,
     OrderType,
     ProductType,

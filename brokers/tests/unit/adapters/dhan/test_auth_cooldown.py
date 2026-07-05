@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from brokers.adapters.dhan.auth import DhanAuth
-from brokers.domain.exceptions import TokenRateLimitError
-from brokers.infrastructure.totp_cooldown import TOTPCooldown
+from inc_trade.domain.exceptions import TokenRateLimitError
+from inc_trade.infrastructure.totp_cooldown import TOTPCooldown
 
 
 @pytest.fixture(autouse=True)

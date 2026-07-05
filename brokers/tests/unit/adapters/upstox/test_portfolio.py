@@ -6,7 +6,7 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 
 from brokers.adapters.upstox.portfolio import UpstoxPortfolio
-from brokers.domain import Balance, Holding, Position, Trade
+from inc_trade.domain import Balance, Holding, Position, Trade
 
 
 class TestUpstoxPortfolio:

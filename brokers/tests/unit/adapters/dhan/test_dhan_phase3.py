@@ -12,7 +12,7 @@ from brokers.adapters.dhan.conditional_triggers import DhanConditionalTriggers
 from brokers.adapters.dhan.edis import DhanEDIS
 from brokers.adapters.dhan.ledger import DhanLedger
 from brokers.adapters.dhan.mtf import DhanMTF
-from brokers.domain.enums import OrderType, ProductType, Side, Validity
+from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
 
 
 # ---------------------------------------------------------------------------

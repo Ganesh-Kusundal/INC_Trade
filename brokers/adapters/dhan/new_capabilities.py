@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from brokers.domain.constants.capabilities import (
+from inc_trade.domain.constants.capabilities import (
     FEATURE_ALERTS,
     FEATURE_AUTH,
     FEATURE_DEPTH200,
@@ -27,7 +27,7 @@ from brokers.domain.constants.capabilities import (
     FEATURE_STREAMING,
     FEATURE_SUPER_ORDERS,
 )
-from brokers.ports.capabilities import Capabilities
+from inc_trade.ports.capabilities import Capabilities
 
 
 class DhanCapabilities(Capabilities):

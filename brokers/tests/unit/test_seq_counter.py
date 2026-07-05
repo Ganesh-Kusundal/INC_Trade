@@ -6,7 +6,7 @@ import threading
 
 import pytest
 
-from brokers.infrastructure.seq_counter import SequenceCounter
+from inc_trade.infrastructure.seq_counter import SequenceCounter
 
 
 class TestSequenceCounter:
@@ -119,7 +119,7 @@ class TestTickSeqNoStamping:
         """Quote built by stream() callback carries the seq_no from the tick dict."""
         from decimal import Decimal
 
-        from brokers.domain.entities import Quote
+        from inc_trade.domain.entities import Quote
 
         streaming = self._make_streaming()
 

@@ -28,14 +28,14 @@ from brokers.adapters.upstox.portfolio import UpstoxPortfolio
 from brokers.adapters.upstox.portfolio_stream import UpstoxPortfolioStream
 from brokers.adapters.upstox.streaming import UpstoxStreaming
 from brokers.adapters.upstox.urls import resolve_upstox_urls
-from brokers.domain.capabilities import BrokerCapabilities
-from brokers.domain.enums import BrokerID
-from brokers.ports.capabilities import (
+from inc_trade.domain.capabilities import BrokerCapabilities
+from inc_trade.domain.enums import BrokerID
+from inc_trade.ports.capabilities import (
     GTTProvider,
     NewsProvider,
 )
-from brokers.ports.extension_registry import ExtensionRegistry, ExtensionRegistryPort
-from brokers.ports.streaming import StreamingPort
+from inc_trade.ports.extension_registry import ExtensionRegistry, ExtensionRegistryPort
+from inc_trade.ports.streaming import StreamingPort
 
 logger = logging.getLogger(__name__)
 
@@ -211,7 +211,7 @@ class UpstoxGateway:
     def extensions(self) -> ExtensionRegistryPort:
         """Registry of broker-specific extensions."""
         if not hasattr(self, "_extension_registry"):
-            from brokers.ports.extension_registry import DictExtensionRegistry
+            from inc_trade.ports.extension_registry import DictExtensionRegistry
 
             self._extension_registry = DictExtensionRegistry()
             from typing import cast

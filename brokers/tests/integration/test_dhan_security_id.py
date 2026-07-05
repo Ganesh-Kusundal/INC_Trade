@@ -6,7 +6,7 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 from brokers.adapters.dhan.gateway import DhanGateway
-from brokers.domain import Side
+from inc_trade.domain import Side
 
 
 SAMPLE_CSV = (

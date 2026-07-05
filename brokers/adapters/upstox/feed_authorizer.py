@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from brokers.adapters.upstox.urls import resolve_upstox_urls
-from brokers.ports.http_client_port import HttpClientPort
+from inc_trade.ports.http_client_port import HttpClientPort
 
 
 def _extract_authorized_url(body: Any) -> str:

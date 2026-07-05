@@ -2,7 +2,7 @@ from unittest.mock import Mock, patch
 
 from brokers.adapters.upstox.instrument_definition import UpstoxInstrumentDefinition
 from brokers.adapters.upstox.instruments import UpstoxInstruments
-from brokers.ports.instruments import InstrumentInfo
+from inc_trade.ports.instruments import InstrumentInfo
 
 
 @patch("brokers.adapters.upstox.instrument_loader.requests")

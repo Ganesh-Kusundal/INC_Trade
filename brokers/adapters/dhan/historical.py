@@ -11,8 +11,8 @@ from zoneinfo import ZoneInfo
 from brokers.adapters.dhan.config import ENDPOINTS
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
 from brokers.adapters.dhan.invariants import assert_valid_dhan_payload
-from brokers.domain.entities import Candle
-from brokers.ports.http_client_port import HttpClientPort
+from inc_trade.domain.entities import Candle
+from inc_trade.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 

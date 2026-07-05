@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from brokers.config.endpoints import Upstox, _UpstoxUrls
+from inc_trade.config.endpoints import Upstox, _UpstoxUrls
 
 
 def resolve_upstox_urls(environment: str = "LIVE") -> _UpstoxUrls:

@@ -25,10 +25,10 @@ from brokers.adapters.dhan.config import (
     INSTRUMENT_TO_SEGMENT,
     INSTRUMENT_TYPE_MAP,
 )
+from brokers.adapters.dhan.index_registry import DhanIndexRegistry
 from brokers.adapters.dhan.instrument_loader import InstrumentLoader
-from brokers.config.indices import get_index_entry, is_index
-from brokers.domain.exceptions import InstrumentNotFoundError
-from brokers.domain.symbols import normalize_symbol
+from inc_trade.domain.exceptions import InstrumentNotFoundError
+from inc_trade.domain.symbols import normalize_symbol
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +106,9 @@ class DhanInstrumentResolver:
             key = (ref.symbol.upper(), ref.exchange_segment)
             self._by_symbol[key] = ref
             self._by_security_id[ref.security_id] = ref
-            underlying = (row.get("SM_SYMBOL_NAME") or row.get("SEM_SYMBOL_NAME") or "").strip().upper()
+            underlying = (
+                (row.get("SM_SYMBOL_NAME") or row.get("SEM_SYMBOL_NAME") or "").strip().upper()
+            )
             if underlying and ref.instrument_type.startswith(("FUT", "OPT")):
                 ukey = (underlying, ref.exchange_segment)
                 self._by_underlying.setdefault(ukey, []).append(ref)
@@ -198,9 +200,7 @@ class DhanInstrumentResolver:
         with self._lock:
             for (sym, seg), candidate in self._by_symbol.items():
                 if sym == symbol_upper and seg.startswith(exchange_prefix):
-                    return self._finalize_ref(
-                        candidate, expected_segment, source="prefix_scan"
-                    )
+                    return self._finalize_ref(candidate, expected_segment, source="prefix_scan")
 
         raise InstrumentNotFoundError(symbol)
 
@@ -219,7 +219,7 @@ class DhanInstrumentResolver:
                 if ref is not None:
                     return self._finalize_ref(ref, expected_segment, source="direct")
 
-            if is_index(keys[0]) and segment != "IDX_I":
+            if DhanIndexRegistry.lookup(keys[0]) is not None and segment != "IDX_I":
                 for key_sym in keys:
                     ref = self._by_symbol.get((key_sym, "IDX_I"))
                     if ref is not None:
@@ -227,26 +227,22 @@ class DhanInstrumentResolver:
                             ref, expected_segment, source="index_exchange_fallback"
                         )
 
-        if is_index(keys[0]):
-            entry = get_index_entry(keys[0])
-            if entry and entry.dhan_security_id:
-                synthetic = DhanInstrumentRef(
-                    symbol=keys[0],
-                    security_id=entry.dhan_security_id,
-                    exchange_segment="IDX_I",
-                    instrument_type="EQUITY",
-                )
-                logger.info(
-                    "index_resolved_via_hardcoded_id",
-                    extra={
-                        "symbol": keys[0],
-                        "security_id": entry.dhan_security_id,
-                        "canonical_name": entry.canonical_name,
-                    },
-                )
-                return self._finalize_ref(
-                    synthetic, expected_segment, source="hardcoded_index"
-                )
+        index_entry = DhanIndexRegistry.lookup(keys[0])
+        if index_entry is not None and index_entry.security_id:
+            synthetic = DhanInstrumentRef(
+                symbol=keys[0],
+                security_id=index_entry.security_id,
+                exchange_segment=index_entry.dhan_segment,
+                instrument_type="EQUITY",
+            )
+            logger.info(
+                "index_resolved_via_hardcoded_id",
+                extra={
+                    "symbol": keys[0],
+                    "security_id": index_entry.security_id,
+                },
+            )
+            return self._finalize_ref(synthetic, expected_segment, source="hardcoded_index")
         return None
 
     @staticmethod

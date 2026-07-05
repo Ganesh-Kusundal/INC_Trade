@@ -40,7 +40,7 @@ class SubscriptionEngine:
         on_tick: Any | None = None,
     ) -> Any:
         """Subscribe to market data for symbol; returns the shared feed."""
-        from brokers.domain.symbols import make_position_key
+        from inc_trade.domain.symbols import make_position_key
 
         inst = self._conn.instruments.resolve(symbol, exchange)
         sid = int(inst.security_id)
@@ -60,7 +60,7 @@ class SubscriptionEngine:
                         data: dict[str, Any], _sym: str = symbol, _cb: Any = on_tick
                     ) -> None:
                         try:
-                            from brokers.domain.entities import Quote
+                            from inc_trade.domain.entities import Quote
 
                             q = Quote(
                                 symbol=data.get("symbol", _sym),
@@ -98,7 +98,7 @@ class SubscriptionEngine:
         on_tick: Any | None = None,
     ) -> None:
         """Remove a market callback; SDK unsubscribe when last ref released."""
-        from brokers.domain.symbols import make_position_key
+        from inc_trade.domain.symbols import make_position_key
 
         key = make_position_key(symbol, exchange)
 

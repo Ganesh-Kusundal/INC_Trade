@@ -15,8 +15,8 @@ from brokers.adapters.dhan.depth_feed_base import (
     _HEADER_SIZE,
     _LEVEL_SIZE,
 )
-from brokers.domain.entities import DepthLevel, MarketDepth
-from brokers.domain.lifecycle_health import HealthState, HealthStatus
+from inc_trade.domain.entities import DepthLevel, MarketDepth
+from inc_trade.domain.lifecycle_health import HealthState, HealthStatus
 
 
 def _build_depth_packet(

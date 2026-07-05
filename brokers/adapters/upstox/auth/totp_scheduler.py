@@ -16,8 +16,8 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from brokers.adapters.upstox.auth.token_manager import UpstoxTokenManager
-from brokers.infrastructure.lifecycle import HealthState, ManagedService, build_health
-from brokers.domain.lifecycle_health import HealthStatus
+from inc_trade.infrastructure.lifecycle import HealthState, ManagedService, build_health
+from inc_trade.domain.lifecycle_health import HealthStatus
 
 logger = logging.getLogger(__name__)
 

@@ -13,7 +13,7 @@ from decimal import Decimal
 from typing import Any, Callable
 
 from brokers.adapters.paper.capabilities import paper_capabilities
-from brokers.domain import (
+from inc_trade.domain import (
     Balance,
     Holding,
     MarketDepth,
@@ -24,14 +24,12 @@ from brokers.domain import (
     Side,
     Trade,
 )
-from brokers.domain.capabilities import BrokerCapabilities
-from brokers.domain.enums import BrokerID, OrderStatus, OrderType, ProductType, Validity
-from brokers.ports import (
+from inc_trade.domain.enums import BrokerID, OrderStatus, OrderType, ProductType, Validity
+from inc_trade.ports import (
     InstrumentInfo,
 )
-from brokers.ports.capabilities import Capabilities
-from brokers.ports.extension_registry import ExtensionRegistry, ExtensionRegistryPort
-from brokers.ports.streaming import StreamingPort
+from inc_trade.ports.extension_registry import ExtensionRegistry, ExtensionRegistryPort
+from inc_trade.ports.streaming import StreamingPort
 
 
 class _PaperOrders:
@@ -215,14 +213,14 @@ class _PaperHistorical:
         end_time: datetime,
         resolution: str,
     ) -> list[Any]:
-        from brokers.domain.exceptions import NotSupportedError
+        from inc_trade.domain.exceptions import NotSupportedError
 
         raise NotSupportedError("PaperGateway does not support historical candles.")
 
 
 class _PaperOptions:
     def get_expiries(self, underlying: str, exchange: str = "NFO") -> list[str]:
-        from brokers.domain.exceptions import NotSupportedError
+        from inc_trade.domain.exceptions import NotSupportedError
 
         raise NotSupportedError("PaperGateway does not support option expiries.")
 
@@ -232,7 +230,7 @@ class _PaperOptions:
         exchange: str = "NFO",
         expiry: str | None = None,
     ) -> Any:
-        from brokers.domain.exceptions import NotSupportedError
+        from inc_trade.domain.exceptions import NotSupportedError
 
         raise NotSupportedError("PaperGateway does not support option chains.")
 
@@ -289,7 +287,7 @@ class PaperGateway:
     def broker_id(self) -> BrokerID:
         return BrokerID.PAPER
 
-    def capabilities(self) -> Capabilities:
+    def capabilities(self) -> BrokerCapabilities:
         return paper_capabilities()
 
     @property
@@ -324,7 +322,7 @@ class PaperGateway:
     def extensions(self) -> ExtensionRegistryPort:
         """Registry of broker-specific extensions (empty for paper trading)."""
         if not hasattr(self, "_extension_registry"):
-            from brokers.ports.extension_registry import DictExtensionRegistry
+            from inc_trade.ports.extension_registry import DictExtensionRegistry
 
             self._extension_registry = DictExtensionRegistry()
         return self._extension_registry

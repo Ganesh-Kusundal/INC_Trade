@@ -8,7 +8,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any, cast
 
-from brokers.domain import (
+from inc_trade.domain import (
     Balance,
     DepthLevel,
     Holding,
@@ -19,7 +19,7 @@ from brokers.domain import (
     Quote,
     Trade,
 )
-from brokers.domain.enums import (
+from inc_trade.domain.enums import (
     OrderStatus,
     OrderType,
     ProductType,
@@ -33,7 +33,7 @@ from brokers.adapters.upstox.config import (
     STATUS_MAP as _STATUS_MAP,
     VALIDITY_MAP_REVERSE as _VALIDITY_MAP,
 )
-from brokers.utils.price import to_decimal
+from inc_trade.utils.price import to_decimal
 
 
 def unwrap_data(response: dict[str, Any], default: Any = None) -> Any:

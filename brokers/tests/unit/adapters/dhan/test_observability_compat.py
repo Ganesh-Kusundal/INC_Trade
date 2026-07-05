@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 from brokers.adapters.dhan.gateway import DhanGateway
-from brokers.domain import MarketDepth, OrderResponse, Quote
+from inc_trade.domain import MarketDepth, OrderResponse, Quote
 
 
 @patch("brokers.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
@@ -53,7 +53,7 @@ def test_gateway_market_data_batch(_store, _token):
 def test_gateway_history_returns_dataframe(_store, _token):
     from datetime import datetime
 
-    from brokers.domain.entities import Candle
+    from inc_trade.domain.entities import Candle
 
     gw = DhanGateway(access_token="tok", client_id="cid", auto_refresh=False)
     candle = Candle(

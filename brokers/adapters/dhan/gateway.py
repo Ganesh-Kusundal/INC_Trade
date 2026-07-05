@@ -26,17 +26,16 @@ from brokers.adapters.dhan.http_client import create_dhan_http_client
 from brokers.adapters.dhan.identity import DhanInstrumentRef, DhanInstrumentResolver
 from brokers.adapters.dhan.instruments import DhanInstruments
 from brokers.adapters.dhan.market_data import DhanMarketData
-from brokers.adapters.dhan.new_capabilities import dhan_capabilities as new_dhan_capabilities
 from brokers.adapters.dhan.options import DhanOptions
 from brokers.adapters.dhan.order_stream import DhanOrderStream
 from brokers.adapters.dhan.orders import DhanOrders
 from brokers.adapters.dhan.portfolio import DhanPortfolio
 from brokers.adapters.dhan.streaming import DhanStreaming
-from brokers.domain.capabilities import BrokerCapabilities
-from brokers.domain.enums import BrokerID
-from brokers.infrastructure.lifecycle import LifecycleManager
-from brokers.infrastructure.token_broadcast import TokenManager
-from brokers.ports.capabilities import (
+from inc_trade.domain.capabilities import BrokerCapabilities
+from inc_trade.domain.enums import BrokerID
+from inc_trade.infrastructure.lifecycle import LifecycleManager
+from inc_trade.infrastructure.token_broadcast import TokenManager
+from inc_trade.ports.capabilities import (
     AlertsProvider,
     ExitAllProvider,
     ForeverOrderProvider,
@@ -45,11 +44,11 @@ from brokers.ports.capabilities import (
     SliceOrderProvider,
     SuperOrderProvider,
 )
-from brokers.ports.event_publisher import EventPublisherPort
-from brokers.ports.extension_registry import ExtensionRegistry, ExtensionRegistryPort
-from brokers.ports.risk_manager import RiskManagerPort
-from brokers.ports.streaming import StreamingPort
-from brokers.ports.token_store import TokenStorePort
+from inc_trade.ports.event_publisher import EventPublisherPort
+from inc_trade.ports.extension_registry import ExtensionRegistry, ExtensionRegistryPort
+from inc_trade.ports.risk_manager import RiskManagerPort
+from inc_trade.ports.streaming import StreamingPort
+from inc_trade.ports.token_store import TokenStorePort
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +90,7 @@ class DhanGateway:
 
     def capabilities(self) -> Capabilities:
         """Return Dhan broker capability matrix."""
-        return new_dhan_capabilities()
+        return dhan_capabilities()
 
     def __init__(
         self,
@@ -196,7 +195,7 @@ class DhanGateway:
     def extensions(self) -> ExtensionRegistryPort:
         """Registry of broker-specific extensions."""
         if not hasattr(self, "_extension_registry"):
-            from brokers.ports.extension_registry import DictExtensionRegistry
+            from inc_trade.ports.extension_registry import DictExtensionRegistry
 
             self._extension_registry = DictExtensionRegistry()
             # Register extensions
@@ -215,7 +214,9 @@ class DhanGateway:
             if hasattr(self, "_ip_management") and self._ip_management:
                 self._extension_registry.register("dhan", IPManagementProvider, self._ip_management)
             if hasattr(self, "_transfer") and self._transfer:
-                self._extension_registry.register("dhan", BrokerToBrokerTransferProvider, self._transfer)
+                self._extension_registry.register(
+                    "dhan", BrokerToBrokerTransferProvider, self._transfer
+                )
         return self._extension_registry
 
     # ── Health & observability ─────────────────────────────────────────
@@ -291,7 +292,7 @@ class DhanGatewayBuilder:
         gw._token_store = token_store
         if gw._token_store is None and token_state_dir:
             token_state_dir.mkdir(parents=True, exist_ok=True)
-            from brokers.infrastructure.storage.token_store import JsonTokenStateStore
+            from inc_trade.infrastructure.storage.token_store import JsonTokenStateStore
 
             gw._token_store = JsonTokenStateStore(token_state_dir / "dhan-token-state.json")
 

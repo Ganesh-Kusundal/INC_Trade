@@ -9,8 +9,8 @@ from brokers.adapters.dhan.config import ENDPOINTS, SEGMENT_TO_EXCHANGE
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
 from brokers.adapters.dhan.invariants import assert_valid_dhan_payload
 from brokers.adapters.dhan.mapper import map_depth, map_quote
-from brokers.domain import MarketDepth, Quote
-from brokers.ports.http_client_port import HttpClientPort
+from inc_trade.domain import MarketDepth, Quote
+from inc_trade.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 

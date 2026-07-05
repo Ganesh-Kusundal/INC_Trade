@@ -4,7 +4,7 @@ All Dhan exceptions extend from the canonical BrokerError hierarchy.
 Multiple inheritance ensures isinstance checks work correctly in global handlers.
 """
 
-from brokers.domain.exceptions import (
+from inc_trade.domain.exceptions import (
     AuthenticationError,
     BrokerError,
     BrokerServerError,

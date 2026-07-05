@@ -36,14 +36,14 @@ def main() -> int:
     print("\n=== Wave 1: Config Schema ===")
 
     def w1_schema():
-        from brokers.config.schema import AppConfig
+        from inc_trade.config.schema import AppConfig
         cfg = AppConfig.from_env()
         assert hasattr(cfg, "api_port")
         assert hasattr(cfg, "api_host")
     run("AppConfig.from_env()", w1_schema)
 
     def w1_defaults():
-        from brokers.config.defaults import get_config, reset_config, DEFAULT_CONFIG
+        from inc_trade.config.defaults import get_config, reset_config, DEFAULT_CONFIG
         reset_config()
         cfg = get_config()
         assert cfg is get_config()
@@ -51,10 +51,10 @@ def main() -> int:
     run("get_config() cached singleton", w1_defaults)
 
     def w1_profiles():
-        from brokers.config.profiles import load_profile
-        from brokers.config.profiles.dev import DevProfile
-        from brokers.config.profiles.staging import StagingProfile
-        from brokers.config.profiles.prod import ProdProfile
+        from inc_trade.config.profiles import load_profile
+        from inc_trade.config.profiles.dev import DevProfile
+        from inc_trade.config.profiles.staging import StagingProfile
+        from inc_trade.config.profiles.prod import ProdProfile
         import os
         os.environ["APP_ENV"] = "dev"
         p = load_profile()
@@ -68,7 +68,7 @@ def main() -> int:
     run("Profile loading (dev/staging/prod)", w1_profiles)
 
     def w1_validator():
-        from brokers.config.validator import ConfigValidator, ValidationProfile, ValidationResult
+        from inc_trade.config.validator import ConfigValidator, ValidationProfile, ValidationResult
         v = ConfigValidator(profile=ValidationProfile.DEV, env={})
         r = v.validate()
         assert r.valid is True
@@ -78,19 +78,19 @@ def main() -> int:
     print("\n=== Wave 2: Secrets ===")
 
     def w2_secrets():
-        from brokers.config.secrets_manager import SecretsManager
+        from inc_trade.config.secrets_manager import SecretsManager
         sm = SecretsManager()
         assert sm.get("NONEXISTENT", "default") == "default"
     run("SecretsManager", w2_secrets)
 
     def w2_credentials():
-        from brokers.infrastructure.credentials import CredentialResolver, read_secret
+        from inc_trade.infrastructure.credentials import CredentialResolver, read_secret
         cr = CredentialResolver()
         assert cr.resolve_env_path("dhan") is not None
     run("CredentialResolver", w2_credentials)
 
     def w2_encryption():
-        from brokers.infrastructure.secret_manager import SecretManager
+        from inc_trade.infrastructure.secret_manager import SecretManager
         sm = SecretManager()
         key = sm.generate_key()
         assert len(key) > 0
@@ -100,7 +100,7 @@ def main() -> int:
     print("\n=== Wave 3: Feature Flags ===")
 
     def w3_flags():
-        from brokers.config.feature_flags import FeatureFlags
+        from inc_trade.config.feature_flags import FeatureFlags
         FeatureFlags.reset()
         assert FeatureFlags.is_enabled("SMART_ROUTING") is False
         FeatureFlags.set_flag("SMART_ROUTING", True)
@@ -109,7 +109,7 @@ def main() -> int:
     run("FeatureFlags toggle", w3_flags)
 
     def w3_rollout():
-        from brokers.config.feature_flags import FeatureFlags
+        from inc_trade.config.feature_flags import FeatureFlags
         FeatureFlags.reset()
         FeatureFlags.set_flag("SMART_ROUTING", True)
         FeatureFlags.set_rollout_percentage("SMART_ROUTING", 50)
@@ -146,8 +146,8 @@ def main() -> int:
     print("\n=== Wave 5: Lifecycle ===")
 
     def w5_lifecycle():
-        from brokers.infrastructure.lifecycle import LifecycleManager, ManagedService
-        from brokers.domain.lifecycle_health import HealthState, HealthStatus
+        from inc_trade.infrastructure.lifecycle import LifecycleManager, ManagedService
+        from inc_trade.domain.lifecycle_health import HealthState, HealthStatus
         from datetime import datetime, timezone
 
         class Svc:
@@ -171,7 +171,7 @@ def main() -> int:
     print("\n=== Wave 6: JWT + TOTP ===")
 
     def w6_jwt():
-        from brokers.infrastructure.jwt_expiry import parse_jwt_expiry
+        from inc_trade.infrastructure.jwt_expiry import parse_jwt_expiry
         from datetime import datetime, timezone
         import base64, json, time
         h = base64.urlsafe_b64encode(json.dumps({"alg": "HS256"}).encode()).rstrip(b"=")
@@ -183,7 +183,7 @@ def main() -> int:
     run("JWT expiry parsing", w6_jwt)
 
     def w6_totp():
-        from brokers.infrastructure.totp_cooldown import TOTPCooldown
+        from inc_trade.infrastructure.totp_cooldown import TOTPCooldown
         tc = TOTPCooldown(broker="parity_test", cooldown_seconds=30)
         assert tc.can_request() is True
         tc.mark_requested()
@@ -194,27 +194,27 @@ def main() -> int:
     print("\n=== Wave 7: Observability ===")
 
     def w7_health():
-        from brokers.infrastructure.observability.health_check import HealthCheck
+        from inc_trade.infrastructure.observability.health_check import HealthCheck
         assert HealthCheck is not None
     run("HealthCheck import", w7_health)
 
     def w7_audit():
-        from brokers.infrastructure.observability.audit import AuditLogger
+        from inc_trade.infrastructure.observability.audit import AuditLogger
         assert AuditLogger is not None
     run("AuditLogger import", w7_audit)
 
     def w7_metrics():
-        from brokers.infrastructure.observability.event_metrics import EventMetrics
+        from inc_trade.infrastructure.observability.event_metrics import EventMetrics
         assert EventMetrics is not None
     run("EventMetrics import", w7_metrics)
 
     def w7_alerting():
-        from brokers.infrastructure.observability.alerting import AlertingEngine
+        from inc_trade.infrastructure.observability.alerting import AlertingEngine
         assert AlertingEngine is not None
     run("AlertingEngine import", w7_alerting)
 
     def w7_tracing():
-        from brokers.infrastructure.observability.tracing import TraceContext
+        from inc_trade.infrastructure.observability.tracing import TraceContext
         assert TraceContext is not None
     run("TraceContext import", w7_tracing)
 
@@ -222,14 +222,14 @@ def main() -> int:
     print("\n=== Wave 8: Bootstrap, Registry, Endpoints, Indices ===")
 
     def w8_endpoints():
-        from brokers.config.endpoints import Dhan, Upstox
+        from inc_trade.config.endpoints import Dhan, Upstox
         assert Dhan.REST_BASE == "https://api.dhan.co/v2"
         prod = Upstox.production()
         assert "/v3/order/place" in prod.place_order_v3_url()
     run("Endpoints (Dhan + Upstox)", w8_endpoints)
 
     def w8_indices():
-        from brokers.config.indices import is_index, INDEX_SYMBOLS, index_upstox_key
+        from inc_trade.config.indices import is_index, INDEX_SYMBOLS, index_upstox_key
         assert is_index("NIFTY") is True
         assert is_index("RELIANCE") is False
         assert len(INDEX_SYMBOLS) > 30
@@ -237,7 +237,7 @@ def main() -> int:
     run("Indices (41 symbols)", w8_indices)
 
     def w8_registry():
-        from brokers.infrastructure.registry import BrokerRegistry, ServiceRegistry
+        from inc_trade.infrastructure.registry import BrokerRegistry, ServiceRegistry
         reg = BrokerRegistry()
         reg.register("dhan", object())
         assert reg.has("dhan")
@@ -245,7 +245,7 @@ def main() -> int:
     run("BrokerRegistry", w8_registry)
 
     def w8_bootstrap():
-        from brokers.infrastructure.bootstrap import Bootstrap, BootstrapError
+        from inc_trade.infrastructure.bootstrap import Bootstrap, BootstrapError
         import asyncio, os
         os.environ["APP_ENV"] = "dev"
         result = asyncio.run(

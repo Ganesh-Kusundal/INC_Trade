@@ -20,15 +20,15 @@ from brokers.adapters.upstox.config import (
     READ_PREFIXES,
     WRITE_PREFIXES,
 )
-from brokers.domain.constants.timeouts import DEFAULT_HTTP_TIMEOUT_SECONDS
-from brokers.domain.exceptions import (
+from inc_trade.domain.constants.timeouts import DEFAULT_HTTP_TIMEOUT_SECONDS
+from inc_trade.domain.exceptions import (
     AuthenticationError,
     BrokerError,
     BrokerServerError,
     RateLimitError,
 )
-from brokers.infrastructure.http.resilient_client import ResilientHttpClient, TokenRefreshSignal
-from brokers.infrastructure.ssl_hardening import create_pinned_session
+from inc_trade.infrastructure.http.resilient_client import ResilientHttpClient, TokenRefreshSignal
+from inc_trade.infrastructure.ssl_hardening import create_pinned_session
 
 logger = logging.getLogger(__name__)
 

@@ -23,8 +23,8 @@ from brokers.adapters.dhan.identity import DhanInstrumentResolver
 from brokers.adapters.dhan.resilience.websocket_rate_limiter_simple import (
     get_dhan_ws_rate_limiter,
 )
-from brokers.config.endpoints import Dhan
-from brokers.domain import MarketDepth
+from inc_trade.config.endpoints import Dhan
+from inc_trade.domain import MarketDepth
 
 if TYPE_CHECKING:
     from typing import TypeAlias

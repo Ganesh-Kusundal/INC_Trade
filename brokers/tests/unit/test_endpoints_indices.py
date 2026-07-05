@@ -1,13 +1,14 @@
 """Tests for endpoints and indices configuration."""
 
 import pytest
+from inc_trade.config.endpoints import _UpstoxUrls
 
-from brokers.config.endpoints import Dhan, Upstox, _UpstoxUrls
-from brokers.config.indices import (
+from brokers.adapters.dhan.index_registry import DhanIndexRegistry
+from inc_trade.config.endpoints import Dhan, Upstox
+from inc_trade.config.indices import (
     INDEX_SYMBOLS,
     INDEX_TO_FNO_EXCHANGE,
     IndexEntry,
-    dhan_index_exchange,
     get_index_entry,
     index_upstox_key,
     is_index,
@@ -155,8 +156,7 @@ class TestIndices:
         entry = get_index_entry("NIFTY")
         assert entry is not None
         assert entry.canonical_name == "NIFTY 50"
-        assert entry.dhan_exchange == "INDEX"
-        assert entry.dhan_security_id == "13"
+        assert entry.upstox_segment == "NSE_INDEX"
 
     def test_get_index_entry_case_insensitive(self):
         entry = get_index_entry("banknifty")
@@ -166,9 +166,11 @@ class TestIndices:
     def test_get_index_entry_unknown(self):
         assert get_index_entry("RELIANCE") is None
 
-    def test_dhan_index_exchange(self):
-        assert dhan_index_exchange("NIFTY") == "INDEX"
-        assert dhan_index_exchange("RELIANCE") is None
+    def test_dhan_index_registry(self):
+        assert DhanIndexRegistry.lookup("NIFTY") is not None
+        assert DhanIndexRegistry.security_id("NIFTY") == "13"
+        assert DhanIndexRegistry.exchange("NIFTY") == "INDEX"
+        assert DhanIndexRegistry.lookup("RELIANCE") is None
 
     def test_upstox_index_segment(self):
         assert upstox_index_segment("NIFTY") == "NSE_INDEX"
@@ -211,7 +213,7 @@ class TestIndices:
         first = result[0]
         assert "symbol" in first
         assert "name" in first
-        assert "dhan_exchange" in first
+        assert "upstox_segment" in first
         assert "upstox_segment" in first
 
     def test_aliases_share_same_canonical(self):
@@ -230,9 +232,10 @@ class TestIndices:
         assert is_index("S&P500") is True
 
     def test_dhan_security_ids(self):
-        assert get_index_entry("NIFTY").dhan_security_id == "13"
-        assert get_index_entry("BANKNIFTY").dhan_security_id == "25"
-        assert get_index_entry("FINNIFTY").dhan_security_id == "27"
+        assert DhanIndexRegistry.security_id("NIFTY") == "13"
+        assert DhanIndexRegistry.security_id("BANKNIFTY") == "25"
+        assert DhanIndexRegistry.security_id("FINNIFTY") == "27"
+        assert DhanIndexRegistry.security_id("RELIANCE") is None
 
     def test_index_entry_frozen(self):
         entry = get_index_entry("NIFTY")

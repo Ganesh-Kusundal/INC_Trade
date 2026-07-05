@@ -2,19 +2,20 @@
 
 from __future__ import annotations
 
-from brokers.domain.capabilities import (
+from inc_trade.domain.capabilities import (
     BrokerCapabilities,
     HistoricalWindowConstraint,
     RateLimitProfile,
     StreamLimitProfile,
 )
-from brokers.domain.enums import BrokerID
+from inc_trade.domain.enums import BrokerID
 
 
 def dhan_capabilities() -> BrokerCapabilities:
     """Authoritative capability snapshot for the Dhan broker adapter."""
     return BrokerCapabilities(
         broker_id=BrokerID.DHAN,
+        supports_orders=True,
         supports_place_order=True,
         supports_cancel_order=True,
         supports_modify_order=True,
@@ -34,6 +35,7 @@ def dhan_capabilities() -> BrokerCapabilities:
         supports_super_order=True,
         supports_forever_order=True,
         supports_native_slice_order=True,
+        supports_mtf=True,
         rate_limit_profiles=(
             RateLimitProfile("orders", 25.0, 50.0, 40, 130),
             RateLimitProfile("quotes", 6.0, 12.0, 167, 130),

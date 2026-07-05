@@ -6,9 +6,9 @@ from decimal import Decimal
 
 import pytest
 
-from brokers.domain.enums import OrderType, ProductType
-from brokers.domain.exceptions import OrderRejectedError, ValidationError
-from brokers.services.order_validation import (
+from inc_trade.domain.enums import OrderType, ProductType
+from inc_trade.domain.exceptions import OrderRejectedError, ValidationError
+from inc_trade.services.order_validation import (
     check_notional_warning,
     validate_lot_size,
     validate_order_fields,

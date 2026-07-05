@@ -6,7 +6,7 @@ from decimal import Decimal
 
 import pytest
 
-from brokers.domain.entities import (
+from inc_trade.domain.entities import (
     Balance,
     DepthLevel,
     Holding,
@@ -17,7 +17,7 @@ from brokers.domain.entities import (
     Quote,
     Trade,
 )
-from brokers.domain.enums import (
+from inc_trade.domain.enums import (
     OrderStatus,
     OrderType,
     ProductType,

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from brokers.adapters.dhan.gateway import DhanGateway
-from brokers.infrastructure.registry import GatewayRegistry
+from inc_trade.infrastructure.registry import GatewayRegistry
 
 gateway_registry = GatewayRegistry()
 

@@ -19,7 +19,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from brokers.services.shadow_broker import ShadowBroker
+from inc_trade.services.shadow_broker import ShadowBroker
 
 
 # ---------------------------------------------------------------------------

@@ -2,9 +2,9 @@
 
 from typing import Any, Callable
 import requests
-from brokers.infrastructure.http.resilient_client import ResilientHttpClient, TokenRefreshSignal
+from inc_trade.infrastructure.http.resilient_client import ResilientHttpClient, TokenRefreshSignal
 from brokers.adapters.upstox.config import RATE_LIMITS, READ_PREFIXES, WRITE_PREFIXES
-from brokers.domain.exceptions import AuthenticationError, RateLimitError, BrokerServerError, BrokerError
+from inc_trade.domain.exceptions import AuthenticationError, RateLimitError, BrokerServerError, BrokerError
 
 def _upstox_categorize(endpoint: str) -> str:
     for prefix in READ_PREFIXES:

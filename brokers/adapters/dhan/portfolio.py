@@ -12,8 +12,8 @@ from brokers.adapters.dhan.mapper import (
     map_position,
     map_trade,
 )
-from brokers.domain import Balance, Holding, Position, Trade
-from brokers.ports.http_client_port import HttpClientPort
+from inc_trade.domain import Balance, Holding, Position, Trade
+from inc_trade.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 

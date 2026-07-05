@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 from typing import TYPE_CHECKING
 
-from brokers.resilience.token_manager import TokenManager
+from inc_trade.resilience.token_manager import TokenManager
 
 if TYPE_CHECKING:
     from brokers.adapters.upstox.auth.token_manager import UpstoxTokenManager

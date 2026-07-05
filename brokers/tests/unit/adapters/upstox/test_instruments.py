@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from brokers.adapters.upstox.instrument_definition import UpstoxInstrumentDefinition
 from brokers.adapters.upstox.instruments import UpstoxInstruments
-from brokers.domain.entities import InstrumentInfo
+from inc_trade.domain.entities import InstrumentInfo
 
 
 def _make_def(**overrides) -> UpstoxInstrumentDefinition:

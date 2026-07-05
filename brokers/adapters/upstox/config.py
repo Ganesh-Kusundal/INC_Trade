@@ -5,7 +5,7 @@ REST URLs live in ``brokers.config.endpoints.Upstox`` — use ``urls.resolve_ups
 
 from __future__ import annotations
 
-from brokers.domain.constants.segments import SEGMENT_TO_EXCHANGE
+from inc_trade.domain.constants.segments import SEGMENT_TO_EXCHANGE
 
 RATE_LIMITS = {
     "/market-quote": 10.0,

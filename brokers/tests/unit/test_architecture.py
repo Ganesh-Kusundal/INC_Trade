@@ -40,8 +40,16 @@ BOUNDARY_RULES: dict[str, set[str]] = {
     "core": {"brokers.core"},
     "utils": set(),
     "config": {"brokers.domain.exceptions", "brokers.config"},
-    "ports": {"brokers.domain", "brokers.ports"},
-    "services": {"brokers.domain", "brokers.ports", "brokers.utils", "brokers.services"},
+    "ports": {"brokers.domain", "brokers.ports", "brokers.extensions"},
+    "services": {
+        "brokers.domain",
+        "brokers.ports",
+        "brokers.utils",
+        "brokers.services",
+        "brokers.market",
+        "brokers.adapters",
+        "brokers.trading",
+    },
     "resilience": {"brokers.domain", "brokers.resilience"},
     "infrastructure": {
         "brokers.domain",
@@ -50,6 +58,26 @@ BOUNDARY_RULES: dict[str, set[str]] = {
         "brokers.core",
         "brokers.ports",
         "brokers.resilience",
+    },
+    "extensions": {"brokers.domain", "brokers.extensions"},
+    "market": {
+        "brokers.domain",
+        "brokers.market",
+        "brokers.ports",
+        "brokers.extensions",
+        "brokers.config",
+    },
+    "trading": {
+        "brokers.domain",
+        "brokers.trading",
+        "brokers.ports",
+    },
+    "oms": {
+        "brokers.domain",
+        "brokers.trading",
+        "brokers.oms",
+        "brokers.ports",
+        "brokers.services",
     },
 }
 
@@ -67,6 +95,10 @@ class TestBoundaryRules:
             "services",
             "resilience",
             "infrastructure",
+            "extensions",
+            "market",
+            "trading",
+            "oms",
         ],
     )
     def test_boundary(self, layer: str) -> None:
@@ -83,27 +115,27 @@ class TestBoundaryRules:
 @pytest.mark.architecture
 class TestPortStructure:
     ALL_PORTS = [
-        "brokers.ports.auth.AuthPort",
-        "brokers.ports.broker.BrokerGateway",
-        "brokers.ports.clock.ClockPort",
-        "brokers.ports.connection_lifecycle.ConnectionLifecyclePort",
-        "brokers.ports.historical.HistoricalPort",
-        "brokers.ports.instruments.InstrumentPort",
-        "brokers.ports.market_data.MarketDataPort",
-        "brokers.ports.order_execution.OrderExecutionPort",
-        "brokers.ports.portfolio.PortfolioPort",
-        "brokers.ports.risk_manager.RiskManagerPort",
-        "brokers.ports.streaming.StreamHandle",
-        "brokers.ports.streaming.StreamingPort",
-        "brokers.ports.token_store.TokenStorePort",
-        "brokers.ports.capabilities.MarginProvider",
-        "brokers.ports.capabilities.SuperOrderProvider",
-        "brokers.ports.capabilities.ForeverOrderProvider",
-        "brokers.ports.capabilities.KillSwitchProvider",
-        "brokers.ports.capabilities.SliceOrderProvider",
-        "brokers.ports.capabilities.NewsProvider",
-        "brokers.ports.options.OptionsPort",
-        "brokers.ports.extension_registry.ExtensionRegistryPort",
+        "inc_trade.ports.auth.AuthPort",
+        "inc_trade.ports.broker.BrokerGateway",
+        "inc_trade.ports.clock.ClockPort",
+        "inc_trade.ports.connection_lifecycle.ConnectionLifecyclePort",
+        "inc_trade.ports.historical.HistoricalPort",
+        "inc_trade.ports.instruments.InstrumentPort",
+        "inc_trade.ports.market_data.MarketDataPort",
+        "inc_trade.ports.order_execution.OrderExecutionPort",
+        "inc_trade.ports.portfolio.PortfolioPort",
+        "inc_trade.ports.risk_manager.RiskManagerPort",
+        "inc_trade.ports.streaming.StreamHandle",
+        "inc_trade.ports.streaming.StreamingPort",
+        "inc_trade.ports.token_store.TokenStorePort",
+        "inc_trade.ports.capabilities.MarginProvider",
+        "inc_trade.ports.capabilities.SuperOrderProvider",
+        "inc_trade.ports.capabilities.ForeverOrderProvider",
+        "inc_trade.ports.capabilities.KillSwitchProvider",
+        "inc_trade.ports.capabilities.SliceOrderProvider",
+        "inc_trade.ports.capabilities.NewsProvider",
+        "inc_trade.ports.options.OptionsPort",
+        "inc_trade.ports.extension_registry.ExtensionRegistryPort",
     ]
 
     @pytest.mark.parametrize("dotted_path", ALL_PORTS, ids=lambda p: p.rsplit(".", 1)[-1])
@@ -117,24 +149,24 @@ class TestPortStructure:
         )
 
     def test_all_core_ports_exported(self) -> None:
-        import brokers.ports
+        import inc_trade.ports
 
         for dotted_path in self.ALL_PORTS:
             cls_name = dotted_path.rsplit(".", 1)[-1]
-            assert hasattr(brokers.ports, cls_name), f"{cls_name} not exported from brokers.ports"
+            assert hasattr(inc_trade.ports, cls_name), f"{cls_name} not exported from inc_trade.ports"
 
 
 @pytest.mark.architecture
 class TestExceptionHierarchy:
     def test_order_state_error_inherits_tradexv2_error(self) -> None:
-        from brokers.domain.exceptions import TradeXV2Error
-        from brokers.domain.order_lifecycle import OrderStateError
+        from inc_trade.domain.exceptions import TradeXV2Error
+        from inc_trade.domain.order_lifecycle import OrderStateError
 
         assert issubclass(OrderStateError, TradeXV2Error)
 
     def test_all_exceptions_inherit_tradexv2_error(self) -> None:
-        from brokers.domain import exceptions
-        from brokers.domain.exceptions import TradeXV2Error
+        from inc_trade.domain import exceptions
+        from inc_trade.domain.exceptions import TradeXV2Error
 
         for name in dir(exceptions):
             obj = getattr(exceptions, name)
@@ -145,14 +177,20 @@ class TestExceptionHierarchy:
 @pytest.mark.architecture
 class TestErrorCodeCoverage:
     def test_all_constants_referenced(self) -> None:
-        from brokers.domain import error_codes, exceptions
+        # Check both the re-export shim AND the real implementation
+        from inc_trade.domain import error_codes as it_error_codes
+        from inc_trade.domain import exceptions as it_exceptions
 
-        exc_source = Path(exceptions.__file__).read_text()
-        defined = [name for name in dir(error_codes) if name.isupper() and not name.startswith("_")]
+        from inc_trade.domain import error_codes, exceptions
+
+        it_exc_source = Path(it_exceptions.__file__).read_text()
+        defined = [
+            name for name in dir(it_error_codes) if name.isupper() and not name.startswith("_")
+        ]
         for const_name in defined:
-            value = getattr(error_codes, const_name)
-            assert value in exc_source or const_name in exc_source, (
-                f"Error code {const_name}={value!r} not referenced in exceptions.py"
+            value = getattr(it_error_codes, const_name)
+            assert value in it_exc_source or const_name in it_exc_source, (
+                f"Error code {const_name}={value!r} not referenced in inc_trace/domain/exceptions.py"
             )
 
 
@@ -208,8 +246,51 @@ class TestInfrastructureBoundary:
                 if module.startswith("brokers.adapters") or module.startswith("brokers.services"):
                     rel = filepath.relative_to(BROKERS_ROOT.parent)
                     violations.append(f"  {rel}:{lineno}: imports {module}")
+        assert not violations, f"Trading imports from services (forbidden):\n" + "\n".join(
+            violations
+        )
+
+
+@pytest.mark.architecture
+class TestNoBrokerIdentifiersInDomain:
+    """Broker-specific identifiers must not leak into domain, ports, or market."""
+
+    BROKER_ID_PATTERNS = [
+        "security_id",
+        "dhan_id",
+        "upstox_id",
+        "exchange_token",
+        "dhan_security",
+    ]
+
+    TARGET_DIRS = ["domain", "ports", "market"]
+
+    # Known false positives: generic financial terms that happen to match patterns
+    # Format: "relpath: pattern" — the relpath is relative to BROKERS_ROOT.parent
+    ALLOWED_VIOLATIONS: set[str] = {
+        # security_id in OptionLeg (domain/entities.py) is a generic option contract
+        # identifier, not a broker-specific ID. Used universally in F&O.
+        "INC_Trade/brokers/domain/entities.py: security_id",
+    }
+
+    def test_no_broker_ids_in_domain_ports_market(self) -> None:
+        violations = []
+        for target in self.TARGET_DIRS:
+            target_dir = BROKERS_ROOT / "brokers" / target
+            if not target_dir.exists():
+                continue
+            for filepath in target_dir.rglob("*.py"):
+                if "tests" in str(filepath) or "venv" in str(filepath):
+                    continue
+                content = filepath.read_text()
+                for pattern in self.BROKER_ID_PATTERNS:
+                    if pattern in content:
+                        rel = filepath.relative_to(BROKERS_ROOT.parent)
+                        violation = f"{rel}: {pattern}"
+                        if violation not in self.ALLOWED_VIOLATIONS:
+                            violations.append(f"  {rel}: contains '{pattern}'")
         assert not violations, (
-            f"Infrastructure imports from adapters/services (forbidden):\n" + "\n".join(violations)
+            f"Broker-specific identifiers found in domain/ports/market:\n" + "\n".join(violations)
         )
 
 
@@ -293,8 +374,8 @@ class TestNoGlobalSingletons:
     """No class-level _instances dicts outside allowed definitions."""
 
     ALLOWED_PATTERNS = [
-        "brokers/infrastructure/websocket_pool.py",  # Phase 5 target
-        "brokers/infrastructure/totp_cooldown.py",  # Phase 5 target
+        "brokers/infrastructure/totp_cooldown.py",  # Phase 5 target (legacy)
+        "inc_trade/infrastructure/totp_cooldown.py",  # Phase 5 target
     ]
 
     def test_no_class_level_instances(self) -> None:
@@ -393,13 +474,13 @@ class TestCapabilityConstants:
     """All capability constants must be defined in domain/constants/capabilities.py."""
 
     def test_all_capabilities_in_all_caps(self) -> None:
-        from brokers.domain.constants.capabilities import ALL_CAPABILITIES
+        from inc_trade.domain.constants.capabilities import ALL_CAPABILITIES
 
         for cap in ALL_CAPABILITIES:
             assert cap.islower() or cap.isupper(), f"Capability {cap} should be in ALL_CAPS"
 
     def test_no_duplicate_capabilities(self) -> None:
-        from brokers.domain.constants.capabilities import ALL_CAPABILITIES
+        from inc_trade.domain.constants.capabilities import ALL_CAPABILITIES
 
         assert len(ALL_CAPABILITIES) == len(set(ALL_CAPABILITIES)), "Duplicate capabilities found"
 
@@ -410,8 +491,8 @@ class TestServiceLayer:
     def test_order_service_depends_only_on_ports(self) -> None:
         import inspect
 
-        from brokers.ports.order_execution import OrderExecutionPort
-        from brokers.services.order_service import OrderService
+        from inc_trade.ports.order_execution import OrderExecutionPort
+        from inc_trade.services.order_service import OrderService
 
         # Check that OrderService only imports from allowed modules
         source = inspect.getsource(OrderService)
@@ -426,7 +507,7 @@ class TestServiceLayer:
     def test_historical_service_depends_only_on_ports(self) -> None:
         import inspect
 
-        from brokers.services.historical_service import HistoricalService
+        from inc_trade.services.historical_service import HistoricalService
 
         source = inspect.getsource(HistoricalService)
         disallowed_imports = [
@@ -449,7 +530,7 @@ class TestBrokerGatewayContract:
         import inspect
 
         from brokers.adapters.dhan.gateway import DhanGateway
-        from brokers.ports.broker import BrokerGateway
+        from inc_trade.ports.broker import BrokerGateway
 
         assert hasattr(DhanGateway, "broker_id"), "DhanGateway must have broker_id property"
         assert hasattr(DhanGateway, "capabilities"), "DhanGateway must have capabilities property"
@@ -468,7 +549,7 @@ class TestBrokerGatewayContract:
         import inspect
 
         from brokers.adapters.upstox.gateway import UpstoxGateway
-        from brokers.ports.broker import BrokerGateway
+        from inc_trade.ports.broker import BrokerGateway
 
         assert hasattr(UpstoxGateway, "broker_id"), "UpstoxGateway must have broker_id property"
         assert hasattr(UpstoxGateway, "capabilities"), (
@@ -523,20 +604,150 @@ class TestHttpClientPort:
 
 
 @pytest.mark.architecture
+class TestInstrumentRegistryInvariants:
+    """Verify InstrumentRegistry guarantees one Instrument per composite key."""
+
+    def test_instrument_registry_single_instance(self) -> None:
+        """InstrumentRegistry.get_or_create must return the same object for the same key."""
+        from inc_trade.market.instrument_registry import InstrumentRegistry
+
+        registry = InstrumentRegistry()
+        factory_calls = 0
+
+        def factory() -> object:
+            nonlocal factory_calls
+            factory_calls += 1
+            return object()
+
+        inst1 = registry.get_or_create("NSE:RELIANCE", factory)
+        inst2 = registry.get_or_create("NSE:RELIANCE", factory)
+
+        assert inst1 is inst2, "get_or_create must return the same instance for an existing key"
+        assert factory_calls == 1, "factory must be called exactly once per key"
+
+    def test_instrument_registry_different_keys(self) -> None:
+        """Different composite keys must produce different instances."""
+        from inc_trade.market.instrument_registry import InstrumentRegistry
+
+        registry = InstrumentRegistry()
+        inst1 = registry.get_or_create("NSE:RELIANCE", object)
+        inst2 = registry.get_or_create("NSE:TCS", object)
+
+        assert inst1 is not inst2, "Different keys must produce different instances"
+
+    def test_instrument_registry_get(self) -> None:
+        """Registry.get must return None for missing keys."""
+        from inc_trade.market.instrument_registry import InstrumentRegistry
+
+        registry = InstrumentRegistry()
+        assert registry.get("NSE:MISSING") is None
+
+    def test_instrument_registry_get_all(self) -> None:
+        """Registry.get_all must return a snapshot dict."""
+        from inc_trade.market.instrument_registry import InstrumentRegistry
+
+        registry = InstrumentRegistry()
+        registry.get_or_create("NSE:RELIANCE", object)
+        registry.get_or_create("NSE:TCS", object)
+
+        snapshot = registry.get_all()
+        assert len(snapshot) == 2
+        assert "NSE:RELIANCE" in snapshot
+        assert "NSE:TCS" in snapshot
+
+    def test_instrument_registry_thread_safety(self) -> None:
+        """Concurrent get_or_create calls must not cause race conditions."""
+        import concurrent.futures
+
+        from inc_trade.market.instrument_registry import InstrumentRegistry
+
+        registry = InstrumentRegistry()
+        n_threads = 10
+        results: list[object | None] = [None] * n_threads
+
+        def get_or_create(idx: int) -> object:
+            return registry.get_or_create("NSE:RELIANCE", object)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=n_threads) as executor:
+            futures = [executor.submit(get_or_create, i) for i in range(n_threads)]
+            resolved = [f.result() for f in concurrent.futures.as_completed(futures)]
+
+        # All threads must get the exact same instance
+        first = resolved[0]
+        for inst in resolved[1:]:
+            assert inst is first, "Thread safety violation: different instances for same key"
+
+        # Registry should contain exactly one entry
+        assert len(registry) == 1
+
+
+@pytest.mark.architecture
+class TestExtensionPackage:
+    """Extensions must not import from adapters; protocols must be runtime_checkable."""
+
+    EXTENSION_PROTOCOLS = [
+        "inc_trade.extensions.base.Extension",
+        "inc_trade.extensions.depth.DepthExtension",
+    ]
+
+    def test_extensions_not_import_adapters(self) -> None:
+        """Extensions package must never import from adapters."""
+        ext_dir = BROKERS_ROOT / "brokers" / "extensions"
+        if not ext_dir.exists():
+            pytest.skip("brokers/extensions/ directory does not exist")
+        violations = []
+        for filepath in _list_modules("extensions"):
+            for lineno, module in _get_imports(filepath):
+                if module.startswith("brokers.adapters"):
+                    rel = filepath.relative_to(BROKERS_ROOT.parent)
+                    violations.append(f"  {rel}:{lineno}: imports {module}")
+        assert not violations, f"Extensions importing from adapters (forbidden):\n" + "\n".join(
+            violations
+        )
+
+    @pytest.mark.parametrize(
+        "dotted_path",
+        EXTENSION_PROTOCOLS,
+        ids=lambda p: p.rsplit(".", 1)[-1],
+    )
+    def test_is_runtime_checkable_protocol(self, dotted_path: str) -> None:
+        """All extension protocols must be @runtime_checkable Protocols."""
+        mod_path, cls_name = dotted_path.rsplit(".", 1)
+        mod = importlib.import_module(mod_path)
+        cls = getattr(mod, cls_name)
+        assert getattr(cls, "_is_protocol", False), f"{dotted_path} is not a Protocol"
+        assert getattr(cls, "_is_runtime_protocol", False), (
+            f"{dotted_path} is not @runtime_checkable"
+        )
+
+    def test_all_extension_protocols_exported(self) -> None:
+        """All extension protocols must be exported from inc_trade.extensions."""
+        import inc_trade.extensions
+
+        for dotted_path in self.EXTENSION_PROTOCOLS:
+            cls_name = dotted_path.rsplit(".", 1)[-1]
+            assert hasattr(inc_trade.extensions, cls_name), (
+                f"{cls_name} not exported from inc_trade.extensions"
+            )
+
+
+@pytest.mark.architecture
 class TestServiceConstructorArgLimit:
     """Fitness Rule 2: public __init__ methods in services/ should have <= 5 parameters (excluding self)."""
 
     def test_service_constructor_arg_limit(self) -> None:
+        import importlib
         import inspect
         import pkgutil
-        import importlib
 
         services_dir = BROKERS_ROOT / "brokers" / "services"
         if not services_dir.exists():
             pytest.skip("brokers/services/ directory does not exist")
 
         violations = []
-        for _, module_name, _ in pkgutil.walk_packages([str(services_dir)], prefix="brokers.services."):
+        for _, module_name, _ in pkgutil.walk_packages(
+            [str(services_dir)], prefix="brokers.services."
+        ):
             try:
                 module = importlib.import_module(module_name)
             except Exception:
@@ -548,6 +759,7 @@ class TestServiceConstructorArgLimit:
                     continue
                 # Skip dataclasses (value objects / DTOs)
                 import dataclasses
+
                 if dataclasses.is_dataclass(obj):
                     continue
                 init = getattr(obj, "__init__", None)
@@ -562,9 +774,11 @@ class TestServiceConstructorArgLimit:
                     continue
                 # Exclude self and variadic args (*args, **kwargs)
                 params = [
-                    p.name for p in sig.parameters.values()
+                    p.name
+                    for p in sig.parameters.values()
                     if p.name != "self"
-                    and p.kind not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
+                    and p.kind
+                    not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
                 ]
                 if len(params) > 5:
                     violations.append(
@@ -575,3 +789,80 @@ class TestServiceConstructorArgLimit:
             + "\n".join(violations)
         )
 
+
+@pytest.mark.architecture
+class TestMarketLayer:
+    """Market layer must not import adapters or trading."""
+
+    def test_market_does_not_import_adapters(self) -> None:
+        """Market must never import from adapters (outer layer)."""
+        market_dir = BROKERS_ROOT / "brokers" / "market"
+        if not market_dir.exists():
+            pytest.skip("brokers/market/ directory does not exist")
+        violations = []
+        for filepath in market_dir.rglob("*.py"):
+            if "tests" in str(filepath) or "venv" in str(filepath):
+                continue
+            for lineno, module in _get_imports(filepath):
+                if module.startswith("brokers.adapters") or module.startswith("brokers.trading"):
+                    rel = filepath.relative_to(BROKERS_ROOT.parent)
+                    violations.append(f"  {rel}:{lineno}: imports {module}")
+        assert not violations, (
+            f"Market imports from adapters or trading (forbidden):\n" + "\n".join(violations)
+        )
+
+    def test_market_does_not_import_services(self) -> None:
+        """Market must not import from services (service layer depends on market, not vice versa)."""
+        market_dir = BROKERS_ROOT / "brokers" / "market"
+        if not market_dir.exists():
+            pytest.skip("brokers/market/ directory does not exist")
+        violations = []
+        for filepath in market_dir.rglob("*.py"):
+            if "tests" in str(filepath) or "venv" in str(filepath):
+                continue
+            for lineno, module in _get_imports(filepath):
+                if module.startswith("brokers.services"):
+                    rel = filepath.relative_to(BROKERS_ROOT.parent)
+                    violations.append(f"  {rel}:{lineno}: imports {module}")
+        assert not violations, f"Market imports from services (forbidden):\n" + "\n".join(
+            violations
+        )
+
+
+@pytest.mark.architecture
+class TestTradingLayer:
+    """Trading layer must not import market or adapters."""
+
+    def test_trading_does_not_import_market(self) -> None:
+        """Trading must never import from market (lateral dependency)."""
+        trading_dir = BROKERS_ROOT / "brokers" / "trading"
+        if not trading_dir.exists():
+            pytest.skip("brokers/trading/ directory does not exist")
+        violations = []
+        for filepath in trading_dir.rglob("*.py"):
+            if "tests" in str(filepath) or "venv" in str(filepath):
+                continue
+            for lineno, module in _get_imports(filepath):
+                if module.startswith("brokers.market") or module.startswith("brokers.adapters"):
+                    rel = filepath.relative_to(BROKERS_ROOT.parent)
+                    violations.append(f"  {rel}:{lineno}: imports {module}")
+        assert not violations, (
+            f"Trading imports from market or adapters (forbidden):\n" + "\n".join(violations)
+        )
+
+    def test_trading_does_not_import_services(self) -> None:
+        """Trading must not import from services (services depend on trading)."""
+        trading_dir = BROKERS_ROOT / "brokers" / "trading"
+        if not trading_dir.exists():
+            pytest.skip("brokers/trading/ directory does not exist")
+        violations = []
+        for filepath in trading_dir.rglob("*.py"):
+            if "tests" in str(filepath) or "venv" in str(filepath):
+                continue
+            for lineno, module in _get_imports(filepath):
+                if module.startswith("brokers.services"):
+                    rel = filepath.relative_to(BROKERS_ROOT.parent)
+                    violations.append(f"  {rel}:{lineno}: imports {module}")
+        assert not violations, f"Trading imports from services (forbidden):\n" + "\n".join(
+            violations
+        )

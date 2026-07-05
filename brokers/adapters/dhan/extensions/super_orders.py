@@ -16,9 +16,9 @@ from brokers.adapters.dhan.config import (
 from brokers.adapters.dhan.extensions.models import SuperOrder, SuperOrderLeg
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
 from brokers.adapters.dhan.invariants import assert_valid_dhan_payload
-from brokers.domain.enums import OrderType, ProductType, Side, Validity
-from brokers.ports.http_client_port import HttpClientPort
-from brokers.utils.price import to_wire_float
+from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
+from inc_trade.ports.http_client_port import HttpClientPort
+from inc_trade.utils.price import to_wire_float
 
 logger = logging.getLogger(__name__)
 

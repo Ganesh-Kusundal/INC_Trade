@@ -10,9 +10,9 @@ import pytest
 
 from brokers.adapters.dhan.identity import DhanInstrumentRef
 from brokers.adapters.dhan.use_cases.place_order import PlaceOrderUseCase
-from brokers.domain import OrderRequest, OrderResponse
-from brokers.domain.enums import OrderType, ProductType, Side, Validity
-from brokers.domain.exceptions import InstrumentNotFoundError
+from inc_trade.domain import OrderRequest, OrderResponse
+from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
+from inc_trade.domain.exceptions import InstrumentNotFoundError
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -20,17 +20,18 @@ from brokers.adapters.dhan.exceptions import DhanOrderError
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
 from brokers.adapters.dhan.invariants import assert_valid_dhan_payload
 from brokers.adapters.dhan.mapper import map_order, map_order_response
+from brokers.adapters.dhan.payload import build_dhan_order_payload
 from brokers.adapters.dhan.segments import resolve_segment
 from brokers.adapters.dhan.use_cases.place_order import PlaceOrderUseCase
-from brokers.domain import Order, OrderRequest, OrderResponse, Trade
-from brokers.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
-from brokers.domain.events import DomainEvent
-from brokers.domain.exceptions import InstrumentNotFoundError
-from brokers.ports.event_publisher import EventPublisherPort
-from brokers.ports.http_client_port import HttpClientPort
-from brokers.ports.risk_manager import RiskManagerPort
-from brokers.utils.idempotency_cache import TypedIdempotencyCache
-from brokers.utils.price import to_wire_float
+from inc_trade.domain import Order, OrderRequest, OrderResponse, Trade
+from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
+from inc_trade.domain.events import DomainEvent
+from inc_trade.domain.exceptions import InstrumentNotFoundError
+from inc_trade.ports.event_publisher import EventPublisherPort
+from inc_trade.ports.http_client_port import HttpClientPort
+from inc_trade.ports.risk_manager import RiskManagerPort
+from inc_trade.utils.idempotency_cache import TypedIdempotencyCache
+from inc_trade.utils.price import to_wire_float
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,7 @@ class DhanOrders:
         self._place_order_uc = PlaceOrderUseCase(
             client,
             resolver,
+            endpoints=ENDPOINTS,
             idempotency=self._idempotency,
             risk_manager=risk_manager,
             derivative_segments=DERIVATIVE_SEGMENTS,
@@ -286,19 +288,16 @@ class DhanOrders:
             )
 
         cid = correlation_id or str(uuid.uuid4())
-        payload = {
-            "dhanClientId": self._client.client_id,
-            "transactionType": SIDE_MAP.get(side.value, 1),
-            "exchangeSegment": ref.exchange_segment,
-            "securityId": ref.security_id_str(),
-            "quantity": quantity,
-            "orderType": ORDER_TYPE_MAP.get(order_type.value, 1),
-            "productType": PRODUCT_TYPE_MAP.get(product_type.value, "INTRADAY"),
-            "validity": VALIDITY_MAP.get(validity.value, "DAY"),
-            "price": to_wire_float(price) if price > 0 else 0.0,
-            "triggerPrice": to_wire_float(trigger_price) if trigger_price > 0 else 0.0,
-            "correlationId": cid,
-        }
+        payload = build_dhan_order_payload(
+            client_id=self._client.client_id,
+            request=request,
+            ref=ref,
+            side_map=SIDE_MAP,
+            order_type_map=ORDER_TYPE_MAP,
+            product_type_map=PRODUCT_TYPE_MAP,
+            validity_map=VALIDITY_MAP,
+        )
+        payload["correlationId"] = cid
         assert_valid_dhan_payload(payload, context="orders.place_slice_order")
         data = self._client.post(ENDPOINTS["slice_order"], json=payload)
         response = map_order_response(data)

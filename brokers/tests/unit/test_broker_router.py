@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from brokers.services.broker_router import BrokerRouter
+from inc_trade.services.broker_router import BrokerRouter
 
 
 def _make_gateway(broker_id: str, capabilities: list[str] | None = None) -> MagicMock:
@@ -14,8 +14,9 @@ def _make_gateway(broker_id: str, capabilities: list[str] | None = None) -> Magi
     gateway = MagicMock()
     gateway.broker_id = broker_id
 
-    caps = MagicMock()
+    caps = MagicMock(spec=["has_feature", "supports"])
     caps.has_feature.side_effect = lambda cap: cap in (capabilities or [])
+    caps.supports.side_effect = lambda cap: cap in (capabilities or [])
     gateway.capabilities.return_value = caps
     return gateway
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from brokers.adapters.dhan.identity import DhanInstrumentRef, DhanInstrumentResolver
-from brokers.domain.exceptions import InstrumentNotFoundError
+from inc_trade.domain.exceptions import InstrumentNotFoundError
 
 
 def _load_resolver() -> DhanInstrumentResolver:

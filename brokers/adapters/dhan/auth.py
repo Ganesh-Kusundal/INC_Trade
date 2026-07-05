@@ -9,17 +9,18 @@ from __future__ import annotations
 import logging
 import socket
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import requests
 
-from brokers.domain.exceptions import AuthenticationError, TokenRateLimitError
-from brokers.infrastructure.storage.token_store import (
-    TokenSource,
-    TokenState,
-    compute_token_expiry,
-)
-from brokers.infrastructure.totp_cooldown import TOTPCooldown, TotpRateLimitError
+from inc_trade.domain.exceptions import AuthenticationError, TokenRateLimitError
+from inc_trade.infrastructure.totp_cooldown import TOTPCooldown, TotpRateLimitError
+
+if TYPE_CHECKING:
+    from inc_trade.infrastructure.storage.token_store import (
+        TokenState as _TokenState,
+    )
+    from inc_trade.ports.token_store import TokenStorePort
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,6 @@ def _prefer_ipv4() -> None:
         setattr(socket, "_dhan_ipv4_patched", True)
 
 
-
 class DhanAuth:
     """Dhan authentication with token state tracking.
 
@@ -53,6 +53,13 @@ class DhanAuth:
         totp_secret: TOTP secret for token generation.
         token_lifetime_seconds: Token TTL for expiry calculation.
         token_store: Optional store to load/save token state.
+        totp_cooldown: Optional TOTP cooldown tracker.
+        token_state_class: Optional concrete class implementing
+            :class:`TokenStorePort`. When ``None`` (default) the
+            composition root's default (``JsonTokenStateStore``) is
+            used.  The default is resolved lazily at construction time
+            so this module does not import the concrete
+            ``JsonTokenStateStore`` at module load time.
     """
 
     def __init__(
@@ -64,13 +71,25 @@ class DhanAuth:
         token_lifetime_seconds: int = 86400,
         token_store: Any | None = None,
         totp_cooldown: TOTPCooldown | None = None,
+        token_state_class: type[TokenStorePort] | None = None,
     ):
+        # Lazy import — adapter file does not import concrete storage
+        # class at module load time. The composition root is responsible
+        # for providing ``token_state_class`` explicitly when an
+        # alternative implementation is needed.
+        from inc_trade.infrastructure.storage.token_store import (
+            TokenSource,
+            TokenState,
+            compute_token_expiry,
+        )
+
+        self._token_state_cls: type[TokenStorePort] | None = token_state_class
         self._client_id = client_id or ""
         self._pin = pin
         self._totp_secret = totp_secret
         self._access_token = ""
         self._token_lifetime_seconds = token_lifetime_seconds
-        self._state: TokenState | None = None
+        self._state: _TokenState | None = None
         self._token_store = token_store
         self._totp_cooldown = totp_cooldown or TOTPCooldown.for_broker("dhan")
 
@@ -105,9 +124,14 @@ class DhanAuth:
             )
 
     @property
-    def state(self) -> TokenState | None:
+    def state(self) -> _TokenState | None:
         """Current token state with validity metadata."""
         return self._state
+
+    @property
+    def token_state_class(self) -> type[TokenStorePort] | None:
+        """Return the token store class used by this instance (or None)."""
+        return self._token_state_cls
 
     def get_token(self) -> str:
         """Return the current access token."""
@@ -133,10 +157,16 @@ class DhanAuth:
             TokenRateLimitError: If Dhan's rate limit is hit.
             AuthenticationError: If token generation fails.
         """
+        # Lazy import — concrete storage types are not bound at module
+        # load time (adapter only depends on ``TokenStorePort``).
+        from inc_trade.infrastructure.storage.token_store import (
+            TokenSource,
+            TokenState,
+            compute_token_expiry,
+        )
+
         if not self._pin or not self._totp_secret:
-            raise AuthenticationError(
-                "pin and totp_secret are required to generate token"
-            )
+            raise AuthenticationError("pin and totp_secret are required to generate token")
 
         try:
             self._totp_cooldown.check_allowed()
@@ -146,8 +176,9 @@ class DhanAuth:
         self._totp_cooldown.record_attempt()
         _prefer_ipv4()
 
-        import pyotp
         from urllib.parse import urlencode
+
+        import pyotp
 
         from brokers.adapters.dhan.config import ENDPOINTS
 
@@ -156,11 +187,11 @@ class DhanAuth:
         url = f"{ENDPOINTS['generate_token']}?{urlencode(params)}"
 
         try:
-            resp = requests.post(url, timeout=15)  # Intentional: TOTP token generation uses raw requests to avoid DhanHttpClient's rate limiter for this one-shot endpoint
+            resp = requests.post(
+                url, timeout=15
+            )  # Intentional: TOTP token generation uses raw requests to avoid DhanHttpClient's rate limiter for this one-shot endpoint
         except requests.RequestException as exc:
-            raise AuthenticationError(
-                f"Token generation request failed: {exc}"
-            ) from exc
+            raise AuthenticationError(f"Token generation request failed: {exc}") from exc
 
         try:
             body = resp.json()
@@ -175,25 +206,19 @@ class DhanAuth:
             raise TokenRateLimitError(f"Dhan token rate limit: {message}")
 
         if status == "error":
-            raise AuthenticationError(
-                f"Token generation failed: {message or 'unknown'}"
-            )
+            raise AuthenticationError(f"Token generation failed: {message or 'unknown'}")
 
         if resp.status_code != 200:
             body_text = resp.text
             if "once every" in body_text.lower() or "rate limit" in body_text.lower():
                 self._totp_cooldown.record_rate_limited()
                 raise TokenRateLimitError(f"Dhan token rate limit: {body_text}")
-            raise AuthenticationError(
-                f"Token generation failed: HTTP {resp.status_code}"
-            )
+            raise AuthenticationError(f"Token generation failed: HTTP {resp.status_code}")
 
         data = body.get("data", body)
         token = data.get("accessToken") or data.get("access_token") or ""
         if not token:
-            raise AuthenticationError(
-                f"Token generation failed: no token in response: {body}"
-            )
+            raise AuthenticationError(f"Token generation failed: no token in response: {body}")
 
         now = datetime.now(timezone.utc)
         self._state = TokenState(
@@ -218,18 +243,14 @@ class DhanAuth:
                 self._access_token = self.generate_token()
                 logger.info("dhan_token_regenerated_successfully")
             except TokenRateLimitError as exc:
-                logger.warning(
-                    "dhan_token_refresh_rate_limited", extra={"error": str(exc)}
-                )
+                logger.warning("dhan_token_refresh_rate_limited", extra={"error": str(exc)})
             except AuthenticationError as exc:
-                logger.error(
-                    "dhan_token_regeneration_failed", extra={"error": str(exc)}
-                )
+                logger.error("dhan_token_regeneration_failed", extra={"error": str(exc)})
         else:
             logger.warning("dhan_token_refresh_not_supported_without_totp_credentials")
         return self._access_token
 
-    def acquire(self) -> TokenState | None:
+    def acquire(self) -> _TokenState | None:
         """Acquire a fresh token, returning the full state.
 
         Returns:
@@ -242,7 +263,7 @@ class DhanAuth:
             logger.error("dhan_token_acquire_failed", extra={"error": str(exc)})
             return None
 
-    def force_refresh(self) -> TokenState | None:
+    def force_refresh(self) -> _TokenState | None:
         """Force a token refresh regardless of current validity.
 
         Returns:

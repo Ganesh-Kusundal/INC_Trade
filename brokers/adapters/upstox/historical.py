@@ -10,9 +10,9 @@ from typing import Any
 from brokers.adapters.upstox.config import _INTERVAL_MAP
 from brokers.adapters.upstox.instruments import UpstoxInstruments, resolve_upstox_instrument_key
 from brokers.adapters.upstox.mapper import unwrap_data
-from brokers.config.endpoints import _UpstoxUrls
-from brokers.domain.entities import Candle
-from brokers.ports.http_client_port import HttpClientPort
+from inc_trade.config.endpoints import _UpstoxUrls
+from inc_trade.domain.entities import Candle
+from inc_trade.ports.http_client_port import HttpClientPort
 
 logger = logging.getLogger(__name__)
 

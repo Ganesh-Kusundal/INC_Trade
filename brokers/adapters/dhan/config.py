@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from brokers.config.endpoints import Dhan
-from brokers.domain.constants.segments import SEGMENT_TO_EXCHANGE
+from inc_trade.config.endpoints import Dhan
+from inc_trade.domain.constants.segments import SEGMENT_TO_EXCHANGE
 
 ENDPOINTS = Dhan.ENDPOINTS
 REST_BASE = Dhan.REST_BASE
