@@ -4,7 +4,21 @@ This layer sits above the individual BrokerFacades and provides centralized
 broker management and dynamic order routing.
 """
 
-from inc_trade.oms.manager import BrokerManager as BrokerManager
-from inc_trade.oms.router import OrderRouter as OrderRouter
+from inc_trade.oms.manager import OrderManagementSystem as OrderManagementSystem
+from inc_trade.oms.router import ExecutionRouter as ExecutionRouter
+from inc_trade.oms.kill_switch import KillSwitch as KillSwitch
+from inc_trade.oms.idempotency import IdempotencyCache as IdempotencyCache
 
-__all__ = ["BrokerManager", "OrderRouter"]
+# Backward compatibility aliases (deprecated)
+BrokerManager = OrderManagementSystem
+OrderRouter = ExecutionRouter
+
+__all__ = [
+    "OrderManagementSystem",
+    "ExecutionRouter",
+    "KillSwitch",
+    "IdempotencyCache",
+    # Backward compat
+    "BrokerManager",
+    "OrderRouter",
+]

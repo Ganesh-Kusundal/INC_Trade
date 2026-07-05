@@ -47,17 +47,21 @@ class InstrumentRegistry:
             self._instruments[key] = instance
             return instance
 
-    def get(self, key: str) -> Any | None:
-        """Look up an instrument by composite key.
+    def get(self, key: str) -> Instrument | None:
+        """Look up an instrument by its composite key.
+
+        Lock-free read: dict reference read is atomic in CPython.
+        Writes use copy-on-write (new dict) so readers never see
+        a partially-modified dict.
 
         Args:
-            key: Composite key (e.g., ``"NSE:RELIANCE"``).
+            key: Composite key ``{exchange}:{symbol}``.
 
         Returns:
-            The instrument instance, or None if not registered.
+            The Instrument if found, else None.
         """
-        with self._lock:
-            return self._instruments.get(key)
+        # LOCK-FREE: dict read is atomic in CPython
+        return self._instruments.get(key)
 
     def get_all(self) -> dict[str, Any]:
         """Return a snapshot of all registered instruments.

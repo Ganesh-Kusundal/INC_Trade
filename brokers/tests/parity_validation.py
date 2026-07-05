@@ -123,21 +123,21 @@ def main() -> int:
     print("\n=== Wave 4: DI Container ===")
 
     def w4_singleton():
-        from brokers.core.di import Container, Scope
+        from inc_trade.core.di import Container, Scope
         c = Container()
         c.register("svc", lambda: object(), scope=Scope.SINGLETON)
         assert c.resolve("svc") is c.resolve("svc")
     run("DI singleton scope", w4_singleton)
 
     def w4_transient():
-        from brokers.core.di import Container, Scope
+        from inc_trade.core.di import Container, Scope
         c = Container()
         c.register("svc", lambda: object(), scope=Scope.TRANSIENT)
         assert c.resolve("svc") is not c.resolve("svc")
     run("DI transient scope", w4_transient)
 
     def w4_scopes():
-        from brokers.core.di_scopes import ScopeManager
+        from inc_trade.core.di_scopes import ScopeManager
         sm = ScopeManager()
         sm.clear()
     run("ScopeManager clear", w4_scopes)

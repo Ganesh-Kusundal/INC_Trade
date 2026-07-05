@@ -20,9 +20,9 @@ from inc_trade.domain.events import (
     OrderPlacedEvent,
     OrderRejectedEvent,
 )
-from brokers.trading.execution_router import ExecutionRouter
-from brokers.trading.oms import OrderManagementSystem
-from brokers.trading.order_repository import OrderRepository
+from inc_trade.trading.execution_router import ExecutionRouter
+from inc_trade.trading.oms import OrderManagementSystem
+from inc_trade.trading.order_repository import OrderRepository
 
 
 class _RecordingEventBus:

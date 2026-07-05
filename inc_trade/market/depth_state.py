@@ -2,19 +2,27 @@
 
 Tracks the order book (bids and asks) for a single instrument.
 Updated by depth streaming feeds.
+
+Performance: Uses ``__slots__`` (via ``dataclass(slots=True)``) and
+in-place updates to minimize allocation on the streaming hot-path.
+For 200-level depth, in-place update avoids ~400 object allocations
+per tick in steady state.
 """
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+logger = logging.getLogger(__name__)
 
-@dataclass
+
+@dataclass(slots=True)
 class DepthLevelState:
-    """A single level in the order book (mutable)."""
+    """A single level in the order book (mutable, slots-optimized)."""
 
     price: Decimal = Decimal("0")
     quantity: int = 0
@@ -27,17 +35,19 @@ class DepthLevelState:
         return DepthLevel(price=self.price, quantity=self.quantity, orders=self.orders)
 
 
-@dataclass
+@dataclass(slots=True)
 class DepthState:
-    """Mutable market depth (order book) for a single instrument.
+    """Mutable market depth (order book) for a single instrument (slots-optimized).
 
     Updated by depth streaming feeds. Provides a snapshot() method
     that returns an immutable ``MarketDepth`` domain entity.
 
+    Performance: ``update_in_place()`` modifies existing DepthLevelState
+    objects instead of rebuilding the list, eliminating allocations in
+    steady state.
+
     Attributes:
         composite_key: Canonical composite key ``{exchange}:{symbol}``.
-            (Previously named ``instrument_key``; deprecated alias
-            available.)
     """
 
     composite_key: str
@@ -67,6 +77,8 @@ class DepthState:
     ) -> None:
         """Update depth from raw bid/ask data.
 
+        Uses in-place update to minimize allocations.
+
         Args:
             bids: List of dicts with 'price', 'quantity', 'orders' keys.
             asks: List of dicts with 'price', 'quantity', 'orders' keys.
@@ -74,27 +86,45 @@ class DepthState:
             seq_no: Monotonic sequence number.
         """
         if bids is not None:
-            self.bids = [
-                DepthLevelState(
-                    price=Decimal(str(b.get("price", 0))),
-                    quantity=int(b.get("quantity", 0)),
-                    orders=int(b.get("orders", 0)),
-                )
-                for b in bids
-            ]
+            self._update_levels_in_place(self.bids, bids)
         if asks is not None:
-            self.asks = [
-                DepthLevelState(
-                    price=Decimal(str(a.get("price", 0))),
-                    quantity=int(a.get("quantity", 0)),
-                    orders=int(a.get("orders", 0)),
-                )
-                for a in asks
-            ]
+            self._update_levels_in_place(self.asks, asks)
         if timestamp:
             self.timestamp = timestamp
         if seq_no is not None:
             self.seq_no = seq_no
+
+    def _update_levels_in_place(
+        self,
+        existing: list[DepthLevelState],
+        new_data: list[dict[str, Any]],
+    ) -> None:
+        """Update existing depth levels in-place (no list rebuild).
+
+        Only creates new DepthLevelState objects when the number of
+        levels changes. In steady state (same number of levels),
+        zero allocations occur.
+
+        Args:
+            existing: The existing list of DepthLevelState to update.
+            new_data: New level data as list of dicts.
+        """
+        for i, data in enumerate(new_data):
+            price = Decimal(str(data.get("price", 0)))
+            quantity = int(data.get("quantity", 0))
+            orders = int(data.get("orders", 0))
+            if i < len(existing):
+                # In-place update — no allocation
+                existing[i].price = price
+                existing[i].quantity = quantity
+                existing[i].orders = orders
+            else:
+                # New level — must allocate
+                existing.append(DepthLevelState(
+                    price=price, quantity=quantity, orders=orders,
+                ))
+        # Trim if fewer levels
+        del existing[len(new_data):]
 
     def snapshot(self) -> Any:
         """Return an immutable MarketDepth entity."""

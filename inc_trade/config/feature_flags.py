@@ -86,6 +86,11 @@ class FeatureFlags:
             default=False,
             description="Route orders through ExecutionComposer",
         ),
+        "RICH_INSTRUMENT": FlagDefinition(
+            name="RICH_INSTRUMENT",
+            default=False,
+            description="Enable rich instrument-centric architecture (provider injection, reactive pipeline, depth decorators)",
+        ),
     }
 
     _flags: dict[str, bool] | None = None
@@ -98,6 +103,7 @@ class FeatureFlags:
     ADVANCED_ORDER_TYPES: bool = False
     EXPERIMENTAL_STRATEGIES: bool = False
     COMPOSER_EXECUTION: bool = False
+    RICH_INSTRUMENT: bool = False
 
     _evaluation_counter: Any = None
     _change_counter: Any = None
@@ -277,6 +283,7 @@ class FeatureFlags:
         cls.ADVANCED_ORDER_TYPES = False
         cls.EXPERIMENTAL_STRATEGIES = False
         cls.COMPOSER_EXECUTION = False
+        cls.RICH_INSTRUMENT = False
         cls._evaluation_counter = None
         cls._change_counter = None
         cls._initialize()

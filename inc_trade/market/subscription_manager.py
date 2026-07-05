@@ -184,12 +184,16 @@ class SubscriptionManager:
     def dispatch_tick(self, key: str, data: Any) -> None:
         """Dispatch tick data to all registered callbacks for a key.
 
+        Lock-free: reads the callback list reference without acquiring
+        the lock. CPython GIL ensures atomic reference reads. Callbacks
+        are stored as tuples (copy-on-write) for safe concurrent reads.
+
         Args:
             key: Composite key ``{exchange}:{symbol}``.
             data: Tick data to dispatch.
         """
-        with self._lock:
-            callbacks = list(self._callbacks.get(key, []))
+        # LOCK-FREE: list read is atomic in CPython
+        callbacks = self._callbacks.get(key, [])
         for cb in callbacks:
             try:
                 cb(data)

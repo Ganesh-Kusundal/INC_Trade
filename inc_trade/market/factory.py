@@ -59,6 +59,10 @@ class InstrumentFactory:
         option_type: str | None = None,
         context: Any = None,
         extensions: dict[str, Any] | None = None,
+        provider: Any = None,
+        historical_provider: Any = None,
+        streaming_provider: Any = None,
+        capabilities: Any = None,
     ) -> Instrument:
         """Create the correct Instrument subclass based on content.
 
@@ -75,6 +79,10 @@ class InstrumentFactory:
             option_type: ``"CE"`` or ``"PE"`` for options.
             context: Market data context attached to the instrument.
             extensions: Arbitrary extension data (fundamentals, etc.).
+            provider: InstrumentDataProvider protocol implementation.
+            historical_provider: HistoricalDataProvider protocol implementation.
+            streaming_provider: StreamingDataProvider protocol implementation.
+            capabilities: InstrumentCapabilities for this instrument.
 
         Returns:
             An :class:`Equity`, :class:`Future`, :class:`Option`,
@@ -138,4 +146,10 @@ class InstrumentFactory:
         object.__setattr__(inst, "_context", context)
         object.__setattr__(inst, "_delegate_context", context)  # backward compat
         object.__setattr__(inst, "_extensions", extensions or {})
+
+        # Phase 3: Rich instrument provider injection
+        object.__setattr__(inst, "_provider", provider)
+        object.__setattr__(inst, "_historical_provider", historical_provider)
+        object.__setattr__(inst, "_streaming_provider", streaming_provider)
+        object.__setattr__(inst, "_capabilities", capabilities)
         return inst

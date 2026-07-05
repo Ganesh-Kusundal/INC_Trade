@@ -29,10 +29,10 @@ from inc_trade.domain.enums import (
 )
 from inc_trade.services.audit_facade import AuditFacade
 from inc_trade.services.broker_session import BrokerSession
-from brokers.trading.audit import OrderStateChange, OrderStateHistory
-from brokers.trading.execution_router import ExecutionRouter
-from brokers.trading.oms import OrderManagementSystem
-from brokers.trading.order_repository import OrderRepository
+from inc_trade.trading.audit import OrderStateChange, OrderStateHistory
+from inc_trade.trading.execution_router import ExecutionRouter
+from inc_trade.trading.oms import OrderManagementSystem
+from inc_trade.trading.order_repository import OrderRepository
 
 # ---------------------------------------------------------------------------
 # Helpers / fixtures

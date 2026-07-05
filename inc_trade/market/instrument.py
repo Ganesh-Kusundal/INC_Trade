@@ -13,7 +13,11 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, ClassVar
 
+import logging
+
 from inc_trade.domain.entities import AggregatedExposure, Position
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -259,17 +263,30 @@ class Instrument:
     _context = None  # type: ignore  # canonical name, set externally
     _extensions: dict | None = None  # type: ignore  # set externally
 
+    # ── Rich Instrument attributes (Phase 3) ──────────────────────────
+    # Set via object.__setattr__ by InstrumentFactory or BrokerSession.
+    # These enable the provider-injection pattern: instruments own their
+    # data providers instead of delegating to an external context.
+    _provider = None  # type: ignore  # InstrumentDataProvider protocol
+    _historical_provider = None  # type: ignore  # HistoricalDataProvider protocol
+    _streaming_provider = None  # type: ignore  # StreamingDataProvider protocol
+    _quote_state_obj = None  # type: ignore  # QuoteState instance
+    _observers: list | None = None  # type: ignore  # list[QuoteObserver]
+    _capabilities = None  # type: ignore  # InstrumentCapabilities
+
     # ── Delegate accessors (Instrument-Centric) ─────────────────────────
 
     def quote(self) -> Any:
         """Get current quote for this instrument.
 
-        Delegates to ``MarketDataContext.quote()`` via the attached context.
+        Checks ``_provider`` first (rich instrument path), falls back to
+        ``_context`` (legacy path).
 
         Raises:
-            RuntimeError: If the Instrument was obtained outside
-                ``MarketDataContext.instrument()``.
+            RuntimeError: If neither provider nor context is available.
         """
+        if self._provider is not None:
+            return self._provider.quote(self.symbol, self.exchange)
         ctx = self._context or self._delegate_context
         if ctx is None:
             raise RuntimeError(
@@ -280,6 +297,8 @@ class Instrument:
 
     def ltp(self) -> Decimal:
         """Get last traded price for this instrument."""
+        if self._provider is not None:
+            return self._provider.ltp(self.symbol, self.exchange)
         ctx = self._context or self._delegate_context
         if ctx is None:
             raise RuntimeError(
@@ -288,8 +307,14 @@ class Instrument:
             )
         return ctx.ltp(self.symbol, self.exchange)
 
-    def depth(self) -> Any:
-        """Get market depth (order book) for this instrument."""
+    def depth(self, levels: int = 5) -> Any:
+        """Get market depth (order book) for this instrument.
+
+        Args:
+            levels: Number of depth levels requested (default 5).
+        """
+        if self._provider is not None:
+            return self._provider.depth(self.symbol, self.exchange, levels)
         ctx = self._context or self._delegate_context
         if ctx is None:
             raise RuntimeError(
@@ -314,6 +339,15 @@ class Instrument:
         Returns:
             List of Candle domain entities.
         """
+        hp = self._historical_provider
+        if hp is not None:
+            return hp.get_candles(
+                symbol=self.symbol,
+                exchange=self.exchange,
+                start_time=start_time,
+                end_time=end_time,
+                resolution=resolution,
+            )
         ctx = self._context or self._delegate_context
         if ctx is None:
             raise RuntimeError(
@@ -368,6 +402,9 @@ class Instrument:
         Returns:
             StreamHandle for controlling the subscription.
         """
+        sp = self._streaming_provider
+        if sp is not None:
+            return sp.subscribe(self, callback)
         ctx = self._context or self._delegate_context
         if ctx is None:
             raise RuntimeError(
@@ -378,6 +415,10 @@ class Instrument:
 
     def unsubscribe(self) -> None:
         """Unsubscribe from live market data for this instrument."""
+        sp = self._streaming_provider
+        if sp is not None:
+            sp.unsubscribe(self)
+            return
         ctx = self._context or self._delegate_context
         if ctx is None:
             raise RuntimeError(
@@ -394,6 +435,8 @@ class Instrument:
         each tick. Provides real-time access to LTP, bid, ask, volume, etc.
         without polling the broker API.
         """
+        if self._quote_state_obj is not None:
+            return self._quote_state_obj
         ctx = self._context or self._delegate_context
         if ctx is None:
             raise RuntimeError(
@@ -408,6 +451,80 @@ class Instrument:
         Equivalent to ``self.quote()``.
         """
         return self.quote()
+
+    # ── Observer Pattern (Phase 3) ──────────────────────────────────────
+
+    def attach(self, observer: Any) -> None:
+        """Attach a QuoteObserver to this instrument.
+
+        The observer's ``on_quote(instrument, quote)`` method will be
+        called on every tick after provider update.
+
+        Args:
+            observer: Object implementing QuoteObserver protocol.
+        """
+        if self._observers is None:
+            object.__setattr__(self, "_observers", [])
+        if observer not in self._observers:
+            self._observers.append(observer)
+
+    def detach(self, observer: Any) -> None:
+        """Detach a QuoteObserver from this instrument.
+
+        Args:
+            observer: Previously attached observer.
+        """
+        if self._observers:
+            try:
+                self._observers.remove(observer)
+            except ValueError:
+                pass
+
+    def _notify_observers(self, quote: Any) -> None:
+        """Notify all attached observers of a new quote.
+
+        Each observer is isolated — one failing observer does not block
+        others. Slow observers (>1ms) are logged as warnings.
+        """
+        import time
+        for obs in (self._observers or []):
+            try:
+                t0 = time.monotonic()
+                obs.on_quote(self, quote)
+                elapsed = time.monotonic() - t0
+                if elapsed > 0.001:  # 1ms threshold
+                    logger.warning(
+                        "slow_observer: %s took %.2fms for %s",
+                        type(obs).__name__, elapsed * 1000, self.composite_key,
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "observer_error: %s: %s", type(obs).__name__, exc
+                )
+
+    # ── Capabilities (Phase 3) ──────────────────────────────────────────
+
+    def capabilities(self) -> Any:
+        """Get instrument capabilities (supported depth levels, features).
+
+        Returns:
+            InstrumentCapabilities or None if not set.
+        """
+        return self._capabilities
+
+    def supports_depth(self, levels: int) -> bool:
+        """Check if this instrument supports a specific depth level.
+
+        Args:
+            levels: Depth level to check (e.g., 5, 20, 30, 200).
+
+        Returns:
+            True if supported, False otherwise.
+        """
+        caps = self._capabilities
+        if caps is not None:
+            return caps.supports_depth(levels)
+        return levels <= 5  # Default: only 5-level depth assumed
 
     # ── Extension Data  ─────────────────────────────────────────────────
 

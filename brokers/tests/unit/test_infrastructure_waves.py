@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from brokers.core.di import CircularDependencyError, Container, Scope, ServiceNotFoundError
-from brokers.core.di_scopes import ScopeManager
+from inc_trade.core.di import CircularDependencyError, Container, Scope, ServiceNotFoundError
+from inc_trade.core.di_scopes import ScopeManager
 from inc_trade.domain.lifecycle_health import HealthState, HealthStatus
 from inc_trade.infrastructure.bootstrap import Bootstrap, BootstrapError, BootstrapResult
 from inc_trade.infrastructure.jwt_expiry import parse_jwt_expiry

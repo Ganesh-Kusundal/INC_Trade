@@ -7,9 +7,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from inc_trade.domain.enums import OrderType, Side
-from brokers.trading.execution_router import ExecutionRouter
-from brokers.trading.oms import OrderManagementSystem
-from brokers.trading.order_repository import OrderRepository
+from inc_trade.trading.execution_router import ExecutionRouter
+from inc_trade.trading.oms import OrderManagementSystem
+from inc_trade.trading.order_repository import OrderRepository
 
 
 @pytest.fixture

@@ -16,9 +16,9 @@ import pytest
 
 from inc_trade.domain.entities import Balance, Order, OrderResponse, Position, Trade
 from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
-from brokers.trading.account import Account, AccountStatus, AccountType
-from brokers.trading.account_registry import AccountRegistry
-from brokers.trading.context import AccountHandle, TradingContext
+from inc_trade.trading.account import Account, AccountStatus, AccountType
+from inc_trade.trading.account_registry import AccountRegistry
+from inc_trade.trading.context import AccountHandle, TradingContext
 
 # ═══════════════════════════════════════════════════════════════
 # Account entity tests
@@ -232,7 +232,7 @@ def fake_portfolio() -> _FakePortfolio:
 def context(
     fake_order_execution: _FakeOrderExecution, fake_portfolio: _FakePortfolio
 ) -> TradingContext:
-    from brokers.trading.account_registry import AccountRegistry
+    from inc_trade.trading.account_registry import AccountRegistry
 
     registry = AccountRegistry()
     return TradingContext(
@@ -347,7 +347,7 @@ class TestAccountHandle:
     def test_disabled_account_raises_on_place(self, context: TradingContext) -> None:
         """Disabled accounts should reject order placement."""
         from inc_trade.domain.exceptions import BrokerError
-        from brokers.trading.account_registry import AccountRegistry
+        from inc_trade.trading.account_registry import AccountRegistry
 
         registry = AccountRegistry()
         disabled = Account(
@@ -378,7 +378,7 @@ class TestTradingIntegration:
 
         broker = brokers.connect("paper")
         try:
-            from brokers.trading.context import TradingContext
+            from inc_trade.trading.context import TradingContext
 
             # broker.trading should be a TradingContext
             assert isinstance(broker.trading, TradingContext)

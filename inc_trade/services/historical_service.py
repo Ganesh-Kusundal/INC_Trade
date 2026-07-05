@@ -1,4 +1,4 @@
-"""Historical data service — domain layer for historical market data.
+"""[DEPRECATED] Historical data service. Use Instrument.ohlcv() directly. — domain layer for historical market data.
 
 This service provides business logic for fetching and caching historical
 data. It depends on the HistoricalPort abstraction, not on any specific

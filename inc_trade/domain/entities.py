@@ -150,6 +150,8 @@ class OrderResponse:
 
 @dataclass(frozen=True)
 class Quote:
+    """Rich immutable quote value object with computed properties."""
+
     symbol: str
     ltp: Decimal
     exchange: str = ""
@@ -160,24 +162,62 @@ class Quote:
     volume: int = 0
     timestamp: datetime | None = None
     seq_no: int = 0  # Monotonic sequence number (Kleppmann ordering guarantee)
+    bid: Decimal = Decimal("0")
+    ask: Decimal = Decimal("0")
+    bid_qty: int = 0
+    ask_qty: int = 0
+    oi: int = 0
 
     def is_stale(self, max_age_seconds: float = 5.0) -> bool:
         """Check if quote data is stale based on timestamp."""
         if self.timestamp is None:
             return True
-
         age = (datetime.now(timezone.utc) - self.timestamp).total_seconds()
         return age > max_age_seconds
 
+    @property
     def spread(self) -> Decimal:
-        """Calculate bid-ask spread (returns 0 if data unavailable)."""
-        return Decimal("0")  # Default for simplified Quote; MarketDepth has full spread
+        """Bid-ask spread (ask - bid). Returns 0 if data unavailable."""
+        if self.bid > 0 and self.ask > 0:
+            return self.ask - self.bid
+        return Decimal("0")
 
+    @property
+    def spread_bps(self) -> Decimal:
+        """Bid-ask spread in basis points relative to mid price."""
+        if self.bid > 0 and self.ask > 0:
+            mid = (self.bid + self.ask) / 2
+            if mid > 0:
+                return (self.ask - self.bid) / mid * Decimal("10000")
+        return Decimal("0")
+
+    @property
     def vwap(self) -> Decimal:
-        """Calculate volume-weighted average price approximation."""
+        """Volume-weighted average price approximation."""
         if self.volume <= 0:
             return self.ltp
-        return self.ltp  # Simplified; real VWAP needs trade-by-trade data
+        return (self.high + self.low + self.ltp) / 3
+
+    @property
+    def change(self) -> Decimal:
+        """Price change from previous close."""
+        if self.close > 0:
+            return self.ltp - self.close
+        return Decimal("0")
+
+    @property
+    def change_pct(self) -> Decimal:
+        """Percentage change from previous close."""
+        if self.close > 0:
+            return (self.ltp - self.close) / self.close * Decimal("100")
+        return Decimal("0")
+
+    @property
+    def mid_price(self) -> Decimal:
+        """Mid price between bid and ask. Falls back to ltp."""
+        if self.bid > 0 and self.ask > 0:
+            return (self.bid + self.ask) / 2
+        return self.ltp
 
 
 @dataclass(frozen=True)
@@ -189,11 +229,15 @@ class DepthLevel:
 
 @dataclass(frozen=True)
 class MarketDepth:
+    """Rich immutable market depth (order book) value object."""
+
     symbol: str
     bids: tuple[DepthLevel, ...] = ()
     asks: tuple[DepthLevel, ...] = ()
     exchange: str = ""
     timestamp: datetime | None = None
+    oi: int = 0
+    ltp: Decimal = Decimal("0")
 
     def __init__(
         self,
@@ -202,12 +246,72 @@ class MarketDepth:
         asks: list[DepthLevel] | tuple[DepthLevel, ...] = (),
         exchange: str = "",
         timestamp: datetime | None = None,
+        oi: int = 0,
+        ltp: Decimal = Decimal("0"),
     ):
         object.__setattr__(self, "symbol", symbol)
         object.__setattr__(self, "bids", tuple(bids))
         object.__setattr__(self, "asks", tuple(asks))
         object.__setattr__(self, "exchange", exchange)
         object.__setattr__(self, "timestamp", timestamp)
+        object.__setattr__(self, "oi", oi)
+        object.__setattr__(self, "ltp", ltp)
+
+    @property
+    def levels(self) -> int:
+        """Number of depth levels available."""
+        return max(len(self.bids), len(self.asks))
+
+    @property
+    def total_bid_qty(self) -> int:
+        return sum(level.quantity for level in self.bids)
+
+    @property
+    def total_ask_qty(self) -> int:
+        return sum(level.quantity for level in self.asks)
+
+    @property
+    def best_bid(self) -> Decimal:
+        if not self.bids:
+            return Decimal("0")
+        return max(level.price for level in self.bids)
+
+    @property
+    def best_ask(self) -> Decimal:
+        if not self.asks:
+            return Decimal("0")
+        return min(level.price for level in self.asks)
+
+    @property
+    def spread(self) -> Decimal:
+        bb, ba = self.best_bid, self.best_ask
+        if bb > 0 and ba > 0:
+            return ba - bb
+        return Decimal("0")
+
+    @property
+    def spread_bps(self) -> Decimal:
+        bb, ba = self.best_bid, self.best_ask
+        if bb > 0 and ba > 0:
+            mid = (bb + ba) / 2
+            if mid > 0:
+                return (ba - bb) / mid * Decimal("10000")
+        return Decimal("0")
+
+    @property
+    def bid_ask_ratio(self) -> Decimal:
+        tbq, taq = self.total_bid_qty, self.total_ask_qty
+        if taq > 0:
+            return Decimal(str(tbq)) / Decimal(str(taq))
+        return Decimal("0")
+
+    @property
+    def depth_imbalance(self) -> Decimal:
+        tbq, taq = self.total_bid_qty, self.total_ask_qty
+        total = tbq + taq
+        if total > 0:
+            return Decimal(str(tbq - taq)) / Decimal(str(total))
+        return Decimal("0")
 
 
 @dataclass(frozen=True)

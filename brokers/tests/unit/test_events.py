@@ -349,9 +349,9 @@ class TestOrderEventsPublishing:
     def test_oms_publishes_order_placed_event(self) -> None:
         """OrderManagementSystem.place_order should publish OrderPlacedEvent."""
         from inc_trade.infrastructure.event_bus import EventBus
-        from brokers.trading.execution_router import ExecutionRouter
-        from brokers.trading.oms import OrderManagementSystem
-        from brokers.trading.order_repository import OrderRepository
+        from inc_trade.trading.execution_router import ExecutionRouter
+        from inc_trade.trading.oms import OrderManagementSystem
+        from inc_trade.trading.order_repository import OrderRepository
 
         class MockExecutionPort:
             def place_order(self, **kwargs: object) -> object:

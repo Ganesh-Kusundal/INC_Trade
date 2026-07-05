@@ -1,4 +1,4 @@
-"""Market data service — domain layer for real-time market data.
+"""[DEPRECATED] Market data service. Use Instrument.quote() directly. — domain layer for real-time market data.
 
 This service provides business logic for fetching and caching market
 data. It depends on the MarketDataPort abstraction, not on any specific

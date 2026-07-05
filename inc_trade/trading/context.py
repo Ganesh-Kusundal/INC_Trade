@@ -273,6 +273,7 @@ class TradingContext:
             account=acct,
             order_execution=self._order_execution,
             portfolio=self._portfolio,
+            oms=self._oms,
         )
 
     def default_account(self) -> AccountHandle:

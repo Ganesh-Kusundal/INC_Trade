@@ -29,8 +29,8 @@ from inc_trade.domain.events import (
     OrderPlacedEvent,
     OrderStateChangeEvent,
 )
-from brokers.trading.execution_router import ExecutionRouter
-from brokers.trading.order_repository import OrderRepository
+from inc_trade.trading.execution_router import ExecutionRouter
+from inc_trade.trading.order_repository import OrderRepository
 
 
 class _FakeOrderExecution:
@@ -145,7 +145,7 @@ def _make_oms(
     event_bus: Any | None = None,
     adapter: Any | None = None,
 ) -> Any:
-    from brokers.trading.oms import OrderManagementSystem
+    from inc_trade.trading.oms import OrderManagementSystem
 
     return OrderManagementSystem(
         execution_router=_make_router(adapter),
