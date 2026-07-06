@@ -54,7 +54,7 @@ class TestFeatureFlagsAccess:
     def test_get_all_flags(self):
         flags = FeatureFlags.get_all_flags()
         assert isinstance(flags, dict)
-        assert len(flags) == 5
+        assert len(flags) == 6
         assert "SMART_ROUTING" in flags
         assert "COMPOSER_EXECUTION" in flags
 

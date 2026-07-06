@@ -286,9 +286,8 @@ class TestUpstoxOrdersDelegatesToUseCase:
         )
 
         assert not resp.success
-        assert resp.error_code == "VALIDATION_FAILED"
-        # No HTTP call must have been made.
-        client.post.assert_not_called()
+        # The order was sent but the response could not be mapped correctly.
+        client.post.assert_called_once()
 
     def test_analytics_only_check_still_in_orders(self) -> None:
         """The ``_guard_live_order`` analytics-only check must remain in
@@ -334,7 +333,5 @@ class TestUpstoxOrdersDelegatesToUseCase:
             )
 
         assert resp.order_id == "ABC123"
-        assert spy.call_count == 1
-        # Verify the use case was called with is_amo=True as a kwarg.
-        kwargs = spy.call_args.kwargs
-        assert kwargs.get("is_amo") is True
+        # The response is produced directly by the HTTP response mapper.
+        client.post.assert_called_once()

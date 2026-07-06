@@ -206,9 +206,9 @@ class WebSocketConnection:
             )
 
         run_reconnect_loop(
-            strategy,
-            is_running=lambda: self._running,
             connect=self._connect,
+            strategy=strategy,
+            is_running=lambda: self._running,
             on_reconnecting=_on_reconnecting,
             wait_on_success=False,
         )

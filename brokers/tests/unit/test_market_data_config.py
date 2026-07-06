@@ -296,6 +296,6 @@ class TestMarketDataConfigExport:
         assert Exported is MarketDataConfig
 
     def test_in_market_all(self) -> None:
-        from brokers import market
+        from inc_trade import market
 
         assert "MarketDataConfig" in market.__all__

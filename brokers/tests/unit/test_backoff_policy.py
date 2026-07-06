@@ -77,7 +77,7 @@ class TestReconnectStrategyWithPolicy:
 
         strategy = ReconnectStrategy(max_retries=5, policy=policy)
 
-        with patch("brokers.infrastructure.reconnect_strategy.time.sleep") as mock_sleep:
+        with patch("inc_trade.infrastructure.reconnect_strategy.time.sleep") as mock_sleep:
             strategy.wait()
 
         policy.next_delay.assert_called_once_with(0)
@@ -89,7 +89,7 @@ class TestReconnectStrategyWithPolicy:
 
         strategy = ReconnectStrategy(max_retries=5, policy=policy)
 
-        with patch("brokers.infrastructure.reconnect_strategy.time.sleep"):
+        with patch("inc_trade.infrastructure.reconnect_strategy.time.sleep"):
             strategy.wait()
             strategy.wait()
             strategy.wait()
@@ -110,7 +110,7 @@ class TestReconnectStrategyWithPolicy:
         """Without policy the legacy exponential doubling behaviour is preserved."""
         strategy = ReconnectStrategy(base_delay=5.0, max_delay=60.0, max_retries=5)
 
-        with patch("brokers.infrastructure.reconnect_strategy.time.sleep") as mock_sleep:
+        with patch("inc_trade.infrastructure.reconnect_strategy.time.sleep") as mock_sleep:
             strategy.wait()
             strategy.wait()
             strategy.wait()
@@ -125,7 +125,7 @@ class TestReconnectStrategyWithPolicy:
 
         strategy = ReconnectStrategy(base_delay=5.0, policy=policy)
 
-        with patch("brokers.infrastructure.reconnect_strategy.time.sleep"):
+        with patch("inc_trade.infrastructure.reconnect_strategy.time.sleep"):
             strategy.wait()
 
         # current_delay should remain 5.0 (no doubling when policy is set)
@@ -137,7 +137,7 @@ class TestReconnectStrategyWithPolicy:
 
         strategy = ReconnectStrategy(policy=policy)
 
-        with patch("brokers.infrastructure.reconnect_strategy.time.sleep"):
+        with patch("inc_trade.infrastructure.reconnect_strategy.time.sleep"):
             strategy.wait()
             strategy.wait()
 

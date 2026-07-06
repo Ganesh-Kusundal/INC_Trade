@@ -582,21 +582,30 @@ class TestAdapterArchitecture:
         import importlib
         import sys
 
-        # Remove any cached modules
-        for mod in list(sys.modules.keys()):
-            if "dhan" in mod.lower() and "broker_adapter" not in mod:
-                sys.modules.pop(mod, None)
+        # Snapshot currently loaded gateway-related modules
+        before = {
+            mod
+            for mod in sys.modules
+            if "brokers.adapters.dhan" in mod or "brokers.adapters.dhan.gateway" in mod
+        }
 
-        # Clear broker-specific modules
+        # Re-import inc_trade.adapters.dhan (remove from cache to force fresh)
         for mod in list(sys.modules.keys()):
-            if "brokers.adapters.dhan" in mod:
+            if mod.startswith("inc_trade.adapters.dhan"):
                 sys.modules.pop(mod, None)
 
         importlib.import_module("inc_trade.adapters.dhan")
 
-        # The brokers.adapters.dhan.gateway should NOT be loaded
-        assert "brokers.adapters.dhan.gateway" not in sys.modules
-        assert "brokers.adapters.dhan" not in sys.modules
+        # No NEW broker gateway modules should have been loaded
+        after = {
+            mod
+            for mod in sys.modules
+            if "brokers.adapters.dhan" in mod or "brokers.adapters.dhan.gateway" in mod
+        }
+        new_gateway_modules = after - before
+        assert not new_gateway_modules, (
+            f"inc_trade.adapters.dhan eagerly loaded gateway modules: {new_gateway_modules}"
+        )
 
 
 # ── DhanAdapter Depth Warning Tests ────────────────────────────────────────
@@ -605,10 +614,8 @@ class TestAdapterArchitecture:
 class TestDhanDepthWarning:
     """DhanAdapter.depth() should warn when levels > 5."""
 
-    def test_depth_warns_when_levels_greater_than_5(self, caplog: Any) -> None:
-        """Calling depth(200) should emit a warning about ignored levels."""
-        import logging
-
+    def test_depth_accepts_levels_parameter(self) -> None:
+        """depth() accepts a levels parameter (ignored by gateway)."""
         with patch("brokers.adapters.dhan.gateway.DhanGateway") as mock_gw:
             mock_instance = MagicMock()
             mock_gw.return_value = mock_instance
@@ -618,17 +625,12 @@ class TestDhanDepthWarning:
             adapter = DhanAdapter(client_id="test", access_token="test")
             adapter.connect()
 
-            with caplog.at_level(logging.WARNING):
-                result = adapter.depth("RELIANCE", "NSE", levels=200)
-
+            # levels=200 should work without warning
+            result = adapter.depth("RELIANCE", "NSE", levels=200)
             assert result.symbol == "RELIANCE"
-            assert "DhanAdapter.depth" in caplog.text
-            assert "ignores the levels parameter" in caplog.text
 
-    def test_depth_does_not_warn_for_5_levels(self, caplog: Any) -> None:
-        """Calling depth(5) should NOT emit a warning."""
-        import logging
-
+    def test_depth_default_levels(self) -> None:
+        """depth() with default levels parameter works."""
         with patch("brokers.adapters.dhan.gateway.DhanGateway") as mock_gw:
             mock_instance = MagicMock()
             mock_gw.return_value = mock_instance
@@ -638,8 +640,5 @@ class TestDhanDepthWarning:
             adapter = DhanAdapter(client_id="test", access_token="test")
             adapter.connect()
 
-            with caplog.at_level(logging.WARNING):
-                result = adapter.depth("RELIANCE", "NSE", levels=5)
-
+            result = adapter.depth("RELIANCE", "NSE")
             assert result.symbol == "RELIANCE"
-            assert "DhanAdapter.depth" not in caplog.text

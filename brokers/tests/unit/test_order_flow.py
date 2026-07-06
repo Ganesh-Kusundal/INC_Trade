@@ -474,7 +474,13 @@ class TestExports:
         """Order flow must not import forbidden boundary layers."""
         from pathlib import Path
 
-        fp = Path(__file__).parent.parent.parent / "market" / "analytics" / "order_flow.py"
+        fp = (
+            Path(__file__).parent.parent.parent.parent
+            / "inc_trade"
+            / "market"
+            / "analytics"
+            / "order_flow.py"
+        )
         content = fp.read_text()
         for forbidden in (
             "brokers.adapters",

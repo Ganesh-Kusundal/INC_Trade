@@ -50,6 +50,7 @@ def _make_uc(
     uc = PlaceOrderUseCase(
         client,
         resolver,
+        endpoints={"orders": "https://api.dhan.co/v2/orders"},
         idempotency=idempotency,
         risk_manager=risk_manager,
         derivative_segments=_DERIVATIVE_SEGMENTS,
@@ -172,7 +173,7 @@ class TestExecute:
 
         assert not result.success
         assert result.error_code == "VALIDATION_FAILED"
-        assert "Limit order requires price" in result.message
+        assert "positive price" in result.message
         assert placed is None
 
     def test_validation_failure_sl_requires_trigger(self) -> None:
@@ -190,7 +191,7 @@ class TestExecute:
 
         assert not result.success
         assert result.error_code == "VALIDATION_FAILED"
-        assert "Stop-Loss Market order requires trigger_price" in result.message
+        assert "trigger_price must be positive for stop orders" in result.message
 
     def test_risk_check_rejection(self) -> None:
         risk_manager = MagicMock()
@@ -350,7 +351,7 @@ class TestValidate:
         req = _default_request(order_type=OrderType.LIMIT, price=Decimal("0"))
         error = uc.validate(ref, req)
         assert error is not None
-        assert "price > 0" in error
+        assert "positive price" in error
 
     def test_sl_requires_price_and_trigger(self) -> None:
         uc = self._uc()
@@ -362,7 +363,7 @@ class TestValidate:
         )
         error = uc.validate(ref, req)
         assert error is not None
-        assert "price > 0" in error
+        assert "trigger_price" in error
 
     def test_sl_market_requires_trigger(self) -> None:
         uc = self._uc()
@@ -373,7 +374,7 @@ class TestValidate:
         )
         error = uc.validate(ref, req)
         assert error is not None
-        assert "trigger_price > 0" in error
+        assert "trigger_price must be positive for stop orders" in error
 
     def test_tick_alignment_failure(self) -> None:
         uc = self._uc()
