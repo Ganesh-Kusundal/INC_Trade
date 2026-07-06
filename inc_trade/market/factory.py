@@ -89,6 +89,7 @@ class InstrumentFactory:
         order_provider: Any = None,
         capabilities: Any = None,
         apply_depth: int = 0,
+        extension_registry: Any = None,
     ) -> Instrument:
         """Create the correct Instrument subclass based on content.
 
@@ -115,6 +116,10 @@ class InstrumentFactory:
                 for the given number of levels. E.g., 200 wraps with
                 ``Depth200Decorator``. Uses ``depth_provider`` or falls
                 back to ``provider``.
+            extension_registry: Optional ``ExtensionDecoratorRegistry``.
+                If provided, decorators are applied based on adapter
+                capabilities after construction. Takes precedence over
+                ``apply_depth``.
 
         Returns:
             An :class:`Equity`, :class:`Future`, :class:`Option`,
@@ -190,7 +195,13 @@ class InstrumentFactory:
         object.__setattr__(inst, "_capabilities", capabilities)
 
         # Decorator pipeline: apply depth extension if requested
-        if apply_depth > 0:
+        if extension_registry is not None:
+            # Extension registry takes precedence — apply all registered
+            # decorators based on any adapter in the provider slots.
+            adapter = provider or depth_provider or order_provider
+            if adapter is not None:
+                inst = extension_registry.apply_from_adapter(inst, adapter)
+        elif apply_depth > 0:
             from inc_trade.market.decorators import with_depth
 
             dp = depth_provider or provider
