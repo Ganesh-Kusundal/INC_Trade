@@ -10,8 +10,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any, Protocol, runtime_checkable
 
-from inc_trade.domain.entities import Order, OrderResponse
-from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
+from brokers_core.domain.entities import Order, OrderResponse
+from brokers_core.domain.enums import OrderType, ProductType, Side, Validity
 
 
 @runtime_checkable

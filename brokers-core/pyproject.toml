@@ -6,6 +6,25 @@ authors = [{name = "Elite Quantitative Engineering Board"}]
 license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.28",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1",
+    "mypy>=1.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+markers = [
+    "architecture: architecture boundary tests",
+]
+testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100

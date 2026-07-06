@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from inc_trade.domain.entities import OptionChain as RawOptionChain
+    from brokers_core.domain.entities import OptionChain as RawOptionChain
 
 logger = logging.getLogger(__name__)
 
@@ -555,7 +555,7 @@ def _resolve_instrument(
             return inst
 
     # Create a minimal instrument
-    from inc_trade.market.factory import InstrumentFactory
+    from brokers_core.market.factory import InstrumentFactory
 
     return InstrumentFactory.create(
         symbol=symbol,

@@ -1,4 +1,2 @@
-from brokers.adapters.dhan.adapter import DhanAdapter
-from brokers.adapters.dhan.gateway import DhanGateway
-
-__all__ = ["DhanAdapter", "DhanGateway"]
+"""Strangler bridge."""
+from brokers_core.adapters.dhan import *  # noqa: F403

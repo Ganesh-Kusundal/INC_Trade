@@ -10,14 +10,14 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from inc_trade.domain.enums import (
+from brokers_core.domain.enums import (
     OrderStatus,
     OrderType,
     ProductType,
     Side,
     Validity,
 )
-from inc_trade.domain.error_codes import IDEMPOTENCY_CONFLICT, LIVE_ORDERS_DISABLED
+from brokers_core.domain.error_codes import IDEMPOTENCY_CONFLICT, LIVE_ORDERS_DISABLED
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -108,7 +108,7 @@ class Order:
         Raises:
             OrderStateError: If the transition is illegal for the current status.
         """
-        from inc_trade.domain.order_lifecycle import validate_transition
+        from brokers_core.domain.order_lifecycle import validate_transition
 
         validate_transition(self.status, new_status)
         return replace(self, status=new_status)

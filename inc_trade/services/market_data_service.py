@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 
+from inc_trade.domain.constants.exchanges import DEFAULT_EQUITY_EXCHANGE
 from inc_trade.domain.entities import MarketDepth, Quote
 from inc_trade.ports.market_data import MarketDataPort
 
@@ -36,7 +37,7 @@ class MarketDataService:
         self._market_data_port = market_data_port
         self._cache_ttl_seconds = cache_ttl_seconds
 
-    def ltp(self, symbol: str, exchange: str = "NSE") -> Decimal:
+    def ltp(self, symbol: str, exchange: str = DEFAULT_EQUITY_EXCHANGE) -> Decimal:
         """Get last traded price.
 
         Args:
@@ -48,7 +49,7 @@ class MarketDataService:
         """
         return self._market_data_port.ltp(symbol, exchange)
 
-    def quote(self, symbol: str, exchange: str = "NSE") -> Quote:
+    def quote(self, symbol: str, exchange: str = DEFAULT_EQUITY_EXCHANGE) -> Quote:
         """Get full quote with bid/ask.
 
         Args:
@@ -60,7 +61,7 @@ class MarketDataService:
         """
         return self._market_data_port.quote(symbol, exchange)
 
-    def depth(self, symbol: str, exchange: str = "NSE") -> MarketDepth:
+    def depth(self, symbol: str, exchange: str = DEFAULT_EQUITY_EXCHANGE) -> MarketDepth:
         """Get market depth (order book).
 
         Args:
@@ -72,7 +73,9 @@ class MarketDataService:
         """
         return self._market_data_port.depth(symbol, exchange)
 
-    def ltp_batch(self, symbols: list[str], exchange: str = "NSE") -> dict[str, Decimal]:
+    def ltp_batch(
+        self, symbols: list[str], exchange: str = DEFAULT_EQUITY_EXCHANGE
+    ) -> dict[str, Decimal]:
         """Get LTP for multiple symbols.
 
         Args:
@@ -84,7 +87,9 @@ class MarketDataService:
         """
         return self._market_data_port.ltp_batch(symbols, exchange)
 
-    def quote_batch(self, symbols: list[str], exchange: str = "NSE") -> dict[str, Quote]:
+    def quote_batch(
+        self, symbols: list[str], exchange: str = DEFAULT_EQUITY_EXCHANGE
+    ) -> dict[str, Quote]:
         """Get quotes for multiple symbols.
 
         Args:

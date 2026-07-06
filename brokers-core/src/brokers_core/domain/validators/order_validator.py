@@ -9,8 +9,8 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 
-from inc_trade.domain.constants.exchanges import DERIVATIVE_EXCHANGES
-from inc_trade.domain.enums import OrderType, ProductType
+from brokers_core.domain.constants.exchanges import DERIVATIVE_EXCHANGES
+from brokers_core.domain.enums import OrderType, ProductType
 
 _EQUITY_PRODUCTS = {ProductType.INTRADAY, ProductType.DELIVERY}
 
@@ -19,7 +19,7 @@ NOTIONAL_WARNING_THRESHOLD = Decimal("50000")
 
 def validate_symbol(symbol: str) -> None:
     """Validate symbol is non-empty."""
-    from inc_trade.domain.exceptions import ValidationError
+    from brokers_core.domain.exceptions import ValidationError
 
     if not symbol or not symbol.strip():
         raise ValidationError("symbol is required")
@@ -27,7 +27,7 @@ def validate_symbol(symbol: str) -> None:
 
 def validate_exchange(exchange: str) -> None:
     """Validate exchange is non-empty."""
-    from inc_trade.domain.exceptions import ValidationError
+    from brokers_core.domain.exceptions import ValidationError
 
     if not exchange or not exchange.strip():
         raise ValidationError("exchange is required")
@@ -35,7 +35,7 @@ def validate_exchange(exchange: str) -> None:
 
 def validate_quantity(quantity: int) -> None:
     """Validate quantity is positive."""
-    from inc_trade.domain.exceptions import ValidationError
+    from brokers_core.domain.exceptions import ValidationError
 
     if quantity <= 0:
         raise ValidationError(f"quantity must be positive, got {quantity}")
@@ -43,7 +43,7 @@ def validate_quantity(quantity: int) -> None:
 
 def validate_price(price: Decimal) -> None:
     """Validate price is non-negative."""
-    from inc_trade.domain.exceptions import ValidationError
+    from brokers_core.domain.exceptions import ValidationError
 
     if price < 0:
         raise ValidationError("Price cannot be negative")
@@ -51,7 +51,7 @@ def validate_price(price: Decimal) -> None:
 
 def validate_limit_price(price: Decimal) -> None:
     """Validate LIMIT order has a positive price."""
-    from inc_trade.domain.exceptions import ValidationError
+    from brokers_core.domain.exceptions import ValidationError
 
     if price == 0:
         raise ValidationError(f"LIMIT orders require a positive price (got {price})")
@@ -59,7 +59,7 @@ def validate_limit_price(price: Decimal) -> None:
 
 def validate_trigger_price(trigger_price: Decimal, order_type: OrderType) -> None:
     """Validate trigger price for stop orders."""
-    from inc_trade.domain.exceptions import ValidationError
+    from brokers_core.domain.exceptions import ValidationError
 
     if trigger_price < 0:
         raise ValidationError("Trigger price cannot be negative")
@@ -74,7 +74,7 @@ def validate_trigger_price(trigger_price: Decimal, order_type: OrderType) -> Non
 
 def validate_lot_size(quantity: int, lot_size: int) -> None:
     """Validate quantity is a multiple of lot size."""
-    from inc_trade.domain.exceptions import OrderRejectedError
+    from brokers_core.domain.exceptions import OrderRejectedError
 
     if lot_size <= 0:
         return
@@ -90,7 +90,7 @@ def validate_tick_alignment(
 
     Uses inline tick-check logic to avoid depending on brokers.utils.
     """
-    from inc_trade.domain.exceptions import OrderRejectedError
+    from brokers_core.domain.exceptions import OrderRejectedError
 
     if price <= Decimal("0"):
         return
@@ -103,7 +103,7 @@ def validate_tick_alignment(
 
 def validate_product_segment(product_type: ProductType, exchange: str) -> None:
     """Validate product type is compatible with exchange."""
-    from inc_trade.domain.exceptions import OrderRejectedError
+    from brokers_core.domain.exceptions import OrderRejectedError
 
     if exchange in DERIVATIVE_EXCHANGES and product_type in _EQUITY_PRODUCTS:
         if product_type == ProductType.DELIVERY:

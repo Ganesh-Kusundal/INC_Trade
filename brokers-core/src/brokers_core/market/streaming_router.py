@@ -23,6 +23,8 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
+from brokers_core.ports.subscription import SubscriptionPort
+
 logger = logging.getLogger(__name__)
 
 
@@ -49,8 +51,16 @@ class StreamingBackend:
         self.is_available = is_available
 
 
-class StreamingRouter:
+class StreamingRouter(SubscriptionPort):
     """Routes subscribe/unsubscribe requests to the best available backend.
+
+    Implements :class:`SubscriptionPort` for a unified streaming interface.
+    Supports composite-key subscriptions (``{exchange}:{symbol}``) with
+    priority-based backend selection and automatic fallback.
+
+    Supports two calling conventions:
+    - SubscriptionPort: ``subscribe(key, exchange, callback)``
+    - Legacy: ``subscribe(key, callback)`` (exchange defaults to empty string)
 
     Supports:
     - Priority-based backend selection (WebSocket > polling)
@@ -215,18 +225,23 @@ class StreamingRouter:
         """List of currently active subscription keys."""
         return list(self._active_subscriptions)
 
-    def is_subscribed(self, key: str) -> bool:
+    def active_count(self) -> int:
+        """Number of active subscriptions."""
+        return len(self._active_subscriptions)
+
+    def is_subscribed(self, key: str, exchange: str = "") -> bool:
         """Check if a key has an active subscription.
+
+        Implements :meth:`SubscriptionPort.is_subscribed`.
 
         Args:
             key: Composite key.
+            exchange: Exchange code (unused, for interface compliance).
 
         Returns:
             True if subscribed through any backend.
         """
         return key in self._active_subscriptions
-
-    # ── Lifecycle ─────────────────────────────────────────────────────
 
     # ── Callback Dispatch ─────────────────────────────────────────────
 

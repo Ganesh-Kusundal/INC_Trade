@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from inc_trade.domain.entities import InstrumentInfo
+from brokers_core.domain.constants.exchanges import DEFAULT_EQUITY_EXCHANGE
+from brokers_core.domain.entities import InstrumentInfo
 
 __all__ = ["InstrumentInfo", "InstrumentPort"]
 
@@ -16,5 +17,7 @@ __all__ = ["InstrumentInfo", "InstrumentPort"]
 @runtime_checkable
 class InstrumentPort(Protocol):
     def search(self, query: str, limit: int = 10) -> list[InstrumentInfo]: ...
-    def resolve(self, symbol: str, exchange: str = "NSE") -> InstrumentInfo | None: ...
+    def resolve(
+        self, symbol: str, exchange: str = DEFAULT_EQUITY_EXCHANGE
+    ) -> InstrumentInfo | None: ...
     def load(self) -> None: ...

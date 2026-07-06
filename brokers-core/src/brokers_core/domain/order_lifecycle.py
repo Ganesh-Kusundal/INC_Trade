@@ -6,8 +6,8 @@ in the table is considered invalid and should raise OrderStateError.
 
 from __future__ import annotations
 
-from inc_trade.domain.enums import OrderStatus
-from inc_trade.domain.exceptions import TradeXV2Error
+from brokers_core.domain.enums import OrderStatus
+from brokers_core.domain.exceptions import TradeXV2Error
 
 
 class OrderStateError(TradeXV2Error):

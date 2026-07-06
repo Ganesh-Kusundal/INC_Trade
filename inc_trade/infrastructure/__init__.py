@@ -1,8 +1,6 @@
-"""Infrastructure — cross-cutting concerns for all brokers."""
+"""Strangler bridge."""
+from brokers_core.infrastructure import *  # noqa: F403
+from brokers_core.infrastructure.event_bus import EventBus
+from brokers_core.infrastructure.cache.memory_cache import MemoryCache
 
-from inc_trade.infrastructure.token_broadcast import TokenConsumer, TokenManager
-
-__all__ = [
-    "TokenConsumer",
-    "TokenManager",
-]
+__all__ = ["EventBus", "MemoryCache", "TokenConsumer", "TokenManager"]

@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
 from decimal import Decimal
 from typing import Any
 
@@ -56,22 +55,9 @@ from inc_trade.ports.risk_manager import RiskManagerPort
 from inc_trade.trading.audit import OrderStateChange
 from inc_trade.trading.execution_router import ExecutionRouter
 from inc_trade.trading.order_repository import OrderRepository
+from inc_trade.utils.idempotency_cache import TypedIdempotencyCache
 
 logger = logging.getLogger(__name__)
-
-
-class _IdempotencyEntry:
-    """Internal idempotency cache entry with TTL."""
-
-    __slots__ = ("expires_at", "response")
-
-    def __init__(self, response: OrderResponse, ttl_seconds: float = 86400.0) -> None:
-        self.response = response
-        self.expires_at = time.monotonic() + ttl_seconds
-
-    @property
-    def is_expired(self) -> bool:
-        return time.monotonic() > self.expires_at
 
 
 class OrderManagementSystem:
@@ -116,8 +102,9 @@ class OrderManagementSystem:
         self._fill_detector = fill_detector
         self._risk_manager = risk_manager
         self._lock = threading.RLock()
-        # correlation_id → _IdempotencyEntry
-        self._idempotency_cache: dict[str, _IdempotencyEntry] = {}
+        self._idempotency = TypedIdempotencyCache[OrderResponse](
+            ttl_seconds=idempotency_ttl_seconds,
+        )
         # Lightweight metrics
         self._metrics: dict[str, int] = {
             "orders_placed": 0,
@@ -178,46 +165,29 @@ class OrderManagementSystem:
     def clear_idempotency_cache(self) -> None:
         """Clear all idempotency cache entries."""
         with self._lock:
-            self._idempotency_cache.clear()
+            self._idempotency.clear()
 
     def _check_idempotency(self, correlation_id: str) -> OrderResponse | None:
-        """Check if a correlation_id has been used before.
-
-        Args:
-            correlation_id: Unique order identifier.
-
-        Returns:
-            Cached OrderResponse if found and not expired, None otherwise.
-        """
+        """Check if a correlation_id has been used before."""
         if not correlation_id:
             return None
         with self._lock:
-            entry = self._idempotency_cache.get(correlation_id)
-            if entry is None:
-                return None
-            if entry.is_expired:
-                del self._idempotency_cache[correlation_id]
-                return None
+            cached = self._idempotency.get(correlation_id)
+        if cached is not None:
             logger.debug(
                 "OMS idempotency HIT for correlation_id=%s",
                 correlation_id,
             )
-            return entry.response
+            self._metrics["idempotency_hits"] += 1
+            return cached
+        return None
 
     def _cache_idempotency(self, correlation_id: str, response: OrderResponse) -> None:
-        """Cache an OrderResponse for idempotency checking.
-
-        Args:
-            correlation_id: Unique order identifier.
-            response: OrderResponse to cache.
-        """
+        """Cache an OrderResponse for idempotency checking."""
         if not correlation_id:
             return
         with self._lock:
-            self._idempotency_cache[correlation_id] = _IdempotencyEntry(
-                response=response,
-                ttl_seconds=self._idempotency_ttl,
-            )
+            self._idempotency.put(correlation_id, response)
 
     # ── Fill Detection ──────────────────────────────────────────────────
 
@@ -453,7 +423,6 @@ class OrderManagementSystem:
         if correlation_id:
             cached = self._check_idempotency(correlation_id)
             if cached is not None:
-                self._metrics["idempotency_hits"] += 1
                 return OrderResponse.already_executed(cached.order_id)
 
         # Step 5: Route to correct broker

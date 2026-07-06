@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Protocol, runtime_checkable
 
-from inc_trade.domain.entities import Candle
+from brokers_core.domain.entities import Candle
 
 
 @runtime_checkable

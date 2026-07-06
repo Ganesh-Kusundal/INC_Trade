@@ -17,6 +17,31 @@ class Side(str, Enum):
     def opposite(self) -> Side:
         return Side.SELL if self is Side.BUY else Side.BUY
 
+    @classmethod
+    def from_string(cls, value: str) -> Side:
+        """Parse a side string into a Side enum, case-insensitive.
+
+        Accepts common variations:
+        - ``"BUY"``, ``"buy"``, ``"Buy"`` → ``Side.BUY``
+        - ``"SELL"``, ``"sell"``, ``"Sell"`` → ``Side.SELL``
+
+        Args:
+            value: The side string to parse.
+
+        Returns:
+            The matching Side enum value.
+
+        Raises:
+            ValueError: If the string does not match any Side value.
+        """
+        normalized = value.upper().strip()
+        for member in cls:
+            if member.value == normalized:
+                return member
+        raise ValueError(
+            f"Invalid side: {value!r}. Valid: {[m.value for m in cls]}"
+        )
+
 
 class OrderType(str, Enum):
     MARKET = "MARKET"
@@ -31,6 +56,45 @@ class OrderType(str, Enum):
     @property
     def is_stop(self) -> bool:
         return self in (OrderType.STOP_LOSS, OrderType.STOP_LOSS_MARKET)
+
+    @classmethod
+    def from_string(cls, value: str) -> OrderType:
+        """Parse an order type string into an OrderType enum, case-insensitive.
+
+        Accepts common wire-format variations:
+        - ``"MARKET"``, ``"MKT"`` → ``OrderType.MARKET``
+        - ``"LIMIT"``, ``"LMT"`` → ``OrderType.LIMIT``
+        - ``"STOP_LOSS"``, ``"SL"`` → ``OrderType.STOP_LOSS``
+        - ``"STOP_LOSS_MARKET"``, ``"SL-M"``, ``"SLM"`` → ``OrderType.STOP_LOSS_MARKET``
+
+        Args:
+            value: The order type string to parse.
+
+        Returns:
+            The matching OrderType enum value.
+
+        Raises:
+            ValueError: If the string does not match any OrderType value.
+        """
+        normalized = value.upper().strip()
+        # Handle common wire-format aliases
+        _ALIASES: dict[str, OrderType] = {
+            "MKT": cls.MARKET,
+            "LMT": cls.LIMIT,
+            "SL": cls.STOP_LOSS,
+            "SL-M": cls.STOP_LOSS_MARKET,
+            "SLM": cls.STOP_LOSS_MARKET,
+            "STOPLOSS": cls.STOP_LOSS,
+            "STOPLOSSMARKET": cls.STOP_LOSS_MARKET,
+        }
+        if normalized in _ALIASES:
+            return _ALIASES[normalized]
+        for member in cls:
+            if member.value == normalized:
+                return member
+        raise ValueError(
+            f"Invalid order type: {value!r}. Valid: {[m.value for m in cls]}"
+        )
 
 
 class OrderStatus(str, Enum):

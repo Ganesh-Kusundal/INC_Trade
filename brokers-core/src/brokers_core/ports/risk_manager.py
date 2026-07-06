@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from inc_trade.domain import RiskCheckRequest, RiskCheckResult
+from brokers_core.domain import RiskCheckRequest, RiskCheckResult
 
 
 @runtime_checkable

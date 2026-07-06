@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from inc_trade.domain.error_codes import (
+from brokers_core.domain.error_codes import (
     AUTH_ERROR,
     BROKER_DEGRADED,
     BROKER_SERVER,

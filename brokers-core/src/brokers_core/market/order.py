@@ -18,9 +18,9 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from inc_trade.market.instrument import Instrument
-    from inc_trade.ports.event_publisher import EventPublisherPort
-    from inc_trade.ports.providers import OrderProvider
+    from brokers_core.market.instrument import Instrument
+    from brokers_core.ports.event_publisher import EventPublisherPort
+    from brokers_core.ports.providers import OrderProvider
 
 logger = logging.getLogger(__name__)
 
@@ -99,13 +99,14 @@ class OrderCommand:
         Raises:
             RuntimeError: If no order provider is configured.
         """
-        from inc_trade.domain.enums import OrderType as OT
+        from brokers_core.domain.enums import OrderType as OT
+        from brokers_core.domain.enums import Side
 
         provider = self._resolve_provider()
         result = provider.place_order(
             symbol=self._instrument.symbol,
             exchange=self._instrument.exchange,
-            side="BUY",
+            side=Side.BUY,
             quantity=quantity,
             order_type=order_type or OT.MARKET,
             price=price,
@@ -138,13 +139,14 @@ class OrderCommand:
         Raises:
             RuntimeError: If no order provider is configured.
         """
-        from inc_trade.domain.enums import OrderType as OT
+        from brokers_core.domain.enums import OrderType as OT
+        from brokers_core.domain.enums import Side
 
         provider = self._resolve_provider()
         result = provider.place_order(
             symbol=self._instrument.symbol,
             exchange=self._instrument.exchange,
-            side="SELL",
+            side=Side.SELL,
             quantity=quantity,
             order_type=order_type or OT.MARKET,
             price=price,
@@ -175,7 +177,7 @@ class OrderCommand:
         if not getattr(result, "success", False):
             return
         try:
-            from inc_trade.domain.events import OrderPlacedEvent
+            from brokers_core.domain.events import OrderPlacedEvent
 
             event = OrderPlacedEvent(
                 symbol=self._instrument.symbol,

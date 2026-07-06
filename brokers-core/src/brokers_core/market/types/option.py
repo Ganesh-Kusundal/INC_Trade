@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from inc_trade.market.instrument import Instrument
+from brokers_core.market.instrument import Instrument
 
 
 class Option(Instrument):

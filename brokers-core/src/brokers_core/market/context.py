@@ -26,19 +26,20 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from inc_trade.domain.entities import Candle, MarketDepth, OptionChain, Quote
-from inc_trade.domain.events import QuoteTickEvent
-from inc_trade.market.config import MarketDataConfig
-from inc_trade.market.factory import InstrumentFactory
-from inc_trade.market.instrument_registry import InstrumentRegistry
-from inc_trade.market.quote_state import QuoteState
-from inc_trade.market.subscription_manager import SubscriptionManager
-from inc_trade.ports.event_publisher import EventPublisherPort
-from inc_trade.ports.historical import HistoricalPort
-from inc_trade.ports.instruments import InstrumentPort
-from inc_trade.ports.market_data import MarketDataPort
-from inc_trade.ports.options import OptionsPort
-from inc_trade.ports.streaming import StreamingPort
+from brokers_core.domain.entities import Candle, MarketDepth, OptionChain, Quote
+from brokers_core.domain.events import QuoteTickEvent
+from brokers_core.market.config import MarketDataConfig
+from brokers_core.market.factory import InstrumentFactory
+from brokers_core.market.instrument_registry import InstrumentRegistry
+from brokers_core.market.quote_state import QuoteState
+from brokers_core.market.subscription_manager import SubscriptionManager
+from brokers_core.ports.event_publisher import EventPublisherPort
+from brokers_core.ports.subscription import SubscriptionPort
+from brokers_core.ports.historical import HistoricalPort
+from brokers_core.ports.instruments import InstrumentPort
+from brokers_core.ports.market_data import MarketDataPort
+from brokers_core.ports.options import OptionsPort
+from brokers_core.ports.streaming import StreamingPort
 
 logger = logging.getLogger(__name__)
 
@@ -80,8 +81,8 @@ class MarketDataContext:
         options: OptionsPort | None = None,
         streaming: StreamingPort | None = None,
         instrument_port: InstrumentPort | None = None,
-        subscription_manager: SubscriptionManager | None = None,
-        streaming_router: Any | None = None,
+        subscription_manager: SubscriptionPort | None = None,
+        streaming_router: SubscriptionPort | None = None,
         event_bus: EventPublisherPort | None = None,
         broker_id: str = "",
         market_router: Any | None = None,
@@ -120,14 +121,14 @@ class MarketDataContext:
 
         # Degraded mode tracking
         if degraded_mode is not None:
-            from inc_trade.market.degraded_mode import DegradedMode
+            from brokers_core.market.degraded_mode import DegradedMode
 
             if isinstance(degraded_mode, DegradedMode):
                 self._degraded_mode = degraded_mode
             else:
                 self._degraded_mode = degraded_mode
         else:
-            from inc_trade.market.degraded_mode import DegradedMode
+            from brokers_core.market.degraded_mode import DegradedMode
 
             self._degraded_mode = DegradedMode()
 
@@ -300,7 +301,7 @@ class MarketDataContext:
             NotSupportedError: If historical data is not supported.
         """
         if self._historical is None:
-            from inc_trade.domain.exceptions import NotSupportedError
+            from brokers_core.domain.exceptions import NotSupportedError
 
             raise NotSupportedError("Historical data not supported by this broker")
         # Route through cache-first router if available
@@ -347,7 +348,7 @@ class MarketDataContext:
             NotSupportedError: If options are not supported.
         """
         if self._options is None:
-            from inc_trade.domain.exceptions import NotSupportedError
+            from brokers_core.domain.exceptions import NotSupportedError
 
             raise NotSupportedError("Options not supported by this broker")
         return self._options.get_option_chain(
@@ -378,7 +379,7 @@ class MarketDataContext:
         Raises:
             NotSupportedError: If options are not supported.
         """
-        from inc_trade.market.option_chain import _build_instrument_chain
+        from brokers_core.market.option_chain import _build_instrument_chain
 
         raw = self.option_chain_raw(underlying, exchange, expiry)
         return _build_instrument_chain(self, raw)
@@ -394,7 +395,7 @@ class MarketDataContext:
             List of expiry date strings.
         """
         if self._options is None:
-            from inc_trade.domain.exceptions import NotSupportedError
+            from brokers_core.domain.exceptions import NotSupportedError
 
             raise NotSupportedError("Options not supported by this broker")
         return self._options.get_expiries(underlying=underlying, exchange=exchange)
@@ -494,7 +495,7 @@ class MarketDataContext:
 
         # Legacy path: direct StreamingPort subscription
         if self._streaming is None:
-            from inc_trade.domain.exceptions import NotSupportedError
+            from brokers_core.domain.exceptions import NotSupportedError
 
             raise NotSupportedError("Streaming not supported by this broker")
 

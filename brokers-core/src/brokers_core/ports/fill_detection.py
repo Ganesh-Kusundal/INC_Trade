@@ -22,7 +22,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Protocol, runtime_checkable
 
-from inc_trade.domain.entities import FillResult
+from brokers_core.domain.entities import FillResult
 
 
 @runtime_checkable

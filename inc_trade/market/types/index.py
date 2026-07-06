@@ -1,11 +1,2 @@
-"""Index instrument subclass."""
-
-from __future__ import annotations
-
-from inc_trade.market.instrument import Instrument
-
-
-class Index(Instrument):
-    """Index instrument."""
-
-    pass
+"""Strangler bridge."""
+from brokers_core.market.types.index import *  # noqa: F403

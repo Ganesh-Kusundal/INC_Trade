@@ -5,7 +5,7 @@ orders via the strategy's ``place_orders()`` method.
 
 Usage::
 
-    from inc_trade.market.strategies import VerticalSpread
+    from brokers_core.market.strategies import VerticalSpread
 
     chain = inst.option_chain("2025-01-30")
     strikes = chain.nearest_strikes(3)
@@ -31,6 +31,8 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
+from brokers_core.domain.enums import Side
+
 
 @dataclass(frozen=True)
 class StrategyLeg:
@@ -38,13 +40,13 @@ class StrategyLeg:
 
     Attributes:
         instrument: The Instrument to trade.
-        side: "BUY" or "SELL".
+        side: ``Side.BUY`` or ``Side.SELL``.
         quantity: Number of units.
         ratio: Leg ratio (default 1). For spreads with unequal legs.
     """
 
     instrument: Any
-    side: str
+    side: Side
     quantity: int
     ratio: int = 1
 
@@ -103,7 +105,7 @@ class OptionStrategy(ABC):
         total = Decimal("0")
         for leg in self.legs:
             price = self._leg_price(leg)
-            if leg.side.upper() == "BUY":
+            if leg.side == Side.BUY:
                 total -= price
             else:
                 total += price
@@ -133,7 +135,7 @@ class OptionStrategy(ABC):
                 intrinsic = max(Decimal("0"), (instr.strike or Decimal("0")) - spot)
             else:
                 intrinsic = spot - price  # futures/equity
-            if leg.side.upper() == "BUY":
+            if leg.side == Side.BUY:
                 total += (intrinsic - price) * leg.quantity * leg.ratio
             else:
                 total += (price - intrinsic) * leg.quantity * leg.ratio
@@ -152,7 +154,7 @@ class OptionStrategy(ABC):
         results: list[Any] = []
         for leg in self.legs:
             qty = leg.quantity * leg.ratio
-            if leg.side.upper() == "BUY":
+            if leg.side == Side.BUY:
                 result = leg.instrument.buy(quantity=qty, **kwargs)
             else:
                 result = leg.instrument.sell(quantity=qty, **kwargs)
@@ -162,6 +164,6 @@ class OptionStrategy(ABC):
     def __repr__(self) -> str:
         cls = type(self).__name__
         leg_summary = ", ".join(
-            f"{leg.side} {leg.quantity}x {leg.instrument.symbol}" for leg in self.legs
+            f"{leg.side.value} {leg.quantity}x {leg.instrument.symbol}" for leg in self.legs
         )
         return f"{cls}({leg_summary})"

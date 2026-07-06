@@ -13,7 +13,8 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Protocol, runtime_checkable
 
-from inc_trade.domain.entities import Candle, MarketDepth, OptionChain, Quote
+from brokers_core.domain.entities import Candle, MarketDepth, OptionChain, Quote
+from brokers_core.domain.enums import Side
 
 
 @runtime_checkable
@@ -80,14 +81,18 @@ class OrderProvider(Protocol):
     """Protocol for order placement, modification, and cancellation.
 
     Broker adapters implement this to allow Instruments to place orders
-    directly without requiring a full OrderExecutionPort.
+directly without requiring a full OrderExecutionPort.
+
+    .. versionchanged:: 0.2.0
+        ``place_order`` now accepts ``Side`` enum instead of ``str``.
+        Use ``Side.from_string()`` to convert string sides.
     """
 
     def place_order(
         self,
         symbol: str,
         exchange: str,
-        side: str,
+        side: Side,
         quantity: int,
         order_type: Any = None,
         price: Decimal = Decimal("0"),

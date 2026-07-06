@@ -12,6 +12,8 @@ import threading
 from collections.abc import Callable
 from typing import Any
 
+from brokers_core.ports.subscription import SubscriptionPort
+
 logger = logging.getLogger(__name__)
 
 
@@ -57,9 +59,10 @@ class SubscriptionState:
         self._state = new_state
 
 
-class SubscriptionManager:
+class SubscriptionManager(SubscriptionPort):
     """Thread-safe subscription tracker with deduplication and reference counting.
 
+    Implements :class:`SubscriptionPort` for a unified streaming interface.
     Ensures only one subscription per instrument key, regardless of how many
     consumers request it. Auto-unsubscribes when the last consumer leaves.
 
@@ -212,6 +215,11 @@ class SubscriptionManager:
         with self._lock:
             return [k for k, s in self._states.items() if s.is_active]
 
+    def active_count(self) -> int:
+        """Number of active subscriptions (implements SubscriptionPort)."""
+        with self._lock:
+            return sum(1 for s in self._states.values() if s.is_active)
+
     @property
     def total_ref_counts(self) -> int:
         """Total reference count across all subscriptions."""
@@ -230,11 +238,14 @@ class SubscriptionManager:
         with self._lock:
             return self._ref_counts.get(key, 0)
 
-    def is_subscribed(self, key: str) -> bool:
+    def is_subscribed(self, key: str, exchange: str = "") -> bool:
         """Check if a key has active subscription.
+
+        Implements :meth:`SubscriptionPort.is_subscribed`.
 
         Args:
             key: Composite key.
+            exchange: Exchange code (unused, for interface compliance).
 
         Returns:
             True if subscribed with active state.

@@ -6,39 +6,26 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
+from uuid import uuid4
 
 
 @dataclass(frozen=True)
 class DomainEvent:
-    """Immutable domain event published on the in-process event bus."""
+    """Base class for all domain events."""
 
-    event_type: str
-    payload: dict[str, Any]
-    symbol: str | None = None
-    source: str | None = None
+    event_id: str = field(default_factory=lambda: str(uuid4()))
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    source: str = ""
 
-    @classmethod
-    def now(
-        cls,
-        event_type: str,
-        payload: dict[str, Any],
-        *,
-        symbol: str | None = None,
-        source: str | None = None,
-    ) -> DomainEvent:
-        return cls(
-            event_type=event_type,
-            payload=payload,
-            symbol=symbol,
-            source=source,
-            timestamp=datetime.now(UTC),
-        )
+    @property
+    def event_type(self) -> str:
+        return type(self).__name__
 
 
-# ── Event Type Constants ─────────────────────────────────────────────────────
+# ── Event Type Constants (legacy string dispatch) ────────────────────────────
 
 EVENT_QUOTE_TICK = "quote.tick"
+EVENT_QUOTE_UPDATED = "QuoteUpdatedEvent"
 EVENT_DEPTH_UPDATE = "depth.update"
 EVENT_ORDER_PLACED = "order.placed"
 EVENT_ORDER_FILLED = "order.filled"
@@ -50,42 +37,38 @@ EVENT_CONNECTION = "connection"
 EVENT_CONNECTION_CHANGED = EVENT_CONNECTION
 
 
-# ── Market Data Events ─────────────────────────────────────────────────────
+# ── Market Data Events (V3) ──────────────────────────────────────────────────
 
 
 @dataclass(frozen=True)
-class QuoteTickEvent:
-    """Published when a streaming tick arrives for an instrument.
+class QuoteUpdatedEvent(DomainEvent):
+    """Published when a new quote tick arrives for an instrument."""
 
-    Attributes:
-        composite_key: Canonical composite key ``{exchange}:{symbol}``.
-        symbol: Trading symbol.
-        exchange: Exchange code.
-        ltp: Last traded price.
-        bid: Best bid price.
-        ask: Best ask price.
-        volume: Traded volume for this tick.
-        oi: Open interest (0 if not available).
-        source: Broker identifier that generated this event.
-        event_type: Constant ``EVENT_QUOTE_TICK``.
-        timestamp: When the tick was received.
-    """
-
-    composite_key: str = ""
-    symbol: str = ""
-    exchange: str = ""
+    instrument_key: str = ""
     ltp: Decimal = Decimal("0")
     bid: Decimal = Decimal("0")
     ask: Decimal = Decimal("0")
     volume: int = 0
     oi: int = 0
-    source: str = ""
-    event_type: str = EVENT_QUOTE_TICK
-    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    timestamp_exchange: datetime | None = None
 
 
 @dataclass(frozen=True)
-class DepthUpdateEvent:
+class QuoteTickEvent(QuoteUpdatedEvent):
+    """Backward-compatible alias for streaming quote ticks."""
+
+    composite_key: str = ""
+    symbol: str = ""
+    exchange: str = ""
+    event_type_legacy: str = EVENT_QUOTE_TICK
+
+    @property
+    def event_type(self) -> str:
+        return self.event_type_legacy
+
+
+@dataclass(frozen=True)
+class DepthUpdateEvent(DomainEvent):
     """Published when depth data arrives for an instrument."""
 
     composite_key: str = ""
@@ -93,64 +76,60 @@ class DepthUpdateEvent:
     exchange: str = ""
     bids: tuple[tuple[Decimal, int], ...] = ()
     asks: tuple[tuple[Decimal, int], ...] = ()
-    source: str = ""
-    event_type: str = EVENT_DEPTH_UPDATE
-    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
-# ── Order Events ────────────────────────────────────────────────────────────
+# ── Order Events (V3) ────────────────────────────────────────────────────────
 
 
 @dataclass(frozen=True)
-class OrderPlacedEvent:
-    """Published when an order is successfully placed."""
+class OrderPlacedEvent(DomainEvent):
+    """Published when an order is placed successfully."""
 
-    account_id: str = ""
+    instrument_key: str = ""
     order_id: str = ""
+    side: str = ""
+    quantity: int = 0
+    price: Decimal = Decimal("0")
+    order_type: str = ""
+    account_id: str = ""
     correlation_id: str = ""
     symbol: str = ""
     exchange: str = ""
-    side: str = ""
-    quantity: int = 0
-    order_type: str = ""
-    price: Decimal = Decimal("0")
     trigger_price: str = ""
-    event_type: str = EVENT_ORDER_PLACED
-    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
-class OrderFilledEvent:
-    """Published when an order is partially or fully filled."""
+class OrderFilledEvent(DomainEvent):
+    """Published when an order receives fills."""
 
-    account_id: str = ""
+    instrument_key: str = ""
     order_id: str = ""
+    filled_quantity: int = 0
+    remaining_quantity: int = 0
+    average_price: Decimal = Decimal("0")
+    account_id: str = ""
     correlation_id: str = ""
     symbol: str = ""
     fill_price: str = ""
     fill_quantity: int = 0
-    remaining_quantity: int = 0
     is_complete: bool = False
-    event_type: str = EVENT_ORDER_FILLED
-    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
-class OrderRejectedEvent:
-    """Published when an order is rejected by the broker."""
+class OrderRejectedEvent(DomainEvent):
+    """Published when an order is rejected."""
 
-    account_id: str = ""
+    instrument_key: str = ""
     order_id: str = ""
+    reason: str = ""
+    account_id: str = ""
     correlation_id: str = ""
     symbol: str = ""
-    reason: str = ""
     is_retryable: bool = False
-    event_type: str = EVENT_ORDER_REJECTED
-    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
-class OrderModifiedEvent:
+class OrderModifiedEvent(DomainEvent):
     """Published when an order is successfully modified."""
 
     account_id: str = ""
@@ -159,12 +138,10 @@ class OrderModifiedEvent:
     symbol: str = ""
     old_quantity: int = 0
     new_quantity: int = 0
-    event_type: str = EVENT_ORDER_MODIFIED
-    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
-class OrderCancelledEvent:
+class OrderCancelledEvent(DomainEvent):
     """Published when an order is cancelled."""
 
     account_id: str = ""
@@ -172,12 +149,10 @@ class OrderCancelledEvent:
     correlation_id: str = ""
     symbol: str = ""
     cancelled_quantity: int = 0
-    event_type: str = EVENT_ORDER_CANCELLED
-    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
-class OrderStateChangeEvent:
+class OrderStateChangeEvent(DomainEvent):
     """Published on every order state transition recorded by the OMS."""
 
     order_id: str = ""
@@ -186,17 +161,24 @@ class OrderStateChangeEvent:
     from_status: str = ""
     to_status: str = ""
     reason: str = ""
-    event_type: str = EVENT_ORDER_STATE_CHANGE
-    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
-class ConnectionEvent:
+class ConnectionEvent(DomainEvent):
     """Published when a WebSocket or streaming connection changes state."""
 
     connection_type: str = ""
-    state: str = ""  # "connected", "disconnected", "reconnecting", "error"
+    state: str = ""
     broker_id: str = ""
     message: str = ""
-    event_type: str = EVENT_CONNECTION
-    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+
+
+def resolve_event_type(event: DomainEvent | Any) -> str:
+    """Resolve dispatch key for event bus handlers."""
+    legacy = getattr(event, "event_type_legacy", None)
+    if legacy:
+        return str(legacy)
+    event_type = getattr(event, "event_type", None)
+    if isinstance(event_type, str):
+        return event_type
+    return type(event).__name__

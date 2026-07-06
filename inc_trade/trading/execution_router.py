@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections.abc import Callable
 from decimal import Decimal
 
 from inc_trade.domain.entities import Order, OrderResponse
@@ -47,12 +48,7 @@ class ExecutionRouter:
     """Routes order execution to the correct broker adapter by account.
 
     Maintains a registry of ``OrderExecutionPort`` implementations indexed
-    by broker_id. Account IDs follow the pattern ``{broker_id}/{account_name}``
-    (e.g., ``"dhan/default"``). The router splits on ``/`` to extract the
-    broker_id and find the correct adapter.
-
-    Args:
-        adapters: Optional initial mapping of broker_id → OrderExecutionPort.
+    by broker_id. Supports optional health checks and fallback routing.
     """
 
     def __init__(
@@ -61,6 +57,8 @@ class ExecutionRouter:
     ) -> None:
         self._lock = threading.RLock()
         self._adapters: dict[str, OrderExecutionPort] = dict(adapters or {})
+        self._health_checks: dict[str, Callable[[], bool]] = {}
+        self._fallback_order: list[str] = []
 
     # ── Adapter Management ─────────────────────────────────────────────
 
@@ -83,19 +81,30 @@ class ExecutionRouter:
             )
 
     def unregister_adapter(self, broker_id: str) -> bool:
-        """Remove an adapter registration.
-
-        Args:
-            broker_id: Broker identifier.
-
-        Returns:
-            True if found and removed, False otherwise.
-        """
+        """Remove an adapter registration."""
         with self._lock:
             if broker_id in self._adapters:
                 del self._adapters[broker_id]
+                self._health_checks.pop(broker_id, None)
                 return True
             return False
+
+    def register_health_check(self, broker_id: str, health_check: Callable[[], bool]) -> None:
+        """Register a health probe for a broker adapter."""
+        with self._lock:
+            self._health_checks[broker_id] = health_check
+
+    def set_fallback_order(self, broker_ids: list[str]) -> None:
+        """Set ordered fallback brokers when the primary is unhealthy."""
+        with self._lock:
+            self._fallback_order = list(broker_ids)
+
+    def _is_healthy(self, broker_id: str) -> bool:
+        with self._lock:
+            check = self._health_checks.get(broker_id)
+        if check is None:
+            return True
+        return check()
 
     @property
     def registered_brokers(self) -> list[str]:
@@ -140,14 +149,37 @@ class ExecutionRouter:
         """
         broker_id = self._parse_account_id(account_id)
         with self._lock:
+            if broker_id in self._adapters and self._is_healthy(broker_id):
+                return self._adapters[broker_id]
+            fallback_order = list(self._fallback_order)
+
+        if broker_id in self._adapters:
+            logger.warning("Primary broker %s unhealthy for account %s", broker_id, account_id)
+
+        for fallback_id in fallback_order:
+            with self._lock:
+                adapter = self._adapters.get(fallback_id)
+            if adapter is not None and self._is_healthy(fallback_id):
+                logger.warning(
+                    "Falling back from %s to %s for account %s",
+                    broker_id,
+                    fallback_id,
+                    account_id,
+                )
+                return adapter
+
+        with self._lock:
             adapter = self._adapters.get(broker_id)
-        if adapter is None:
-            raise BrokerError(
-                f"No execution adapter registered for broker {broker_id!r} "
-                f"(from account_id {account_id!r}). "
-                f"Registered brokers: {list(self._adapters.keys())}"
-            )
-        return adapter
+        if adapter is not None:
+            return adapter
+
+        with self._lock:
+            registered = list(self._adapters.keys())
+        raise BrokerError(
+            f"No execution adapter registered for broker {broker_id!r} "
+            f"(from account_id {account_id!r}). "
+            f"Registered brokers: {registered}"
+        )
 
     # ── Delegation Methods ─────────────────────────────────────────────
 

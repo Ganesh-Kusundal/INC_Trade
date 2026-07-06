@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 from inc_trade.domain.lifecycle_health import HealthState, HealthStatus
 
-from brokers.adapters.dhan.depth_feed_base import (
+from brokers_core.adapters.dhan.depth_feed_base import (
     _HEADER_SIZE,
     _LEVEL_SIZE,
     BinaryDepthFeed,

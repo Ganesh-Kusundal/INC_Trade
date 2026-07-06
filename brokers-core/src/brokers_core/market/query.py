@@ -23,10 +23,10 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from inc_trade.domain.entities import Candle, MarketDepth, Quote
-    from inc_trade.market.instrument import Instrument
-    from inc_trade.ports.event_publisher import EventPublisherPort
-    from inc_trade.ports.providers import (
+    from brokers_core.domain.entities import Candle, MarketDepth, Quote
+    from brokers_core.market.instrument import Instrument
+    from brokers_core.ports.event_publisher import EventPublisherPort
+    from brokers_core.ports.providers import (
         DepthProvider,
         HistoricalDataProvider,
         InstrumentDataProvider,
@@ -137,7 +137,7 @@ class MarketDataQuery:
         if self._event_publisher is None:
             return
         try:
-            from inc_trade.domain.events import QuoteTickEvent
+            from brokers_core.domain.events import QuoteTickEvent
 
             event = QuoteTickEvent(
                 composite_key=self._instrument.composite_key,
@@ -279,7 +279,7 @@ class MarketDataQuery:
                     expiry=expiry,
                 )
                 # Convert raw OptionChain to InstrumentOptionChain
-                from inc_trade.market.option_chain import _build_instrument_chain
+                from brokers_core.market.option_chain import _build_instrument_chain
 
                 return _build_instrument_chain(None, raw)
         except RuntimeError:

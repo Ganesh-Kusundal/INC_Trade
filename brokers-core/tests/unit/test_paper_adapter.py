@@ -8,7 +8,7 @@ from brokers_core.domain import (
     Side,
 )
 
-from brokers.adapters.paper.gateway import PaperGateway
+from brokers_core.adapters.paper.gateway import PaperGateway
 
 
 class TestPaperGateway:

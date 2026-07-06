@@ -11,7 +11,7 @@ This bounded context owns everything related to market data:
 Market Data MUST NOT import from trading.
 """
 
-# Analytics and context remain in inc_trade for now
+# Analytics and context modules
 # from brokers_core.domain.entities import AggregatedExposure as AggregatedExposure
 # from brokers_core.market.analytics import (
 #     ATRCalculator as ATRCalculator,
@@ -32,26 +32,26 @@ Market Data MUST NOT import from trading.
 #     InstrumentHandle as InstrumentHandle,
 # )
 # from brokers_core.market.context import MarketDataContext as MarketDataContext
-# Scanner imports remain in inc_trade for now
-# from inc_trade.market.scanner import (
+# Scanner modules
+# from brokers_core.market.scanner import (
 #     CrossingMA as CrossingMA,
 # )
-# from inc_trade.market.scanner import (
+# from brokers_core.market.scanner import (
 #     PriceAbove as PriceAbove,
 # )
-# from inc_trade.market.scanner import (
+# from brokers_core.market.scanner import (
 #     PriceBelow as PriceBelow,
 # )
-# from inc_trade.market.scanner import (
+# from brokers_core.market.scanner import (
 #     ScanCriteria as ScanCriteria,
 # )
-# from inc_trade.market.scanner import (
+# from brokers_core.market.scanner import (
 #     Scanner as Scanner,
 # )
-# from inc_trade.market.scanner import (
+# from brokers_core.market.scanner import (
 #     ScanResult as ScanResult,
 # )
-# from inc_trade.market.scanner import (
+# from brokers_core.market.scanner import (
 #     VolumeSpike as VolumeSpike,
 # )
 

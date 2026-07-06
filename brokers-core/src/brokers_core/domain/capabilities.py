@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from inc_trade.domain.enums import BrokerID
+from brokers_core.domain.enums import BrokerID
 
 __all__ = [
     "BrokerCapabilities",

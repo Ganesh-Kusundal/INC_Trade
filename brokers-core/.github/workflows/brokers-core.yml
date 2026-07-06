@@ -8,7 +8,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-      - run: pip install -e brokers-core
+      - run: pip install -e brokers-core pytest
       - run: python -m pytest brokers-core/tests/unit/
       - run: python -m pytest brokers-core/tests/architecture/
-      - run: grep -r "import inc_trade" brokers-core/src/ && exit 1 || echo "Clean"
+      - run: |
+          if grep -rE '(^|[^a-zA-Z_])(from inc_trade|import inc_trade)' brokers-core/src/ --include='*.py'; then
+            echo "ERROR: brokers-core must not import inc_trade"
+            exit 1
+          fi
+          echo "Clean — no inc_trade imports"

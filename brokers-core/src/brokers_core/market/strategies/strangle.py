@@ -5,7 +5,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from inc_trade.market.strategies.base import OptionStrategy, StrategyLeg
+from brokers_core.domain.enums import Side
+from brokers_core.market.strategies.base import OptionStrategy, StrategyLeg
 
 
 class Strangle(OptionStrategy):
@@ -33,13 +34,13 @@ class Strangle(OptionStrategy):
         self._side = side.lower()
         if self._side == "long":
             legs = (
-                StrategyLeg(instrument=call_leg, side="BUY", quantity=quantity),
-                StrategyLeg(instrument=put_leg, side="BUY", quantity=quantity),
+                StrategyLeg(instrument=call_leg, side=Side.BUY, quantity=quantity),
+                StrategyLeg(instrument=put_leg, side=Side.BUY, quantity=quantity),
             )
         else:
             legs = (
-                StrategyLeg(instrument=call_leg, side="SELL", quantity=quantity),
-                StrategyLeg(instrument=put_leg, side="SELL", quantity=quantity),
+                StrategyLeg(instrument=call_leg, side=Side.SELL, quantity=quantity),
+                StrategyLeg(instrument=put_leg, side=Side.SELL, quantity=quantity),
             )
         super().__init__(underlying=underlying, legs=legs)
 

@@ -1,0 +1,46 @@
+name: Architecture Enforcement
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  architecture-tests:
+    name: Architecture Boundary Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install -e brokers-core pytest
+
+      - name: Run architecture boundary tests
+        run: |
+          python -m pytest brokers-core/tests/architecture/ \
+            -v \
+            -m architecture \
+            --tb=short
+
+      - name: Verify brokers-core has no inc_trade imports
+        run: |
+          if grep -rE '(^|[^a-zA-Z_])(from inc_trade|import inc_trade)' brokers-core/src/ --include='*.py'; then
+            echo "ERROR: brokers-core must not import inc_trade"
+            exit 1
+          fi
+          echo "Clean — no inc_trade imports"

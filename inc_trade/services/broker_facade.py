@@ -24,6 +24,10 @@ from inc_trade.domain import (
     Quote,
     Trade,
 )
+from inc_trade.domain.constants.exchanges import (
+    DEFAULT_DERIVATIVE_EXCHANGE,
+    DEFAULT_EQUITY_EXCHANGE,
+)
 from inc_trade.domain.enums import BrokerID, OrderType, ProductType, Side, Validity
 from inc_trade.ports.extension_registry import ExtensionRegistryPort
 from inc_trade.services.historical_service import HistoricalService
@@ -143,19 +147,21 @@ class BrokerFacade:
 
     # --- Market Data ---
 
-    def get_quote(self, symbol: str, exchange: str = "NSE") -> Quote:
+    def get_quote(self, symbol: str, exchange: str = DEFAULT_EQUITY_EXCHANGE) -> Quote:
         """Get current quote for a symbol."""
         return self._market_data_service.quote(symbol, exchange)
 
-    def quote(self, symbol: str, exchange: str = "NSE") -> Quote:
+    def quote(self, symbol: str, exchange: str = DEFAULT_EQUITY_EXCHANGE) -> Quote:
         """Alias for get_quote()."""
         return self.get_quote(symbol, exchange)
 
-    def get_quotes(self, symbols: list[str], exchange: str = "NSE") -> dict[str, Quote]:
+    def get_quotes(
+        self, symbols: list[str], exchange: str = DEFAULT_EQUITY_EXCHANGE
+    ) -> dict[str, Quote]:
         """Get current quotes for multiple symbols natively in bulk."""
         return self._market_data_service.quote_batch(symbols, exchange)
 
-    def ltp(self, symbol: str, exchange: str = "NSE") -> Decimal:
+    def ltp(self, symbol: str, exchange: str = DEFAULT_EQUITY_EXCHANGE) -> Decimal:
         """Get last traded price."""
         return self._market_data_service.ltp(symbol, exchange)
 
@@ -178,41 +184,20 @@ class BrokerFacade:
             resolution=resolution,
         )
 
-    def ltp_batch(self, symbols: list[str], exchange: str = "NSE") -> dict[str, Decimal]:
+    def ltp_batch(
+        self, symbols: list[str], exchange: str = DEFAULT_EQUITY_EXCHANGE
+    ) -> dict[str, Decimal]:
         """Get last traded prices for multiple symbols natively in bulk."""
         return self._market_data_service.ltp_batch(symbols, exchange)
 
-    def depth(self, symbol: str, exchange: str = "NSE") -> MarketDepth:
+    def depth(self, symbol: str, exchange: str = DEFAULT_EQUITY_EXCHANGE) -> MarketDepth:
         """Get market depth."""
         return self._market_data_service.depth(symbol, exchange)
-
-    def get_historical_candles(
-        self,
-        symbol: str,
-        exchange: str = "NSE",
-        interval: str = "1d",
-        from_date: str | None = None,
-        to_date: str | None = None,
-    ) -> list[Candle]:
-        """Get historical candles via the historical service."""
-        from datetime import datetime
-
-        if from_date is None or to_date is None:
-            return []
-        start = datetime.fromisoformat(from_date)
-        end = datetime.fromisoformat(to_date)
-        return self._historical_service.fetch_candles(
-            symbol=symbol,
-            exchange=exchange,
-            start_time=start,
-            end_time=end,
-            resolution=interval,
-        )
 
     def get_option_chain(
         self,
         underlying: str,
-        exchange: str = "NFO",
+        exchange: str = DEFAULT_DERIVATIVE_EXCHANGE,
         expiry: str | None = None,
     ) -> Any:
         """Get full option chain for a specific expiry via the options service."""
@@ -222,7 +207,9 @@ class BrokerFacade:
             expiry=expiry,
         )
 
-    def get_expiries(self, underlying: str, exchange: str = "NFO") -> list[str]:
+    def get_expiries(
+        self, underlying: str, exchange: str = DEFAULT_DERIVATIVE_EXCHANGE
+    ) -> list[str]:
         """Get available option expiries for an underlying via the options service."""
         return self._options_service.get_expiries(
             underlying=underlying,
@@ -253,7 +240,9 @@ class BrokerFacade:
         """Search for instruments."""
         return self._instrument_service.search(query)
 
-    def get_instrument(self, symbol: str, exchange: str = "NSE") -> InstrumentInfo:
+    def get_instrument(
+        self, symbol: str, exchange: str = DEFAULT_EQUITY_EXCHANGE
+    ) -> InstrumentInfo:
         """Get instrument info by symbol and exchange."""
         result = self._instrument_service.resolve(symbol, exchange)
         if result is None:

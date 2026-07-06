@@ -1,20 +1,2 @@
-"""Clock port — injectable time source for testability.
-
-Production uses real wall-clock time; tests inject a fake clock
-to control time deterministically.
-"""
-
-from __future__ import annotations
-
-from datetime import UTC, datetime
-from typing import Protocol, runtime_checkable
-
-
-@runtime_checkable
-class ClockPort(Protocol):
-    def now(self) -> datetime: ...
-
-
-class SystemClock:
-    def now(self) -> datetime:
-        return datetime.now(UTC)
+"""Strangler bridge — re-export from brokers_core.ports."""
+from brokers_core.ports.clock import *  # noqa: F403

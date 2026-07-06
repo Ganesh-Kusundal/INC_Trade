@@ -39,7 +39,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-class BrokerSession:
+class FacadeBrokerSession:
     """Thin composition root wrapping all broker port implementations.
 
     Returned by ``brokers.connect()``. Clients use named properties
@@ -53,10 +53,12 @@ class BrokerSession:
         self,
         broker_id: str,
         facade: Any = None,
+        v3_session: Any = None,
         **ports: Any,
     ) -> None:
         self._broker_id = broker_id
         self._facade = facade
+        self._v3_session = v3_session
 
         # Store directly-injected ports (override facade lookup when set)
         self._orders = ports.get("orders")
@@ -68,6 +70,16 @@ class BrokerSession:
         self._replay = None
         self._audit = ports.get("audit")
         self._cached_market = None  # Lazy cache for facade-built market context
+
+    @property
+    def instruments(self) -> Any:
+        """V3 instrument-centric session (equity/query/command API)."""
+        if self._v3_session is None:
+            raise RuntimeError(
+                "V3 instrument session is not available. "
+                "Use brokers.connect() to obtain a session with instruments support."
+            )
+        return self._v3_session
 
     # ── Extended port accessors ─────────────────────────────────────────
 
@@ -311,10 +323,15 @@ class BrokerSession:
                             time.sleep(0.1)
 
     def __repr__(self) -> str:
-        return f"BrokerSession(broker_id={self._broker_id!r})"
+        return f"FacadeBrokerSession(broker_id={self._broker_id!r})"
 
-    def __enter__(self) -> BrokerSession:
+    def __enter__(self) -> FacadeBrokerSession:
         return self
 
     def __exit__(self, *args: Any) -> None:
         self.close()
+
+
+# Legacy alias — ``brokers.connect()`` returns this facade-oriented session.
+# V3 instrument-centric API: ``brokers_core.market.session.BrokerSession``.
+BrokerSession = FacadeBrokerSession

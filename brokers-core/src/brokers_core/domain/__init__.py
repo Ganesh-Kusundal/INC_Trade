@@ -2,10 +2,10 @@
 
 Re-exports all domain types for convenient access::
 
-    from inc_trade.domain import Order, Side, OrderStatus, BrokerError
+    from brokers_core.domain import Order, Side, OrderStatus, BrokerError
 """
 
-from inc_trade.domain.entities import (
+from brokers_core.domain.entities import (
     Balance,
     Candle,
     DepthLevel,
@@ -28,7 +28,7 @@ from inc_trade.domain.entities import (
     Trade,
     UserProfile,
 )
-from inc_trade.domain.enums import (
+from brokers_core.domain.enums import (
     AuthMode,
     BrokerID,
     OrderStatus,
@@ -37,7 +37,7 @@ from inc_trade.domain.enums import (
     Side,
     Validity,
 )
-from inc_trade.domain.exceptions import (
+from brokers_core.domain.exceptions import (
     AuthenticationError,
     BrokerDegradedError,
     BrokerError,
@@ -56,7 +56,7 @@ from inc_trade.domain.exceptions import (
     TradeXV2Error,
     ValidationError,
 )
-from inc_trade.domain.order_lifecycle import OrderStateError
+from brokers_core.domain.order_lifecycle import OrderStateError
 
 __all__ = [
     "AuthMode",

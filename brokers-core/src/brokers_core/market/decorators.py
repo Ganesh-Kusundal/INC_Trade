@@ -9,7 +9,7 @@ modifying the base class or using inheritance explosion::
 
 Composition helpers::
 
-    from inc_trade.market.decorators import with_depth, with_cache, with_logging
+    from brokers_core.market.decorators import with_depth, with_cache, with_logging
 
     inst = with_logging(with_cache(with_depth(base_inst, levels=200)))
 """
@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from inc_trade.market.instrument import Instrument
+from brokers_core.market.instrument import Instrument
 
 
 class InstrumentDecorator:
@@ -75,7 +75,7 @@ def with_depth(
     if levels <= 5:
         return instrument
 
-    from inc_trade.market.depth_decorators import (
+    from brokers_core.market.depth_decorators import (
         Depth20Decorator,
         Depth30Decorator,
         Depth200Decorator,
@@ -103,7 +103,7 @@ def with_cache(
     Returns:
         A CachedDecorator wrapping the instrument.
     """
-    from inc_trade.market.cache_decorator import CachedDecorator
+    from brokers_core.market.cache_decorator import CachedDecorator
 
     return CachedDecorator(instrument, ttl_seconds=ttl_seconds)
 
@@ -119,6 +119,6 @@ def with_logging(instrument: Instrument) -> InstrumentDecorator:
     Returns:
         A LoggedDecorator wrapping the instrument.
     """
-    from inc_trade.market.log_decorator import LoggedDecorator
+    from brokers_core.market.log_decorator import LoggedDecorator
 
     return LoggedDecorator(instrument)

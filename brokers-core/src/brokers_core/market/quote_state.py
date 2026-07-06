@@ -134,7 +134,7 @@ class QuoteState:
         Returns:
             A ``Quote`` domain entity with the current values.
         """
-        from inc_trade.domain.entities import Quote
+        from brokers_core.domain.entities import Quote
 
         exchange, _, symbol = self.composite_key.partition(":")
         return Quote(

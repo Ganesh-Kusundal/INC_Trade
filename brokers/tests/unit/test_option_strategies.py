@@ -28,6 +28,7 @@ from inc_trade.market.strategies import (
     StrategyLeg,
     VerticalSpread,
 )
+from brokers_core.domain.enums import Side
 
 # ── Fixtures ─────────────────────────────────────────────────────────────
 
@@ -62,15 +63,15 @@ def _make_provider(ltp: Decimal) -> MagicMock:
 class TestStrategyLeg:
     def test_leg_construction(self) -> None:
         inst = _make_option("NIFTY18000CE", Decimal("18000"), "CE")
-        leg = StrategyLeg(instrument=inst, side="BUY", quantity=25)
+        leg = StrategyLeg(instrument=inst, side=Side.BUY, quantity=25)
         assert leg.instrument is inst
-        assert leg.side == "BUY"
+        assert leg.side == Side.BUY
         assert leg.quantity == 25
         assert leg.ratio == 1  # default
 
     def test_leg_with_ratio(self) -> None:
         inst = _make_option("NIFTY18000CE", Decimal("18000"), "CE")
-        leg = StrategyLeg(instrument=inst, side="SELL", quantity=25, ratio=2)
+        leg = StrategyLeg(instrument=inst, side=Side.SELL, quantity=25, ratio=2)
         assert leg.ratio == 2
 
 
@@ -326,10 +327,10 @@ class TestIronCondor:
         )
 
         assert len(condor.legs) == 4
-        assert condor.legs[0].side == "BUY"  # long put (wing)
-        assert condor.legs[1].side == "SELL"  # short put (body)
-        assert condor.legs[2].side == "SELL"  # short call (body)
-        assert condor.legs[3].side == "BUY"  # long call (wing)
+        assert condor.legs[0].side == Side.BUY  # long put (wing)
+        assert condor.legs[1].side == Side.SELL  # short put (body)
+        assert condor.legs[2].side == Side.SELL  # short call (body)
+        assert condor.legs[3].side == Side.BUY  # long call (wing)
 
     def test_invalid_strike_order_raises(self, underlying: Instrument) -> None:
         lp = _make_option("NIFTY17900PE", Decimal("17900"), "PE")  # not lowest
@@ -360,9 +361,9 @@ class TestComboOrder:
         combo = ComboOrder(
             underlying=underlying,
             legs=[
-                StrategyLeg(instrument=leg1, side="BUY", quantity=25),
-                StrategyLeg(instrument=leg2, side="BUY", quantity=25),
-                StrategyLeg(instrument=leg3, side="SELL", quantity=25),
+                StrategyLeg(instrument=leg1, side=Side.BUY, quantity=25),
+                StrategyLeg(instrument=leg2, side=Side.BUY, quantity=25),
+                StrategyLeg(instrument=leg3, side=Side.SELL, quantity=25),
             ],
             name="custom_butterfly",
         )
@@ -393,8 +394,8 @@ class TestComboOrder:
         combo = ComboOrder(
             underlying=underlying,
             legs=[
-                StrategyLeg(instrument=leg1, side="BUY", quantity=25),
-                StrategyLeg(instrument=leg2, side="SELL", quantity=25),
+                StrategyLeg(instrument=leg1, side=Side.BUY, quantity=25),
+                StrategyLeg(instrument=leg2, side=Side.SELL, quantity=25),
             ],
             name="test",
         )
@@ -420,8 +421,8 @@ class TestNetPremium:
         combo = ComboOrder(
             underlying=underlying,
             legs=[
-                StrategyLeg(instrument=leg1, side="BUY", quantity=25),
-                StrategyLeg(instrument=leg2, side="BUY", quantity=25),
+                StrategyLeg(instrument=leg1, side=Side.BUY, quantity=25),
+                StrategyLeg(instrument=leg2, side=Side.BUY, quantity=25),
             ],
         )
         # Net = -100 - 80 = -180 (paid)
@@ -434,8 +435,8 @@ class TestNetPremium:
         combo = ComboOrder(
             underlying=underlying,
             legs=[
-                StrategyLeg(instrument=leg1, side="BUY", quantity=25),
-                StrategyLeg(instrument=leg2, side="SELL", quantity=25),
+                StrategyLeg(instrument=leg1, side=Side.BUY, quantity=25),
+                StrategyLeg(instrument=leg2, side=Side.SELL, quantity=25),
             ],
             name="test",
         )

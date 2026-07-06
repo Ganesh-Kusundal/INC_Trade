@@ -15,12 +15,12 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
-from inc_trade.market.scanner.result import ScanResult
+from brokers_core.market.scanner.result import ScanResult
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from inc_trade.market.scanner.criteria import ScanCriteria
+    from brokers_core.market.scanner.criteria import ScanCriteria
 
 logger = logging.getLogger(__name__)
 

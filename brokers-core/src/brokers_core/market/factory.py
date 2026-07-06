@@ -30,20 +30,20 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from inc_trade.domain.symbols import normalize_symbol
-from inc_trade.market.instrument import Instrument
-from inc_trade.market.types.equity import Equity
-from inc_trade.market.types.future import Future
-from inc_trade.market.types.index import Index
-from inc_trade.market.types.option import Option
+from brokers_core.domain.constants.exchanges import DERIVATIVE_EXCHANGES
+from brokers_core.domain.symbols import normalize_symbol
+from brokers_core.market.instrument import Instrument
+from brokers_core.market.types.equity import Equity
+from brokers_core.market.types.future import Future
+from brokers_core.market.types.index import Index
+from brokers_core.market.types.option import Option
 
-_DERIVATIVE_EXCHANGES = {"NFO", "BFO", "CDS", "BCD"}
 _OPTION_SUFFIXES = {"CE", "PE"}
 
 
 def _is_index(symbol: str) -> bool:
     try:
-        from inc_trade.config.indices import is_index
+        from brokers_core.config.indices import is_index
 
         return is_index(symbol)
     except ImportError:
@@ -127,7 +127,7 @@ class InstrumentFactory:
         """
         sym = normalize_symbol(symbol)
         ex = exchange.upper().strip()
-        is_derivative = ex in _DERIVATIVE_EXCHANGES
+        is_derivative = ex in DERIVATIVE_EXCHANGES
         opt = option_type.upper() if option_type else None
 
         if opt in _OPTION_SUFFIXES and strike is not None:
@@ -201,7 +201,7 @@ class InstrumentFactory:
             if adapter is not None:
                 inst = extension_registry.apply_from_adapter(inst, adapter)
         elif apply_depth > 0:
-            from inc_trade.market.decorators import with_depth
+            from brokers_core.market.decorators import with_depth
 
             dp = depth_provider or provider
             inst = with_depth(inst, levels=apply_depth, depth_provider=dp)

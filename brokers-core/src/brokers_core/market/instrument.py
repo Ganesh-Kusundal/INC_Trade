@@ -14,7 +14,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, ClassVar
 
-from inc_trade.domain.entities import AggregatedExposure, Position
+from brokers_core.domain.constants.exchanges import DERIVATIVE_EXCHANGES
+from brokers_core.domain.entities import AggregatedExposure, Position
+from brokers_core.domain.enums import Side
 
 logger = logging.getLogger(__name__)
 
@@ -71,8 +73,6 @@ class Instrument:
         """Hash based on composite key identity."""
         return hash(self.composite_key)
 
-    # Canonical exchange codes for derivative exchanges (imply F&O).
-    _DERIVATIVE_EXCHANGES: ClassVar[set[str]] = {"NFO", "BFO", "CDS", "BCD"}
     # Option type markers (CE = Call European, PE = Put European).
     _OPTION_SUFFIXES: ClassVar[set[str]] = {"CE", "PE"}
 
@@ -114,7 +114,7 @@ class Instrument:
             return False
         if self.strike is not None:
             return False
-        if self.exchange in self._DERIVATIVE_EXCHANGES:
+        if self.exchange in DERIVATIVE_EXCHANGES:
             return False
         return True
 
@@ -128,7 +128,7 @@ class Instrument:
             return False
         if self.strike is not None:
             return False
-        return self.expiry is not None and self.exchange in self._DERIVATIVE_EXCHANGES
+        return self.expiry is not None and self.exchange in DERIVATIVE_EXCHANGES
 
     def is_option(self) -> bool:
         """Check if this is an options instrument.
@@ -593,7 +593,7 @@ class Instrument:
                 trigger_price=trigger_price,
                 **kwargs,
             )
-        from inc_trade.domain.enums import OrderType as OT
+        from brokers_core.domain.enums import OrderType as OT
 
         provider = self._order_provider or self._provider
         if provider is None:
@@ -605,7 +605,7 @@ class Instrument:
         return provider.place_order(
             symbol=self.symbol,
             exchange=self.exchange,
-            side="BUY",
+            side=Side.BUY,
             quantity=quantity,
             order_type=order_type or OT.MARKET,
             price=price,
@@ -648,7 +648,7 @@ class Instrument:
                 trigger_price=trigger_price,
                 **kwargs,
             )
-        from inc_trade.domain.enums import OrderType as OT
+        from brokers_core.domain.enums import OrderType as OT
 
         provider = self._order_provider or self._provider
         if provider is None:
@@ -660,7 +660,7 @@ class Instrument:
         return provider.place_order(
             symbol=self.symbol,
             exchange=self.exchange,
-            side="SELL",
+            side=Side.SELL,
             quantity=quantity,
             order_type=order_type or OT.MARKET,
             price=price,

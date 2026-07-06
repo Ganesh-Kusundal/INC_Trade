@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from inc_trade.domain.constants.exchanges import DEFAULT_DERIVATIVE_EXCHANGE
 from inc_trade.domain.entities import OptionChain
 from inc_trade.ports.options import OptionsPort
 
@@ -20,22 +21,26 @@ class OptionsService:
         """Initialize with an options port."""
         self._options_port = options_port
 
-    def get_expiries(self, underlying: str, exchange: str = "NFO") -> list[str]:
+    def get_expiries(
+        self, underlying: str, exchange: str = DEFAULT_DERIVATIVE_EXCHANGE
+    ) -> list[str]:
         """Get available expiry dates for an underlying."""
         if self._options_port is None:
             from inc_trade.domain.exceptions import NotSupportedError
+
             raise NotSupportedError("Options not supported by this broker")
         return self._options_port.get_expiries(underlying=underlying, exchange=exchange)
 
     def get_option_chain(
         self,
         underlying: str,
-        exchange: str = "NFO",
+        exchange: str = DEFAULT_DERIVATIVE_EXCHANGE,
         expiry: str | None = None,
     ) -> OptionChain:
         """Get the full option chain for a specific expiry."""
         if self._options_port is None:
             from inc_trade.domain.exceptions import NotSupportedError
+
             raise NotSupportedError("Options not supported by this broker")
         return self._options_port.get_option_chain(
             underlying=underlying,

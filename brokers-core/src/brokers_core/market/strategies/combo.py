@@ -9,7 +9,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from inc_trade.market.strategies.base import OptionStrategy, StrategyLeg
+from brokers_core.market.strategies.base import OptionStrategy, StrategyLeg
 
 
 class ComboOrder(OptionStrategy):

@@ -8,19 +8,22 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from inc_trade.domain.entities import OptionChain
+from brokers_core.domain.constants.exchanges import DEFAULT_DERIVATIVE_EXCHANGE
+from brokers_core.domain.entities import OptionChain
 
 
 @runtime_checkable
 class OptionsPort(Protocol):
-    def get_expiries(self, underlying: str, exchange: str = "NFO") -> list[str]:
+    def get_expiries(
+        self, underlying: str, exchange: str = DEFAULT_DERIVATIVE_EXCHANGE
+    ) -> list[str]:
         """Get available expiry dates for an underlying."""
         ...
 
     def get_option_chain(
         self,
         underlying: str,
-        exchange: str = "NFO",
+        exchange: str = DEFAULT_DERIVATIVE_EXCHANGE,
         expiry: str | None = None,
     ) -> OptionChain:
         """Get the full option chain for a specific expiry."""

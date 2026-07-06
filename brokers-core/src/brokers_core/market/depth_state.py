@@ -30,7 +30,7 @@ class DepthLevelState:
 
     def snapshot(self) -> Any:
         """Return an immutable DepthLevel."""
-        from inc_trade.domain.entities import DepthLevel
+        from brokers_core.domain.entities import DepthLevel
 
         return DepthLevel(price=self.price, quantity=self.quantity, orders=self.orders)
 
@@ -120,7 +120,7 @@ class DepthState:
 
     def snapshot(self) -> Any:
         """Return an immutable MarketDepth entity."""
-        from inc_trade.domain.entities import MarketDepth
+        from brokers_core.domain.entities import MarketDepth
 
         exchange, _, symbol = self.composite_key.partition(":")
         return MarketDepth(

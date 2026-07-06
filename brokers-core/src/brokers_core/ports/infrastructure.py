@@ -147,4 +147,4 @@ class ConcurrencyPort(Protocol):
 # They are type aliases pointing to the new collapsed groups.
 AuthPort = SecurityPort
 TokenManager = SecurityPort
-"""Backward-compatible alias: ``from inc_trade.ports.infrastructure import AuthPort``."""
+"""Backward-compatible alias: ``from brokers_core.ports.infrastructure import AuthPort``."""

@@ -9,7 +9,7 @@ cached values within a configurable time window. Useful for:
 
 Usage::
 
-    from inc_trade.market.cache_decorator import CachedDecorator
+    from brokers_core.market.cache_decorator import CachedDecorator
 
     inst = CachedDecorator(base_instrument, ttl_seconds=2.0)
     inst.quote()  # → fetches fresh, caches result
@@ -22,9 +22,9 @@ from __future__ import annotations
 import time
 from decimal import Decimal
 
-from inc_trade.domain.entities import Quote
-from inc_trade.market.decorators import InstrumentDecorator
-from inc_trade.market.instrument import Instrument
+from brokers_core.domain.entities import Quote
+from brokers_core.market.decorators import InstrumentDecorator
+from brokers_core.market.instrument import Instrument
 
 
 class CachedDecorator(InstrumentDecorator):

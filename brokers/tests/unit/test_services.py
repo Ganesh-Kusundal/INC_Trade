@@ -77,6 +77,22 @@ class TestOrderService:
         book = self.service.get_orderbook()
         assert len(book) == 2
 
+    def test_kill_switch_blocks_place_order(self):
+        gw = PaperGateway()
+        service = OrderService(gw.orders, allow_live_orders=False)
+        resp = service.place_order("RELIANCE", "NSE", Side.BUY, 10)
+        assert not resp.success
+        assert resp.error_code == "LIVE_ORDERS_DISABLED"
+
+    def test_kill_switch_blocks_cancel_order(self):
+        gw = PaperGateway()
+        service = OrderService(gw.orders, allow_live_orders=True)
+        placed = service.place_order("RELIANCE", "NSE", Side.BUY, 10)
+        service = OrderService(gw.orders, allow_live_orders=False)
+        cancel = service.cancel_order(placed.order_id)
+        assert not cancel.success
+        assert cancel.error_code == "LIVE_ORDERS_DISABLED"
+
 
 class TestMarketDataService:
     def setup_method(self):

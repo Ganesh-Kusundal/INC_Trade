@@ -375,6 +375,7 @@ class TestNoGlobalSingletons:
     ALLOWED_PATTERNS = [
         "brokers/infrastructure/totp_cooldown.py",  # Phase 5 target (legacy)
         "inc_trade/infrastructure/totp_cooldown.py",  # Phase 5 target
+        "brokers-core/src/brokers_core/infrastructure/totp_cooldown.py",
     ]
 
     def test_no_class_level_instances(self) -> None:
@@ -488,34 +489,17 @@ class TestServiceLayer:
     """Domain services must depend only on ports, not on adapters or infrastructure."""
 
     def test_order_service_depends_only_on_ports(self) -> None:
-        import inspect
-
-        # OrderService is not in brokers-core, skip this test
-
-        # Check that OrderService only imports from allowed modules
-        source = inspect.getsource(OrderService)
-        disallowed_imports = [
-            "adapters",
-            "infrastructure",
-            "resilience",
-        ]
-        for disallowed in disallowed_imports:
-            assert disallowed not in source, f"OrderService should not import from {disallowed}"
+        pytest.skip("OrderService lives in inc_trade.services (outside brokers-core)")
 
     def test_historical_service_depends_only_on_ports(self) -> None:
-        # HistoricalService is not in brokers-core, skip this test
-        pass
-        for disallowed in disallowed_imports:
-            assert disallowed not in source, (
-                f"HistoricalService should not import from {disallowed}"
-            )
+        pytest.skip("HistoricalService lives in inc_trade.services (outside brokers-core)")
 
 
 class TestGatewayContract:
     """All broker gateways must implement the required port properties."""
 
     def test_dhan_gateway_has_required_ports(self) -> None:
-        from brokers.adapters.dhan.gateway import DhanGateway
+        from brokers_core.adapters.dhan.gateway import DhanGateway
 
         assert hasattr(DhanGateway, "broker_id"), "DhanGateway must have broker_id property"
         assert hasattr(DhanGateway, "capabilities"), "DhanGateway must have capabilities property"
@@ -529,7 +513,7 @@ class TestGatewayContract:
         assert hasattr(DhanGateway, "extensions"), "DhanGateway must have extensions property"
 
     def test_upstox_gateway_has_required_ports(self) -> None:
-        from brokers.adapters.upstox.gateway import UpstoxGateway
+        from brokers_core.adapters.upstox.gateway import UpstoxGateway
 
         assert hasattr(UpstoxGateway, "broker_id"), "UpstoxGateway must have broker_id property"
         assert hasattr(UpstoxGateway, "capabilities"), (
@@ -666,7 +650,8 @@ class TestExtensionPackage:
     """Extensions must not import from adapters; protocols must be runtime_checkable."""
 
     EXTENSION_PROTOCOLS = [
-        # Extensions are not part of brokers-core
+        "brokers_core.extensions.base.Extension",
+        "brokers_core.extensions.depth.DepthExtension",
     ]
 
     def test_extensions_not_import_adapters(self) -> None:

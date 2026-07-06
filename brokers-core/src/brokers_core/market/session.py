@@ -35,10 +35,11 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from inc_trade.infrastructure.event_bus import EventBus
-from inc_trade.market.instrument_registry import InstrumentRegistry
-from inc_trade.market.order import OrderCommand
-from inc_trade.market.query import MarketDataQuery
+from brokers_core.market.instrument_registry import InstrumentRegistry
+from brokers_core.market.null_event_publisher import NullEventPublisher
+from brokers_core.market.order import OrderCommand
+from brokers_core.market.query import MarketDataQuery
+from brokers_core.ports.event_publisher import EventPublisherPort
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ class MarketDataQueryFactory:
         self,
         registry: InstrumentRegistry,
         adapter: Any,
-        event_bus: EventBus | None = None,
+        event_bus: EventPublisherPort | None = None,
     ) -> None:
         self._registry = registry
         self._adapter = adapter
@@ -86,7 +87,7 @@ class OrderCommandFactory:
         self,
         registry: InstrumentRegistry,
         adapter: Any,
-        event_bus: EventBus | None = None,
+        event_bus: EventPublisherPort | None = None,
     ) -> None:
         self._registry = registry
         self._adapter = adapter
@@ -111,12 +112,13 @@ class BrokerSession:
         adapter: A ``BrokerAdapter`` implementation.
     """
 
-    def __init__(self, adapter: Any) -> None:
+    def __init__(self, adapter: Any, event_publisher: EventPublisherPort | None = None) -> None:
         self._adapter = adapter
+        publisher = event_publisher or NullEventPublisher()
         self._registry = InstrumentRegistry()
-        self._event_bus = EventBus()
-        self._query_factory = MarketDataQueryFactory(self._registry, adapter, self._event_bus)
-        self._command_factory = OrderCommandFactory(self._registry, adapter, self._event_bus)
+        self._event_bus = publisher
+        self._query_factory = MarketDataQueryFactory(self._registry, adapter, publisher)
+        self._command_factory = OrderCommandFactory(self._registry, adapter, publisher)
 
     # ── Connection Lifecycle ─────────────────────────────────────────────────
 
@@ -172,8 +174,8 @@ class BrokerSession:
         return self._registry
 
     @property
-    def event_bus(self) -> EventBus:
-        """The session event bus for domain events."""
+    def event_bus(self) -> EventPublisherPort:
+        """The session event publisher for domain events."""
         return self._event_bus
 
     # ── Instrument Access ─────────────────────────────────────────────────────
@@ -190,7 +192,7 @@ class BrokerSession:
         Returns:
             An Instrument with type detection for equity.
         """
-        from inc_trade.market.instrument import Instrument
+        from brokers_core.market.instrument import Instrument
 
         key = f"{exchange}:{symbol}"
 
@@ -216,7 +218,7 @@ class BrokerSession:
         Returns:
             An Instrument with type detection for future.
         """
-        from inc_trade.market.instrument import Instrument
+        from brokers_core.market.instrument import Instrument
 
         expiry_date = expiry.date() if hasattr(expiry, "date") else expiry
         key = f"{exchange}:{symbol}:{expiry_date}"
@@ -252,7 +254,7 @@ class BrokerSession:
         Returns:
             An Instrument with type detection for option.
         """
-        from inc_trade.market.instrument import Instrument
+        from brokers_core.market.instrument import Instrument
 
         expiry_date = expiry.date() if hasattr(expiry, "date") else expiry
         key = f"{exchange}:{symbol}:{expiry_date}:{strike}:{option_type}"

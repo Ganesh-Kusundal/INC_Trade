@@ -7,7 +7,7 @@ from brokers.adapters.upstox.gateway import UpstoxGateway
 
 
 class TestUpstoxGateway:
-    @patch("brokers.adapters.upstox.gateway.UpstoxStreaming")
+    @patch("brokers_core.adapters.upstox.composition.UpstoxStreaming")
     def test_instantiation_with_token(self, mock_streaming_class):
         gw = UpstoxGateway(access_token="test-access-token")
         assert gw.auth.get_token() == "test-access-token"
@@ -19,7 +19,7 @@ class TestUpstoxGateway:
         assert gw.streaming is not None
         gw.close()
 
-    @patch("brokers.adapters.upstox.gateway.UpstoxStreaming")
+    @patch("brokers_core.adapters.upstox.composition.UpstoxStreaming")
     def test_instantiation_with_settings(self, mock_streaming_class):
         s = UpstoxConnectionSettings(
             client_id="my-client",
@@ -30,8 +30,8 @@ class TestUpstoxGateway:
         assert gw.auth.get_token() == "token-abc"
         gw.close()
 
-    @patch("brokers.adapters.upstox.gateway.UpstoxStreaming")
-    @patch("brokers.adapters.upstox.auth.totp_scheduler.TotpRefreshScheduler")
+    @patch("brokers_core.adapters.upstox.composition.UpstoxStreaming")
+    @patch("brokers_core.adapters.upstox.auth.totp_scheduler.TotpRefreshScheduler")
     def test_auto_refresh_scheduler_start(self, mock_scheduler_class, mock_streaming_class):
         s = UpstoxConnectionSettings(
             client_id="my-client",
@@ -51,7 +51,7 @@ class TestUpstoxGateway:
         gw.close()
         mock_scheduler.stop.assert_called_once()
 
-    @patch("brokers.adapters.upstox.gateway.UpstoxStreaming")
+    @patch("brokers_core.adapters.upstox.composition.UpstoxStreaming")
     def test_news_retrieval(self, mock_streaming_class):
         gw = UpstoxGateway(access_token="test-access-token")
         assert gw.news is not None
@@ -63,7 +63,7 @@ class TestUpstoxGateway:
         assert res[0].headline == "News 1"
         gw._client.get.assert_called_once()
 
-    @patch("brokers.adapters.upstox.gateway.UpstoxStreaming")
+    @patch("brokers_core.adapters.upstox.composition.UpstoxStreaming")
     def test_stream_depth(self, mock_streaming_class):
         gw = UpstoxGateway(access_token="test-access-token")
         mock_ws = mock_streaming_class.return_value
@@ -81,3 +81,4 @@ class TestUpstoxGateway:
         handle.stop()
         mock_ws.unsubscribe.assert_called_once_with("RELIANCE", "NSE")
 
+    

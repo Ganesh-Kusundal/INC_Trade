@@ -13,6 +13,8 @@ from pathlib import Path
 import pytest
 
 BROKERS_ROOT = Path(__file__).resolve().parents[3]
+BROKERS_CORE_ROOT = BROKERS_ROOT / "brokers-core" / "src" / "brokers_core"
+INC_TRADE_ROOT = BROKERS_ROOT / "inc_trade"
 
 
 def _list_modules(layer: str) -> list[Path]:
@@ -20,6 +22,28 @@ def _list_modules(layer: str) -> list[Path]:
     if not layer_dir.exists():
         return []
     return [p for p in layer_dir.rglob("*.py") if "tests" not in str(p)]
+
+
+def _list_brokers_core_modules(layer: str) -> list[Path]:
+    layer_dir = BROKERS_CORE_ROOT / layer
+    if not layer_dir.exists():
+        return []
+    return [p for p in layer_dir.rglob("*.py") if "__pycache__" not in p.parts]
+
+
+def _list_inc_trade_native_modules() -> list[Path]:
+    native_dirs = ("services", "trading", "oms", "core", "utils")
+    files: list[Path] = []
+    for name in native_dirs:
+        layer_dir = INC_TRADE_ROOT / name
+        if layer_dir.exists():
+            files.extend(
+                p for p in layer_dir.rglob("*.py") if "__pycache__" not in p.parts
+            )
+    profiles = INC_TRADE_ROOT / "config" / "profiles"
+    if profiles.exists():
+        files.extend(p for p in profiles.rglob("*.py") if "__pycache__" not in p.parts)
+    return files
 
 
 def _get_imports(filepath: Path) -> list[tuple[int, str]]:
@@ -32,6 +56,40 @@ def _get_imports(filepath: Path) -> list[tuple[int, str]]:
         if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
             if node.module.startswith("brokers."):
                 imports.append((node.lineno, node.module))
+    return imports
+
+
+def _get_brokers_core_imports(filepath: Path) -> list[tuple[int, str]]:
+    try:
+        tree = ast.parse(filepath.read_text())
+    except SyntaxError:
+        return []
+    imports = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            if node.module.startswith("brokers_core."):
+                imports.append((node.lineno, node.module))
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.startswith("brokers_core."):
+                    imports.append((node.lineno, alias.name))
+    return imports
+
+
+def _get_inc_trade_imports(filepath: Path) -> list[tuple[int, str]]:
+    try:
+        tree = ast.parse(filepath.read_text())
+    except SyntaxError:
+        return []
+    imports = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            if node.module.startswith(("inc_trade.", "brokers_core.", "brokers.")):
+                imports.append((node.lineno, node.module))
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.startswith(("inc_trade.", "brokers_core.", "brokers.")):
+                    imports.append((node.lineno, alias.name))
     return imports
 
 
@@ -81,6 +139,58 @@ BOUNDARY_RULES: dict[str, set[str]] = {
     },
 }
 
+BROKERS_CORE_BOUNDARY_RULES: dict[str, set[str]] = {
+    "domain": {"brokers_core.domain"},
+    "utils": set(),
+    "config": {"brokers_core.domain.exceptions", "brokers_core.config"},
+    "ports": {"brokers_core.domain", "brokers_core.ports", "brokers_core.extensions"},
+    "resilience": {"brokers_core.domain", "brokers_core.resilience"},
+    "extensions": {"brokers_core.domain", "brokers_core.extensions"},
+    "market": {
+        "brokers_core.domain",
+        "brokers_core.market",
+        "brokers_core.ports",
+        "brokers_core.config",
+        "brokers_core.extensions",
+    },
+    "infrastructure": {
+        "brokers_core.domain",
+        "brokers_core.infrastructure",
+        "brokers_core.config",
+        "brokers_core.ports",
+        "brokers_core.resilience",
+        "brokers_core.core",
+    },
+    "adapters": {
+        "brokers_core.domain",
+        "brokers_core.ports",
+        "brokers_core.utils",
+        "brokers_core.infrastructure",
+        "brokers_core.config",
+        "brokers_core.adapters",
+        "brokers_core.resilience",
+        "brokers_core.market",
+    },
+}
+
+INC_TRADE_NATIVE_ALLOWED = {
+    "inc_trade.domain",
+    "inc_trade.ports",
+    "inc_trade.services",
+    "inc_trade.trading",
+    "inc_trade.oms",
+    "inc_trade.core",
+    "inc_trade.utils",
+    "inc_trade.config.profiles",
+    "inc_trade.market",
+    "brokers_core.utils",
+}
+
+INC_TRADE_NATIVE_BRIDGE_FILES = {
+    "inc_trade/utils/idempotency_cache.py",
+    "inc_trade/oms/idempotency.py",
+}
+
 
 @pytest.mark.architecture
 class TestBoundaryRules:
@@ -113,6 +223,89 @@ class TestBoundaryRules:
 
 
 @pytest.mark.architecture
+class TestBrokersCoreBoundaryRules:
+    @pytest.mark.parametrize(
+        "layer",
+        [
+            "domain",
+            "utils",
+            "config",
+            "ports",
+            "resilience",
+            "infrastructure",
+            "extensions",
+            "market",
+            "adapters",
+        ],
+    )
+    def test_brokers_core_layer_boundary(self, layer: str) -> None:
+        allowed = BROKERS_CORE_BOUNDARY_RULES[layer]
+        violations = []
+        for filepath in _list_brokers_core_modules(layer):
+            for lineno, module in _get_brokers_core_imports(filepath):
+                if not any(module.startswith(a) for a in allowed):
+                    rel = filepath.relative_to(BROKERS_ROOT)
+                    violations.append(f"  {rel}:{lineno}: imports {module}")
+        assert not violations, (
+            f"brokers_core layer '{layer}' has boundary violations:\n" + "\n".join(violations)
+        )
+
+    def test_market_does_not_import_infrastructure(self) -> None:
+        violations = []
+        for filepath in _list_brokers_core_modules("market"):
+            for lineno, module in _get_brokers_core_imports(filepath):
+                if module.startswith("brokers_core.infrastructure"):
+                    rel = filepath.relative_to(BROKERS_ROOT)
+                    violations.append(f"  {rel}:{lineno}: imports {module}")
+        assert not violations, (
+            "market/ must not import infrastructure/:\n" + "\n".join(violations)
+        )
+
+    def test_extensions_does_not_import_market(self) -> None:
+        violations = []
+        for filepath in _list_brokers_core_modules("extensions"):
+            for lineno, module in _get_brokers_core_imports(filepath):
+                if module.startswith("brokers_core.market"):
+                    rel = filepath.relative_to(BROKERS_ROOT)
+                    violations.append(f"  {rel}:{lineno}: imports {module}")
+        assert not violations, (
+            "extensions/ must not import market/:\n" + "\n".join(violations)
+        )
+
+
+@pytest.mark.architecture
+class TestIncTradeNativeBoundaryRules:
+    def test_native_modules_do_not_import_adapters(self) -> None:
+        violations = []
+        for filepath in _list_inc_trade_native_modules():
+            for lineno, module in _get_inc_trade_imports(filepath):
+                if module.startswith(("brokers_core.adapters", "brokers.adapters")):
+                    if module.startswith("brokers.adapters.replay"):
+                        continue
+                    rel = filepath.relative_to(BROKERS_ROOT)
+                    violations.append(f"  {rel}:{lineno}: imports {module}")
+        assert not violations, (
+            "inc_trade native modules must not import adapters:\n" + "\n".join(violations)
+        )
+
+    def test_native_modules_import_allowed_prefixes(self) -> None:
+        violations = []
+        for filepath in _list_inc_trade_native_modules():
+            rel = filepath.relative_to(BROKERS_ROOT)
+            if str(rel) in INC_TRADE_NATIVE_BRIDGE_FILES:
+                continue
+            for lineno, module in _get_inc_trade_imports(filepath):
+                if module.startswith("brokers."):
+                    continue
+                if not any(module.startswith(a) for a in INC_TRADE_NATIVE_ALLOWED):
+                    rel = filepath.relative_to(BROKERS_ROOT)
+                    violations.append(f"  {rel}:{lineno}: imports {module}")
+        assert not violations, (
+            "inc_trade native modules have disallowed imports:\n" + "\n".join(violations)
+        )
+
+
+@pytest.mark.architecture
 class TestPortStructure:
     ALL_PORTS = [
         "inc_trade.ports.auth.AuthPort",
@@ -122,6 +315,7 @@ class TestPortStructure:
         "inc_trade.ports.instruments.InstrumentPort",
         "inc_trade.ports.market_data.MarketDataPort",
         "inc_trade.ports.order_execution.OrderExecutionPort",
+        "inc_trade.ports.order_guard.OrderGuardPort",
         "inc_trade.ports.portfolio.PortfolioPort",
         "inc_trade.ports.risk_manager.RiskManagerPort",
         "inc_trade.ports.streaming.StreamHandle",
@@ -178,9 +372,8 @@ class TestExceptionHierarchy:
 @pytest.mark.architecture
 class TestErrorCodeCoverage:
     def test_all_constants_referenced(self) -> None:
-        # Check both the re-export shim AND the real implementation
-        from inc_trade.domain import error_codes as it_error_codes
-        from inc_trade.domain import exceptions as it_exceptions
+        from brokers_core.domain import error_codes as it_error_codes
+        import brokers_core.domain.exceptions as it_exceptions
 
         it_exc_source = Path(it_exceptions.__file__).read_text()
         defined = [
@@ -234,18 +427,18 @@ class TestInfrastructureBoundary:
 
     def test_infrastructure_does_not_import_adapters(self) -> None:
         """Infrastructure must never import adapters (outer layer)."""
-        infra_dir = BROKERS_ROOT / "brokers" / "infrastructure"
+        infra_dir = BROKERS_CORE_ROOT / "infrastructure"
         if not infra_dir.exists():
-            pytest.skip("brokers/infrastructure/ directory does not exist")
+            pytest.skip("brokers_core/infrastructure/ directory does not exist")
         violations = []
         for filepath in infra_dir.rglob("*.py"):
-            if "tests" in str(filepath) or "venv" in str(filepath):
+            if "__pycache__" in filepath.parts:
                 continue
-            for lineno, module in _get_imports(filepath):
-                if module.startswith("brokers.adapters") or module.startswith("brokers.services"):
-                    rel = filepath.relative_to(BROKERS_ROOT.parent)
+            for lineno, module in _get_brokers_core_imports(filepath):
+                if module.startswith("brokers_core.adapters"):
+                    rel = filepath.relative_to(BROKERS_ROOT)
                     violations.append(f"  {rel}:{lineno}: imports {module}")
-        assert not violations, "Trading imports from services (forbidden):\n" + "\n".join(
+        assert not violations, "Infrastructure imports adapters (forbidden):\n" + "\n".join(
             violations
         )
 
@@ -267,15 +460,13 @@ class TestNoBrokerIdentifiersInDomain:
     # Known false positives: generic financial terms that happen to match patterns
     # Format: "relpath: pattern" — the relpath is relative to BROKERS_ROOT.parent
     ALLOWED_VIOLATIONS: set[str] = {
-        # security_id in OptionLeg (domain/entities.py) is a generic option contract
-        # identifier, not a broker-specific ID. Used universally in F&O.
-        "INC_Trade/brokers/domain/entities.py: security_id",
+        "INC_Trade/brokers-core/src/brokers_core/domain/entities.py: security_id",
     }
 
     def test_no_broker_ids_in_domain_ports_market(self) -> None:
         violations = []
         for target in self.TARGET_DIRS:
-            target_dir = BROKERS_ROOT / "brokers" / target
+            target_dir = BROKERS_CORE_ROOT / target
             if not target_dir.exists():
                 continue
             for filepath in target_dir.rglob("*.py"):
@@ -334,9 +525,9 @@ class TestNoRawDictInDomain:
     """Domain entities must not have raw dict fields."""
 
     def test_domain_entities_no_dict_fields(self) -> None:
-        domain_dir = BROKERS_ROOT / "brokers" / "domain"
+        domain_dir = BROKERS_CORE_ROOT / "domain"
         if not domain_dir.exists():
-            pytest.skip("brokers/domain/ directory does not exist")
+            pytest.skip("brokers_core/domain/ directory does not exist")
         violations = []
         for filepath in domain_dir.rglob("*.py"):
             if "tests" in str(filepath) or "venv" in str(filepath):
@@ -373,8 +564,10 @@ class TestNoGlobalSingletons:
     """No class-level _instances dicts outside allowed definitions."""
 
     ALLOWED_PATTERNS = [
-        "brokers/infrastructure/totp_cooldown.py",  # Phase 5 target (legacy)
-        "inc_trade/infrastructure/totp_cooldown.py",  # Phase 5 target
+        "brokers/infrastructure/totp_cooldown.py",
+        "inc_trade/infrastructure/totp_cooldown.py",
+        "brokers-core/src/brokers_core/infrastructure/registry.py",
+        "brokers-core/src/brokers_core/infrastructure/totp_cooldown.py",
     ]
 
     def test_no_class_level_instances(self) -> None:
@@ -423,7 +616,7 @@ class TestNoHasattrOnGateway:
     """No hasattr() in BrokerFacade for capability detection."""
 
     def test_no_hasattr_in_broker_facade(self) -> None:
-        facade_path = BROKERS_ROOT / "brokers" / "services" / "broker_facade.py"
+        facade_path = INC_TRADE_ROOT / "services" / "broker_facade.py"
         if not facade_path.exists():
             pytest.skip("broker_facade.py not found")
         tree = ast.parse(facade_path.read_text())
@@ -434,9 +627,8 @@ class TestNoHasattrOnGateway:
                 and isinstance(getattr(node, "func", None), ast.Name)
                 and node.func.id == "hasattr"
             ):
-                violations.append(
-                    f"  brokers/services/broker_facade.py:{node.lineno}: hasattr() call"
-                )
+                rel = facade_path.relative_to(BROKERS_ROOT)
+                violations.append(f"  {rel}:{node.lineno}: hasattr() call")
         assert not violations, (
             "hasattr() calls found in BrokerFacade (use ExtensionRegistry.resolve()):\n"
             + "\n".join(violations)

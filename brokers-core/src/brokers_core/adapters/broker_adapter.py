@@ -8,7 +8,7 @@ IS the provider — it directly implements ``quote()``, ``depth()``,
 
 Usage::
 
-    from inc_trade.adapters.dhan import DhanAdapter
+    from brokers_core.adapters.dhan import DhanAdapter
 
     adapter = DhanAdapter(client_id="123", access_token="abc")
     adapter.connect()
@@ -26,7 +26,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-from inc_trade.ports.providers import (
+from brokers_core.domain.enums import Side
+from brokers_core.ports.providers import (
     DepthProvider,
     HistoricalDataProvider,
     InstrumentDataProvider,
@@ -37,8 +38,8 @@ from inc_trade.ports.providers import (
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from inc_trade.domain.entities import Candle, MarketDepth, Quote
-    from inc_trade.market.instrument import Instrument
+    from brokers_core.domain.entities import Candle, MarketDepth, Quote
+    from brokers_core.market.instrument import Instrument
 
 
 @runtime_checkable
@@ -100,7 +101,7 @@ class BrokerAdapter(
             An Instrument (possibly wrapped in decorators) ready for
             live data and trading.
         """
-        from inc_trade.market.factory import InstrumentFactory
+        from brokers_core.market.factory import InstrumentFactory
 
         return InstrumentFactory.create(
             symbol=symbol,
@@ -152,7 +153,7 @@ class BrokerAdapter(
         self,
         symbol: str,
         exchange: str,
-        side: str,
+        side: Side,
         quantity: int,
         order_type: Any = None,
         price: Decimal = Decimal("0"),

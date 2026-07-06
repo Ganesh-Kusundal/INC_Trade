@@ -7,10 +7,10 @@ and orders.
 
 Usage::
 
-    from inc_trade.adapters.broker_adapter import BrokerAdapter
+    from brokers_core.adapters.broker_adapter import BrokerAdapter
 """
 
-from inc_trade.adapters.broker_adapter import BrokerAdapter as BrokerAdapter
+from brokers_core.adapters.broker_adapter import BrokerAdapter as BrokerAdapter
 
 __all__ = [
     "BrokerAdapter",

@@ -3,7 +3,7 @@
 Useful during development and troubleshooting to trace every
 interaction with a specific instrument::
 
-    from inc_trade.market.log_decorator import LoggedDecorator
+    from brokers_core.market.log_decorator import LoggedDecorator
 
     inst = LoggedDecorator(base_instrument)
     inst.quote()   # → "logged: quote() called for NSE:RELIANCE"
@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from inc_trade.market.decorators import InstrumentDecorator
+from brokers_core.market.decorators import InstrumentDecorator
 
 logger = logging.getLogger(__name__)
 

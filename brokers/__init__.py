@@ -139,7 +139,53 @@ from inc_trade.ports import (
 from inc_trade.services.broker_facade import (
     BrokerFacade as BrokerFacade,
 )
-from inc_trade.services.broker_session import BrokerSession as BrokerSession
+from inc_trade.services.broker_session import FacadeBrokerSession as BrokerSession
+
+
+def _build_adapter(
+    name: str | BrokerID,
+    allow_live_orders: bool = False,
+    env_path: str | None = None,
+    token_state_dir: str | None = None,
+    auto_refresh: bool = True,
+    **credentials: Any,
+) -> Any:
+    """Build a V3 broker adapter for instrument-centric sessions."""
+    from pathlib import Path
+
+    if isinstance(name, BrokerID):
+        name = name.value
+    name = name.lower().strip()
+    if name == "dhan":
+        from brokers_core.adapters.dhan.adapter import DhanAdapter
+
+        return DhanAdapter(
+            access_token=credentials.get("access_token"),
+            client_id=credentials.get("client_id"),
+            pin=credentials.get("pin"),
+            totp_secret=credentials.get("totp_secret"),
+            allow_live_orders=allow_live_orders,
+            env_path=Path(env_path) if env_path else None,
+            token_state_dir=Path(token_state_dir) if token_state_dir else None,
+            auto_refresh=auto_refresh,
+        )
+    if name == "upstox":
+        from brokers_core.adapters.upstox.adapter import UpstoxAdapter
+
+        return UpstoxAdapter(
+            access_token=credentials["access_token"],
+            allow_live_orders=allow_live_orders,
+        )
+    if name == "paper":
+        from decimal import Decimal
+
+        from brokers_core.adapters.paper.adapter import PaperAdapter
+
+        initial_cash = credentials.get("initial_cash")
+        if initial_cash is not None:
+            return PaperAdapter(initial_cash=Decimal(str(initial_cash)))
+        return PaperAdapter()
+    raise ValueError(f"Unknown broker: {name!r}. Choose from: dhan, upstox, paper")
 
 
 def _build_facade(
@@ -160,7 +206,7 @@ def _build_facade(
         name = name.value
     name = name.lower().strip()
     if name == "dhan":
-        from brokers.adapters.dhan.gateway import DhanGateway
+        from brokers_core.adapters.dhan.gateway import DhanGateway
 
         dhan_gw = DhanGateway(
             access_token=credentials.get("access_token"),
@@ -195,7 +241,7 @@ def _build_facade(
             extension_registry=registry,
         )
     if name == "upstox":
-        from brokers.adapters.upstox.gateway import UpstoxGateway
+        from brokers_core.adapters.upstox.gateway import UpstoxGateway
 
         upstox_gw = UpstoxGateway(
             access_token=credentials["access_token"],
@@ -215,7 +261,7 @@ def _build_facade(
     if name == "paper":
         from decimal import Decimal
 
-        from brokers.adapters.paper.gateway import PaperGateway
+        from brokers_core.adapters.paper.gateway import PaperGateway
 
         initial_cash = credentials.get("initial_cash")
         if initial_cash is not None:
@@ -258,6 +304,19 @@ def connect(
     """
     from inc_trade.services.audit_facade import AuditFacade
     from inc_trade.trading.order_repository import OrderRepository
+    from brokers_core.infrastructure.event_bus import EventBus
+    from brokers_core.market.session import BrokerSession as V3BrokerSession
+
+    broker_id_str = name.value if isinstance(name, BrokerID) else str(name)
+    adapter = _build_adapter(
+        name,
+        allow_live_orders=allow_live_orders,
+        env_path=env_path,
+        token_state_dir=token_state_dir,
+        auto_refresh=auto_refresh,
+        **credentials,
+    )
+    v3_session = V3BrokerSession(adapter, event_publisher=EventBus())
 
     facade = _build_facade(
         name,
@@ -268,9 +327,9 @@ def connect(
         lifecycle=lifecycle,
         **credentials,
     )
-    broker_id_str = name.value if isinstance(name, BrokerID) else str(name)
     return BrokerSession(
         broker_id=broker_id_str,
         facade=facade,
         audit=AuditFacade(OrderRepository()),
+        v3_session=v3_session,
     )

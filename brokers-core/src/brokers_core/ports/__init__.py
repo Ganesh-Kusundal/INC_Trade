@@ -4,7 +4,7 @@ All ports are Protocols (structural typing). Broker adapters implement
 these interfaces. Services depend on these abstractions, not concretions.
 """
 
-from inc_trade.domain.constants.capabilities import (
+from brokers_core.domain.constants.capabilities import (
     FEATURE_ALERTS,
     FEATURE_AUTH,
     FEATURE_BASKET_ORDERS,
@@ -27,9 +27,9 @@ from inc_trade.domain.constants.capabilities import (
     FEATURE_STREAMING,
     FEATURE_SUPER_ORDERS,
 )
-from inc_trade.extensions import DepthExtension, Extension
-from inc_trade.ports.auth import AuthPort
-from inc_trade.ports.capabilities import (
+from brokers_core.extensions import DepthExtension, Extension
+from brokers_core.ports.auth import AuthPort
+from brokers_core.ports.capabilities import (
     Capabilities,
     ForeverOrderProvider,
     KillSwitchProvider,
@@ -38,21 +38,23 @@ from inc_trade.ports.capabilities import (
     SliceOrderProvider,
     SuperOrderProvider,
 )
-from inc_trade.ports.clock import ClockPort, SystemClock
-from inc_trade.ports.connection_lifecycle import ConnectionLifecyclePort
-from inc_trade.ports.event_publisher import EventPublisherPort
-from inc_trade.ports.extension_registry import ExtensionRegistry, ExtensionRegistryPort
-from inc_trade.ports.historical import HistoricalPort
-from inc_trade.ports.http_client_port import HttpClientPort
-from inc_trade.ports.instruments import InstrumentInfo, InstrumentPort
-from inc_trade.ports.market_data import MarketDataPort
-from inc_trade.ports.options import OptionsPort
-from inc_trade.ports.order_execution import OrderExecutionPort
-from inc_trade.ports.portfolio import PortfolioPort
-from inc_trade.ports.risk_manager import RiskManagerPort
-from inc_trade.ports.streaming import StreamHandle, StreamingPort
-from inc_trade.ports.token_store import TokenStorePort as TokenStorePort
-from inc_trade.ports.wire_mapper import WireMapper
+from brokers_core.ports.clock import ClockPort, SystemClock
+from brokers_core.ports.connection_lifecycle import ConnectionLifecyclePort
+from brokers_core.ports.event_publisher import EventPublisherPort
+from brokers_core.ports.extension_registry import ExtensionRegistry, ExtensionRegistryPort
+from brokers_core.ports.historical import HistoricalPort
+from brokers_core.ports.http_client_port import HttpClientPort
+from brokers_core.ports.instruments import InstrumentInfo, InstrumentPort
+from brokers_core.ports.market_data import MarketDataPort
+from brokers_core.ports.options import OptionsPort
+from brokers_core.ports.order_execution import OrderExecutionPort
+from brokers_core.ports.order_guard import OrderGuardPort
+from brokers_core.ports.portfolio import PortfolioPort
+from brokers_core.ports.risk_manager import RiskManagerPort
+from brokers_core.ports.streaming import StreamHandle, StreamingPort
+from brokers_core.ports.subscription import SubscriptionPort
+from brokers_core.ports.token_store import TokenStorePort as TokenStorePort
+from brokers_core.ports.wire_mapper import WireMapper
 
 __all__ = [
     "FEATURE_ALERTS",
@@ -96,11 +98,13 @@ __all__ = [
     "NewsProvider",
     "OptionsPort",
     "OrderExecutionPort",
+    "OrderGuardPort",
     "PortfolioPort",
     "RiskManagerPort",
     "SliceOrderProvider",
     "StreamHandle",
     "StreamingPort",
+    "SubscriptionPort",
     "SuperOrderProvider",
     "SystemClock",
     "TokenStorePort",

@@ -14,6 +14,8 @@ from typing import Any
 from inc_trade.domain import Order, OrderRequest, OrderResponse
 from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
 from inc_trade.ports.order_execution import OrderExecutionPort
+from inc_trade.ports.order_guard import OrderGuardPort
+from inc_trade.services.order_guard import order_guard_from_flag
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +32,7 @@ class OrderService:
         order_port: OrderExecutionPort,
         idempotency_cache: Any | None = None,
         allow_live_orders: bool = True,
+        order_guard: OrderGuardPort | None = None,
     ):
         """Initialize with an order execution port.
 
@@ -37,10 +40,11 @@ class OrderService:
             order_port: Broker-agnostic order execution interface
             idempotency_cache: Optional cache for idempotency (backward compat)
             allow_live_orders: Enable live order placement (backward compat)
+            order_guard: Optional guard override; defaults to allow_live_orders flag
         """
         self._order_port = order_port
         self._idempotency_cache = idempotency_cache
-        self._allow_live_orders = allow_live_orders
+        self._order_guard = order_guard or order_guard_from_flag(allow_live_orders)
 
     def place_order(
         self,
@@ -114,6 +118,10 @@ class OrderService:
 
             raise ValidationError("price must be positive for LIMIT/STOP_LOSS orders")
 
+        blocked = self._order_guard.check_live_order_allowed()
+        if blocked is not None:
+            return blocked
+
         # Delegate to broker-specific implementation
         return self._order_port.place_order(
             symbol=symbol,
@@ -141,6 +149,10 @@ class OrderService:
 
             raise OrderRejectedError("order_id is required")
 
+        blocked = self._order_guard.check_live_order_allowed()
+        if blocked is not None:
+            return blocked
+
         return self._order_port.cancel_order(order_id)
 
     def modify_order(
@@ -165,6 +177,10 @@ class OrderService:
         """
         if not order_id:
             return OrderResponse.fail("Order ID is required", error_code="VALIDATION_FAILED")
+
+        blocked = self._order_guard.check_live_order_allowed()
+        if blocked is not None:
+            return blocked
 
         return self._order_port.modify_order(
             order_id=order_id,

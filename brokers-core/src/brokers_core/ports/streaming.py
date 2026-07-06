@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any, Protocol, runtime_checkable
 
-from inc_trade.domain.entities import Quote
+from brokers_core.domain.entities import Quote
 
 
 @runtime_checkable

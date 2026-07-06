@@ -5,7 +5,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from inc_trade.market.strategies.base import OptionStrategy, StrategyLeg
+from brokers_core.domain.enums import Side
+from brokers_core.market.strategies.base import OptionStrategy, StrategyLeg
 
 
 class VerticalSpread(OptionStrategy):
@@ -35,8 +36,8 @@ class VerticalSpread(OptionStrategy):
     ) -> None:
         self._side = side.lower()
         legs = (
-            StrategyLeg(instrument=long_leg, side="BUY", quantity=quantity),
-            StrategyLeg(instrument=short_leg, side="SELL", quantity=quantity),
+            StrategyLeg(instrument=long_leg, side=Side.BUY, quantity=quantity),
+            StrategyLeg(instrument=short_leg, side=Side.SELL, quantity=quantity),
         )
         super().__init__(underlying=underlying, legs=legs)
 

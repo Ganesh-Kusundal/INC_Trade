@@ -5,8 +5,8 @@ non-standard depth levels (20, 30, 200) via a DepthProvider.
 
 All depth decorators extend ``InstrumentDecorator``, enabling stacking::
 
-    from inc_trade.market.depth_decorators import Depth200Decorator
-    from inc_trade.market.cache_decorator import CachedDecorator
+    from brokers_core.market.depth_decorators import Depth200Decorator
+    from brokers_core.market.cache_decorator import CachedDecorator
 
     inst = CachedDecorator(Depth200Decorator(base_instrument, provider))
     depth = inst.depth(200)  # 200-level market depth
@@ -17,8 +17,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from inc_trade.market.decorators import InstrumentDecorator
-from inc_trade.market.instrument import Instrument
+from brokers_core.market.decorators import InstrumentDecorator
+from brokers_core.market.instrument import Instrument
 
 
 class DepthDecorator(InstrumentDecorator):

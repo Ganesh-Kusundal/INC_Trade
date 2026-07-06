@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
+from brokers_core.domain.enums import OrderType, ProductType, Side, Validity
 
 
 @runtime_checkable

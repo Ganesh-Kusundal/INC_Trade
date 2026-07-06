@@ -13,7 +13,7 @@ Available strategies:
 
 Usage::
 
-    from inc_trade.market.strategies import VerticalSpread
+    from brokers_core.market.strategies import VerticalSpread
 
     chain = inst.option_chain("2025-01-30")
     strikes = chain.nearest_strikes(5)
@@ -34,13 +34,13 @@ Usage::
     spread.place_orders()  # executes all leg orders
 """
 
-from inc_trade.market.strategies.base import OptionStrategy as OptionStrategy
-from inc_trade.market.strategies.base import StrategyLeg as StrategyLeg
-from inc_trade.market.strategies.combo import ComboOrder as ComboOrder
-from inc_trade.market.strategies.iron_condor import IronCondor as IronCondor
-from inc_trade.market.strategies.straddle import Straddle as Straddle
-from inc_trade.market.strategies.strangle import Strangle as Strangle
-from inc_trade.market.strategies.vertical import VerticalSpread as VerticalSpread
+from brokers_core.market.strategies.base import OptionStrategy as OptionStrategy
+from brokers_core.market.strategies.base import StrategyLeg as StrategyLeg
+from brokers_core.market.strategies.combo import ComboOrder as ComboOrder
+from brokers_core.market.strategies.iron_condor import IronCondor as IronCondor
+from brokers_core.market.strategies.straddle import Straddle as Straddle
+from brokers_core.market.strategies.strangle import Strangle as Strangle
+from brokers_core.market.strategies.vertical import VerticalSpread as VerticalSpread
 
 __all__ = [
     "OptionStrategy",

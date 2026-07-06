@@ -10,6 +10,7 @@ import logging
 import threading
 
 from inc_trade.domain import InstrumentInfo
+from inc_trade.domain.constants.exchanges import DEFAULT_EQUITY_EXCHANGE
 from inc_trade.ports.instruments import InstrumentPort
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,9 @@ class InstrumentService:
         self._ensure_loaded()
         return self._instruments.search(query, limit)
 
-    def resolve(self, symbol: str, exchange: str = "NSE") -> InstrumentInfo | None:
+    def resolve(
+        self, symbol: str, exchange: str = DEFAULT_EQUITY_EXCHANGE
+    ) -> InstrumentInfo | None:
         self._ensure_loaded()
         return self._instruments.resolve(symbol, exchange)
 

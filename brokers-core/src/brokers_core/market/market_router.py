@@ -29,10 +29,10 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 
-from inc_trade.domain.cache_policy import POLICY_DEPTH, POLICY_QUOTE
-from inc_trade.domain.entities import MarketDepth, Quote
-from inc_trade.ports.cache_port import CachePort
-from inc_trade.ports.market_data import MarketDataPort
+from brokers_core.domain.cache_policy import POLICY_DEPTH, POLICY_QUOTE
+from brokers_core.domain.entities import MarketDepth, Quote
+from brokers_core.ports.cache_port import CachePort
+from brokers_core.ports.market_data import MarketDataPort
 
 logger = logging.getLogger(__name__)
 

@@ -17,6 +17,7 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
+from brokers_core.market.option_chain import _build_instrument_chain
 from inc_trade.domain.entities import OptionChain, OptionLeg, OptionStrike
 from inc_trade.market.instrument import Instrument
 from inc_trade.market.option_chain import (
@@ -24,7 +25,6 @@ from inc_trade.market.option_chain import (
     InstrumentOptionLeg,
     InstrumentOptionStrike,
     SyntheticFuture,
-    _build_instrument_chain,
 )
 
 # ── Fixtures ─────────────────────────────────────────────────────────────

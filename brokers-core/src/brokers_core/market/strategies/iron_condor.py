@@ -5,7 +5,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from inc_trade.market.strategies.base import OptionStrategy, StrategyLeg
+from brokers_core.domain.enums import Side
+from brokers_core.market.strategies.base import OptionStrategy, StrategyLeg
 
 
 class IronCondor(OptionStrategy):
@@ -33,10 +34,10 @@ class IronCondor(OptionStrategy):
         quantity: int,
     ) -> None:
         legs = (
-            StrategyLeg(instrument=long_put_leg, side="BUY", quantity=quantity),
-            StrategyLeg(instrument=short_put_leg, side="SELL", quantity=quantity),
-            StrategyLeg(instrument=short_call_leg, side="SELL", quantity=quantity),
-            StrategyLeg(instrument=long_call_leg, side="BUY", quantity=quantity),
+            StrategyLeg(instrument=long_put_leg, side=Side.BUY, quantity=quantity),
+            StrategyLeg(instrument=short_put_leg, side=Side.SELL, quantity=quantity),
+            StrategyLeg(instrument=short_call_leg, side=Side.SELL, quantity=quantity),
+            StrategyLeg(instrument=long_call_leg, side=Side.BUY, quantity=quantity),
         )
         super().__init__(underlying=underlying, legs=legs)
 

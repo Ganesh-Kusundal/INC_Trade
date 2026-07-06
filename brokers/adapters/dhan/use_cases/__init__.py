@@ -1,1 +1,2 @@
-"""Dhan order use-cases."""
+"""Strangler bridge."""
+from brokers_core.adapters.dhan.use_cases import *  # noqa: F403
