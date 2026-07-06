@@ -120,9 +120,15 @@ class BrokerSession:
     async def connect(self) -> None:
         """Authenticate and establish connections to the broker.
 
+        Idempotent: if the adapter is already connected, this is a no-op.
         Handles both sync and async adapters: calls the connect function,
         then awaits the result if it's awaitable.
         """
+        if getattr(self._adapter, "is_connected", False):
+            logger.debug(
+                "Session already connected: %s", getattr(self._adapter, "broker_id", "unknown")
+            )
+            return
         import inspect
 
         connect_fn = getattr(self._adapter, "connect", None)
