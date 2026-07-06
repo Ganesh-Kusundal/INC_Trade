@@ -324,13 +324,17 @@ class MarketDataContext:
 
     # ── Options ────────────────────────────────────────────────────────
 
-    def option_chain(
+    def option_chain_raw(
         self,
         underlying: str,
         exchange: str = "NFO",
         expiry: str | None = None,
     ) -> OptionChain:
-        """Get the full option chain for a specific expiry.
+        """Get the raw domain ``OptionChain`` (string symbols).
+
+        This is the low-level method that returns the domain entity.
+        Most callers should use :meth:`option_chain` which returns
+        an ``InstrumentOptionChain`` with rich Instrument references.
 
         Args:
             underlying: Underlying symbol (e.g., "NIFTY").
@@ -339,7 +343,7 @@ class MarketDataContext:
                 the nearest expiry is used.
 
         Returns:
-            OptionChain domain entity.
+            ``OptionChain`` domain entity (string-based symbols).
 
         Raises:
             NotSupportedError: If options are not supported.
@@ -351,6 +355,35 @@ class MarketDataContext:
         return self._options.get_option_chain(
             underlying=underlying, exchange=exchange, expiry=expiry
         )
+
+    def option_chain(
+        self,
+        underlying: str,
+        exchange: str = "NFO",
+        expiry: str | None = None,
+    ) -> Any:
+        """Get the full option chain with rich Instrument references.
+
+        Resolves each option leg's string symbol into a real
+        ``Instrument`` object so that you can call ``.quote()``,
+        ``.buy()``, ``.sell()`` directly on chain legs.
+
+        Args:
+            underlying: Underlying symbol (e.g., "NIFTY").
+            exchange: Exchange code (default: NFO).
+            expiry: Expiry date string (e.g., "2024-01-25"). If None,
+                the nearest expiry is used.
+
+        Returns:
+            ``InstrumentOptionChain`` with rich Instrument references.
+
+        Raises:
+            NotSupportedError: If options are not supported.
+        """
+        from inc_trade.market.option_chain import _build_instrument_chain
+
+        raw = self.option_chain_raw(underlying, exchange, expiry)
+        return _build_instrument_chain(self, raw)
 
     def expiries(self, underlying: str, exchange: str = "NFO") -> list[str]:
         """Get available expiry dates for an underlying.
