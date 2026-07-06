@@ -66,3 +66,34 @@ class DepthProvider(Protocol):
 
     @property
     def max_levels(self) -> int: ...
+
+
+@runtime_checkable
+class OrderProvider(Protocol):
+    """Protocol for order placement, modification, and cancellation.
+
+    Broker adapters implement this to allow Instruments to place orders
+    directly without requiring a full OrderExecutionPort.
+    """
+
+    def place_order(
+        self,
+        symbol: str,
+        exchange: str,
+        side: str,
+        quantity: int,
+        order_type: Any = None,
+        price: Decimal = Decimal("0"),
+        trigger_price: Decimal = Decimal("0"),
+        **kwargs: Any,
+    ) -> Any: ...
+
+    def modify_order(
+        self,
+        order_id: str,
+        quantity: int | None = None,
+        price: Decimal | None = None,
+        **kwargs: Any,
+    ) -> Any: ...
+
+    def cancel_order(self, order_id: str) -> Any: ...
