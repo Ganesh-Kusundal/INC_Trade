@@ -13,7 +13,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Protocol, runtime_checkable
 
-from inc_trade.domain.entities import Candle, MarketDepth, Quote
+from inc_trade.domain.entities import Candle, MarketDepth, OptionChain, Quote
 
 
 @runtime_checkable
@@ -28,6 +28,13 @@ class InstrumentDataProvider(Protocol):
     def ltp(self, symbol: str, exchange: str) -> Decimal: ...
     def depth(self, symbol: str, exchange: str, levels: int = 5) -> MarketDepth: ...
     def quote_batch(self, symbols: list[str], exchange: str) -> dict[str, Quote]: ...
+
+    def get_option_chain(
+        self,
+        underlying: str,
+        exchange: str,
+        expiry: str | None = None,
+    ) -> OptionChain: ...
 
 
 @runtime_checkable

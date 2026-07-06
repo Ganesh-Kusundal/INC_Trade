@@ -266,8 +266,26 @@ class MarketDataQuery:
                 returns the chain for the nearest expiry.
 
         Returns:
-            ``OptionChain`` or ``InstrumentOptionChain`` domain entity.
+            ``InstrumentOptionChain`` domain entity.
         """
+        # Try provider path first (new)
+        try:
+            provider = self._resolve_provider()
+            get_chain = getattr(provider, "get_option_chain", None)
+            if get_chain is not None:
+                raw = get_chain(
+                    underlying=self._instrument.symbol,
+                    exchange=self._instrument.exchange,
+                    expiry=expiry,
+                )
+                # Convert raw OptionChain to InstrumentOptionChain
+                from inc_trade.market.option_chain import _build_instrument_chain
+
+                return _build_instrument_chain(None, raw)
+        except RuntimeError:
+            pass
+
+        # Fall back to legacy context (old)
         return self._legacy_context().option_chain(
             underlying=self._instrument.symbol,
             exchange=self._instrument.exchange,

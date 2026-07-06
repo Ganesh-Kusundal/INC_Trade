@@ -27,6 +27,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from inc_trade.domain import Balance, Holding, MarketDepth, Order, OrderResponse, Position, Quote
+from inc_trade.domain.entities import OptionChain, OptionLeg, OptionStrike
 from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
 
 if TYPE_CHECKING:
@@ -58,23 +59,33 @@ class _PaperOrders:
         trigger_price: Decimal = Decimal("0"),
         **kwargs: Any,
     ) -> OrderResponse:
+        # Validate side
+        side_upper = side.upper() if side else ""
+        if side_upper not in ("BUY", "SELL"):
+            return OrderResponse.fail(f"Invalid side: {side!r}. Must be 'BUY' or 'SELL'.")
+
+        # Validate quantity
+        if quantity <= 0:
+            return OrderResponse.fail("Quantity must be greater than 0.")
+
         order_id = f"PAPER-{uuid.uuid4().hex[:8].upper()}"
         order = Order(
             order_id=order_id,
             symbol=symbol,
             exchange=exchange,
-            side=Side.BUY if side.upper() == "BUY" else Side.SELL,
+            side=Side.BUY if side_upper == "BUY" else Side.SELL,
             quantity=quantity,
             price=price,
             trigger_price=trigger_price,
             order_type=order_type or OrderType.MARKET,
             product_type=kwargs.get("product_type", ProductType.INTRADAY),
             validity=kwargs.get("validity", Validity.DAY),
-            status=OrderStatus.OPEN,
+            status=OrderStatus.FILLED,  # Simulate immediate fill
+            filled_quantity=quantity,  # Fully filled
         )
         with self._lock:
             self._store[order_id] = order
-        return OrderResponse(order_id=order_id, success=True, status=OrderStatus.OPEN)
+        return OrderResponse(order_id=order_id, success=True, status=OrderStatus.FILLED)
 
     def modify_order(
         self,
@@ -125,6 +136,66 @@ class _PaperOrders:
     def get_order(self, order_id: str) -> Order | None:
         with self._lock:
             return self._store.get(order_id)
+
+    def get_orders(self) -> list[Order]:
+        with self._lock:
+            return list(self._store.values())
+
+    def get_order_book(self) -> list[Order]:
+        """Return all orders (alias for get_orders)."""
+        return self.get_orders()
+
+    def get_positions(self) -> list[dict]:
+        """Aggregate positions from filled orders."""
+        with self._lock:
+            positions: dict[tuple[str, str], dict] = {}
+            for order in self._store.values():
+                if order.status != OrderStatus.FILLED:
+                    continue
+                key = (order.symbol, order.exchange)
+                if key not in positions:
+                    positions[key] = {
+                        "symbol": order.symbol,
+                        "exchange": order.exchange,
+                        "buy_quantity": 0,
+                        "sell_quantity": 0,
+                        "buy_value": Decimal("0"),
+                        "sell_value": Decimal("0"),
+                    }
+                pos = positions[key]
+                if order.side == Side.BUY:
+                    pos["buy_quantity"] += order.quantity
+                    pos["buy_value"] += order.price * order.quantity
+                else:
+                    pos["sell_quantity"] += order.quantity
+                    pos["sell_value"] += order.price * order.quantity
+
+            result = []
+            for pos in positions.values():
+                net_qty = pos["buy_quantity"] - pos["sell_quantity"]
+                if net_qty > 0:
+                    avg_price = (
+                        pos["buy_value"] / pos["buy_quantity"]
+                        if pos["buy_quantity"] > 0
+                        else Decimal("0")
+                    )
+                elif net_qty < 0:
+                    avg_price = (
+                        pos["sell_value"] / pos["sell_quantity"]
+                        if pos["sell_quantity"] > 0
+                        else Decimal("0")
+                    )
+                else:
+                    avg_price = Decimal("0")
+                result.append(
+                    {
+                        "symbol": pos["symbol"],
+                        "exchange": pos["exchange"],
+                        "quantity": net_qty,
+                        "average_price": avg_price,
+                    }
+                )
+            return result
 
 
 class _PaperMarketData:
@@ -285,6 +356,80 @@ class PaperAdapter:
 
     # Uses default 5-level depth from market_data
 
+    # ── get_option_chain ─────────────────────────────────────────────────
+
+    def get_option_chain(
+        self,
+        underlying: str,
+        exchange: str = "NFO",
+        expiry: str | None = None,
+    ) -> OptionChain:
+        """Return a simple mock option chain for paper trading."""
+        self._require_connected()
+        exp = expiry or "2025-01-30"
+        strikes = (
+            OptionStrike(
+                strike=Decimal("25000"),
+                call=OptionLeg(
+                    ltp=Decimal("125.50"),
+                    oi=100000,
+                    volume=5000,
+                    iv=Decimal("15.5"),
+                    delta=Decimal("0.55"),
+                    theta=None,
+                    gamma=None,
+                    vega=None,
+                    security_id=None,
+                    symbol=f"{underlying}25JAN30CE25000",
+                ),
+                put=OptionLeg(
+                    ltp=Decimal("100.25"),
+                    oi=120000,
+                    volume=4500,
+                    iv=Decimal("16.2"),
+                    delta=Decimal("-0.45"),
+                    theta=None,
+                    gamma=None,
+                    vega=None,
+                    security_id=None,
+                    symbol=f"{underlying}25JAN30PE25000",
+                ),
+            ),
+            OptionStrike(
+                strike=Decimal("25100"),
+                call=OptionLeg(
+                    ltp=Decimal("100.00"),
+                    oi=80000,
+                    volume=4000,
+                    iv=Decimal("15.0"),
+                    delta=Decimal("0.50"),
+                    theta=None,
+                    gamma=None,
+                    vega=None,
+                    security_id=None,
+                    symbol=f"{underlying}25JAN30CE25100",
+                ),
+                put=OptionLeg(
+                    ltp=Decimal("125.50"),
+                    oi=90000,
+                    volume=3500,
+                    iv=Decimal("16.5"),
+                    delta=Decimal("-0.50"),
+                    theta=None,
+                    gamma=None,
+                    vega=None,
+                    security_id=None,
+                    symbol=f"{underlying}25JAN30PE25100",
+                ),
+            ),
+        )
+        return OptionChain(
+            underlying=underlying,
+            expiry=exp,
+            spot=Decimal("25050"),
+            strikes=strikes,
+        )
+
     # ── HistoricalDataProvider ────────────────────────────────────────────
 
     def get_candles(
@@ -346,6 +491,21 @@ class PaperAdapter:
     def cancel_order(self, order_id: str) -> OrderResponse:
         self._require_connected()
         return self._orders.cancel_order(order_id)
+
+    def get_order(self, order_id: str) -> Order | None:
+        """Get a single order by ID."""
+        self._require_connected()
+        return self._orders.get_order(order_id)
+
+    def get_orders(self) -> list[Order]:
+        """Get all orders."""
+        self._require_connected()
+        return self._orders.get_orders()
+
+    def get_positions(self) -> list[dict]:
+        """Get aggregated positions from filled orders."""
+        self._require_connected()
+        return self._orders.get_positions()
 
     # ── Test Helpers ──────────────────────────────────────────────────────
 

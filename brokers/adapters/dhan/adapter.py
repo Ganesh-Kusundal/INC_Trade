@@ -29,7 +29,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from inc_trade.domain.entities import Candle, MarketDepth, Quote
+from inc_trade.domain.entities import Candle, MarketDepth, OptionChain, Quote
 from inc_trade.domain.enums import BrokerID, OrderType, ProductType, Side, Validity
 
 from brokers.adapters.dhan.auth import DhanAuth
@@ -41,6 +41,7 @@ from brokers.adapters.dhan.historical import DhanHistorical
 from brokers.adapters.dhan.http_client import create_dhan_http_client
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
 from brokers.adapters.dhan.market_data import DhanMarketData
+from brokers.adapters.dhan.options import DhanOptions
 from brokers.adapters.dhan.orders import DhanOrders
 from brokers.adapters.dhan.streaming import DhanStreaming
 
@@ -122,6 +123,7 @@ class DhanAdapter:
         self._http_client: Any = None
         self._market_data: DhanMarketData | None = None
         self._orders: DhanOrders | None = None
+        self._options: DhanOptions | None = None
         self._historical: DhanHistorical | None = None
         self._streaming: DhanStreaming | None = None
         self._depth20_stream: DhanDepth20Stream | None = None
@@ -201,6 +203,11 @@ class DhanAdapter:
         )
 
         # Step 6: Streaming adapter (lazy — starts on first subscribe)
+        self._options = DhanOptions(
+            client=self._http_client,
+            resolver=self._resolver,
+        )
+
         self._streaming = DhanStreaming(
             access_token=access_token,
             client_id=self._client_id or "",
@@ -243,6 +250,7 @@ class DhanAdapter:
         self._connected = False
         self._market_data = None
         self._orders = None
+        self._options = None
         self._historical = None
         self._streaming = None
         self._depth20_stream = None
@@ -285,6 +293,26 @@ class DhanAdapter:
     ) -> dict[str, Quote]:
         self._require_connected()
         return self._market_data.quote_batch(symbols, exchange)
+
+    def get_option_chain(
+        self,
+        underlying: str,
+        exchange: str = "NFO",
+        expiry: str | None = None,
+    ) -> OptionChain:
+        """Fetch full option chain via Dhan API."""
+        self._require_connected()
+        if expiry is None:
+            expiries = self._options.get_expiries(underlying, exchange)
+            if not expiries:
+                return OptionChain(
+                    underlying=underlying,
+                    expiry="",
+                    spot=Decimal("0"),
+                    strikes=(),
+                )
+            expiry = expiries[0]
+        return self._options.get_option_chain(underlying, exchange, expiry)
 
     # ── DepthProvider ─────────────────────────────────────────────────────
 

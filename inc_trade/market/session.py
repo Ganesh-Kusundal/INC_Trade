@@ -86,15 +86,18 @@ class OrderCommandFactory:
         self,
         registry: InstrumentRegistry,
         adapter: Any,
+        event_bus: EventBus | None = None,
     ) -> None:
         self._registry = registry
         self._adapter = adapter
+        self._event_bus = event_bus
 
     def create(self, instrument: Instrument) -> OrderCommand:
         """Create an OrderCommand for the given instrument."""
         return OrderCommand(
             instrument=instrument,
             order_provider=self._adapter,
+            event_publisher=self._event_bus,
         )
 
 
@@ -113,7 +116,7 @@ class BrokerSession:
         self._registry = InstrumentRegistry()
         self._event_bus = EventBus()
         self._query_factory = MarketDataQueryFactory(self._registry, adapter, self._event_bus)
-        self._command_factory = OrderCommandFactory(self._registry, adapter)
+        self._command_factory = OrderCommandFactory(self._registry, adapter, self._event_bus)
 
     # ── Connection Lifecycle ─────────────────────────────────────────────────
 
