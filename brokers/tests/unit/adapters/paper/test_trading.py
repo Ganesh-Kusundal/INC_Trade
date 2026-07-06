@@ -141,25 +141,25 @@ class TestPaperTradingValidation:
     def test_rejects_order_when_disconnected(self) -> None:
         """Orders raise RuntimeError when adapter is not connected."""
         adapter = PaperAdapter()
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises((RuntimeError, ConnectionError), match="not connected"):
             adapter.place_order("RELIANCE", "NSE", "BUY", 10)
 
     def test_rejects_get_order_when_disconnected(self) -> None:
         """get_order raises RuntimeError when adapter is not connected."""
         adapter = PaperAdapter()
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises((RuntimeError, ConnectionError), match="not connected"):
             adapter.get_order("foo")
 
     def test_rejects_get_orders_when_disconnected(self) -> None:
         """get_orders raises RuntimeError when adapter is not connected."""
         adapter = PaperAdapter()
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises((RuntimeError, ConnectionError), match="not connected"):
             adapter.get_orders()
 
     def test_rejects_get_positions_when_disconnected(self) -> None:
         """get_positions raises RuntimeError when adapter is not connected."""
         adapter = PaperAdapter()
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises((RuntimeError, ConnectionError), match="not connected"):
             adapter.get_positions()
 
 

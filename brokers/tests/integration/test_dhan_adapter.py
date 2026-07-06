@@ -234,7 +234,7 @@ class TestDhanAuth:
         assert not gw.auth.is_authenticated()
         gw.close()
 
-    @patch("brokers.adapters.dhan.auth.requests.post")
+    @patch("brokers_core.adapters.dhan.auth.requests.post")
     @patch("pyotp.TOTP")
     def test_totp_token_generation_success(self, mock_totp_cls, mock_post):
         mock_totp = MagicMock()
@@ -253,7 +253,7 @@ class TestDhanAuth:
         assert gw.auth.get_token() == "generated-token-123"
         gw.close()
 
-    @patch("brokers.adapters.dhan.auth.requests.post")
+    @patch("brokers_core.adapters.dhan.auth.requests.post")
     @patch("pyotp.TOTP")
     def test_totp_token_generation_failure(self, mock_totp_cls, mock_post):
         mock_totp = MagicMock()
@@ -270,7 +270,7 @@ class TestDhanAuth:
                 totp_secret="MYSUPERSECRET",
             )
 
-    @patch("brokers.adapters.dhan.auth.requests.post")
+    @patch("brokers_core.adapters.dhan.auth.requests.post")
     @patch("pyotp.TOTP")
     def test_refresh_token_regenerates(self, mock_totp_cls, mock_post):
         mock_totp = MagicMock()

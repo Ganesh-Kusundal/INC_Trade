@@ -7,7 +7,7 @@ Loads profile based on APP_ENV environment variable:
 
 Usage::
 
-    from inc_trade.config.profiles import load_profile
+    from brokers.config.profiles import load_profile
 
     profile = load_profile()  # Loads from APP_ENV or defaults to dev
 """
@@ -16,10 +16,10 @@ from __future__ import annotations
 
 import os
 
-from inc_trade.config.profiles.base import BaseProfile, EnvironmentProfile
-from inc_trade.config.profiles.dev import DevProfile
-from inc_trade.config.profiles.prod import ProdProfile
-from inc_trade.config.profiles.staging import StagingProfile
+from brokers.config.profiles.base import BaseProfile, EnvironmentProfile
+from brokers.config.profiles.dev import DevProfile
+from brokers.config.profiles.prod import ProdProfile
+from brokers.config.profiles.staging import StagingProfile
 
 __all__ = [
     "BaseProfile",

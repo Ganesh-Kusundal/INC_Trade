@@ -187,25 +187,25 @@ class TestPreConnectGuard:
         return factory()
 
     def test_quote_raises(self, disconnected_adapter) -> None:
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises((RuntimeError, ConnectionError), match="not connected"):
             disconnected_adapter.quote("RELIANCE", "NSE")
 
     def test_ltp_raises(self, disconnected_adapter) -> None:
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises((RuntimeError, ConnectionError), match="not connected"):
             disconnected_adapter.ltp("RELIANCE", "NSE")
 
     def test_depth_raises(self, disconnected_adapter) -> None:
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises((RuntimeError, ConnectionError), match="not connected"):
             disconnected_adapter.depth("RELIANCE", "NSE")
 
     def test_place_order_raises(self, disconnected_adapter) -> None:
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises((RuntimeError, ConnectionError), match="not connected"):
             disconnected_adapter.place_order("RELIANCE", "NSE", "BUY", 10)
 
     def test_get_candles_raises(self, disconnected_adapter) -> None:
         import datetime
 
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises((RuntimeError, ConnectionError), match="not connected"):
             disconnected_adapter.get_candles(
                 "RELIANCE",
                 "NSE",

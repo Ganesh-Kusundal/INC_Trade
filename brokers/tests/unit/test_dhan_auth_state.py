@@ -32,7 +32,7 @@ class TestDhanAuth:
         assert auth.get_token() == ""
         assert not auth.is_authenticated()
 
-    @patch("brokers.adapters.dhan.auth.requests.post")
+    @patch("brokers_core.adapters.dhan.auth.requests.post")
     def test_generate_token_success(self, mock_post):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -51,7 +51,7 @@ class TestDhanAuth:
         assert auth.state is not None
         assert auth.state.source == TokenSource.TOTP
 
-    @patch("brokers.adapters.dhan.auth.requests.post")
+    @patch("brokers_core.adapters.dhan.auth.requests.post")
     def test_generate_token_rate_limit(self, mock_post):
         success_resp = MagicMock()
         success_resp.status_code = 200
@@ -71,7 +71,7 @@ class TestDhanAuth:
         with pytest.raises(TokenRateLimitError):
             auth.generate_token()
 
-    @patch("brokers.adapters.dhan.auth.requests.post")
+    @patch("brokers_core.adapters.dhan.auth.requests.post")
     def test_generate_token_auth_error(self, mock_post):
         mock_resp = MagicMock()
         mock_resp.status_code = 401
@@ -90,7 +90,7 @@ class TestDhanAuth:
         auth = DhanAuth(client_id="test-client")
         assert not auth.is_valid()
 
-    @patch("brokers.adapters.dhan.auth.requests.post")
+    @patch("brokers_core.adapters.dhan.auth.requests.post")
     def test_refresh_token_success(self, mock_post):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -112,7 +112,7 @@ class TestDhanAuth:
         token = auth.refresh_token()
         assert token == "test-token"
 
-    @patch("brokers.adapters.dhan.auth.requests.post")
+    @patch("brokers_core.adapters.dhan.auth.requests.post")
     def test_acquire_success(self, mock_post):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -130,7 +130,7 @@ class TestDhanAuth:
         assert state is not None
         assert state.access_token == "acquired-token"
 
-    @patch("brokers.adapters.dhan.auth.requests.post")
+    @patch("brokers_core.adapters.dhan.auth.requests.post")
     def test_acquire_failure_returns_none(self, mock_post):
         mock_resp = MagicMock()
         mock_resp.status_code = 401
@@ -141,7 +141,7 @@ class TestDhanAuth:
         state = auth.acquire()
         assert state is None
 
-    @patch("brokers.adapters.dhan.auth.requests.post")
+    @patch("brokers_core.adapters.dhan.auth.requests.post")
     def test_force_refresh(self, mock_post):
         mock_resp = MagicMock()
         mock_resp.status_code = 200

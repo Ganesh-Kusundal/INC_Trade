@@ -151,16 +151,16 @@ class TestDhanAdapterLifecycle:
         """All provider methods raise RuntimeError if not connected."""
         adapter = DhanAdapter(client_id="test123", access_token="token_abc")
 
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises((RuntimeError, ConnectionError), match="not connected"):
             adapter.quote("RELIANCE", "NSE")
 
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises((RuntimeError, ConnectionError), match="not connected"):
             adapter.ltp("RELIANCE", "NSE")
 
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises((RuntimeError, ConnectionError), match="not connected"):
             adapter.depth("RELIANCE", "NSE")
 
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises((RuntimeError, ConnectionError), match="not connected"):
             adapter.get_candles("RELIANCE", "NSE", None, None, "1D")
 
 

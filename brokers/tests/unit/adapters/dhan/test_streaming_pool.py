@@ -40,7 +40,7 @@ class TestPooledDhanStreaming:
         s = PooledDhanStreaming(access_token=token_fn, client_id=client_id)
         assert s._access_token is token_fn
 
-    @patch("brokers.adapters.dhan.streaming_pool.WebSocketConnectionPool")
+    @patch("brokers_core.adapters.dhan.streaming_pool.WebSocketConnectionPool")
     def test_subscribe_calls_connection(self, mock_pool, token, client_id):
         mock_conn = MagicMock()
         mock_pool.get_connection.return_value = mock_conn
@@ -48,7 +48,7 @@ class TestPooledDhanStreaming:
         s.subscribe("RELIANCE", "NSE")
         mock_conn.subscribe.assert_called_once_with("NSE_EQ|RELIANCE")
 
-    @patch("brokers.adapters.dhan.streaming_pool.WebSocketConnectionPool")
+    @patch("brokers_core.adapters.dhan.streaming_pool.WebSocketConnectionPool")
     def test_unsubscribe_calls_connection(self, mock_pool, token, client_id):
         mock_conn = MagicMock()
         mock_pool.get_connection.return_value = mock_conn
@@ -56,7 +56,7 @@ class TestPooledDhanStreaming:
         s.unsubscribe("RELIANCE", "NSE")
         mock_conn.unsubscribe.assert_called_once_with("NSE_EQ|RELIANCE")
 
-    @patch("brokers.adapters.dhan.streaming_pool.WebSocketConnectionPool")
+    @patch("brokers_core.adapters.dhan.streaming_pool.WebSocketConnectionPool")
     def test_start_calls_connection_start(self, mock_pool, token, client_id):
         mock_conn = MagicMock()
         mock_pool.get_connection.return_value = mock_conn
@@ -64,7 +64,7 @@ class TestPooledDhanStreaming:
         s.start()
         mock_conn.start.assert_called_once()
 
-    @patch("brokers.adapters.dhan.streaming_pool.WebSocketConnectionPool")
+    @patch("brokers_core.adapters.dhan.streaming_pool.WebSocketConnectionPool")
     def test_stop_releases_connection(self, mock_pool, token, client_id):
         mock_conn = MagicMock()
         mock_pool.get_connection.return_value = mock_conn
@@ -152,7 +152,7 @@ class TestPooledDhanStreaming:
         s._handle_message("not json {{{")
         assert results == []
 
-    @patch("brokers.adapters.dhan.streaming_pool.WebSocketConnectionPool")
+    @patch("brokers_core.adapters.dhan.streaming_pool.WebSocketConnectionPool")
     def test_get_ws_headers_callable_token(self, mock_pool, client_id):
         s = PooledDhanStreaming(access_token=lambda: "fn_tok", client_id=client_id)
         s.subscribe("INFY", "NSE")
@@ -168,7 +168,7 @@ class TestPooledDhanDepth20Stream:
         assert s._connection is None
         assert s._on_depth_update is None
 
-    @patch("brokers.adapters.dhan.streaming_pool.WebSocketConnectionPool")
+    @patch("brokers_core.adapters.dhan.streaming_pool.WebSocketConnectionPool")
     def test_subscribe(self, mock_pool, token, client_id):
         mock_conn = MagicMock()
         mock_pool.get_connection.return_value = mock_conn
@@ -176,7 +176,7 @@ class TestPooledDhanDepth20Stream:
         s.subscribe("RELIANCE", "NSE")
         mock_conn.subscribe.assert_called_once_with("NSE_EQ|RELIANCE")
 
-    @patch("brokers.adapters.dhan.streaming_pool.WebSocketConnectionPool")
+    @patch("brokers_core.adapters.dhan.streaming_pool.WebSocketConnectionPool")
     def test_unsubscribe(self, mock_pool, token, client_id):
         mock_conn = MagicMock()
         mock_pool.get_connection.return_value = mock_conn
@@ -184,7 +184,7 @@ class TestPooledDhanDepth20Stream:
         s.unsubscribe("RELIANCE", "NSE")
         mock_conn.unsubscribe.assert_called_once_with("NSE_EQ|RELIANCE")
 
-    @patch("brokers.adapters.dhan.streaming_pool.WebSocketConnectionPool")
+    @patch("brokers_core.adapters.dhan.streaming_pool.WebSocketConnectionPool")
     def test_start_stop(self, mock_pool, token, client_id):
         mock_conn = MagicMock()
         mock_pool.get_connection.return_value = mock_conn
@@ -234,7 +234,7 @@ class TestPooledDhanDepth200Stream:
         assert s._connection is None
         assert s._on_depth_update is None
 
-    @patch("brokers.adapters.dhan.streaming_pool.WebSocketConnectionPool")
+    @patch("brokers_core.adapters.dhan.streaming_pool.WebSocketConnectionPool")
     def test_subscribe_unsubscribe(self, mock_pool, token, client_id):
         mock_conn = MagicMock()
         mock_pool.get_connection.return_value = mock_conn
@@ -244,7 +244,7 @@ class TestPooledDhanDepth200Stream:
         s.unsubscribe("TCS", "NSE")
         mock_conn.unsubscribe.assert_called_once_with("NSE_EQ|TCS")
 
-    @patch("brokers.adapters.dhan.streaming_pool.WebSocketConnectionPool")
+    @patch("brokers_core.adapters.dhan.streaming_pool.WebSocketConnectionPool")
     def test_start_stop(self, mock_pool, token, client_id):
         mock_conn = MagicMock()
         mock_pool.get_connection.return_value = mock_conn
@@ -293,7 +293,7 @@ class TestPooledDhanOrderStream:
         s = PooledDhanOrderStream(access_token=token, client_id=client_id)
         assert s._get_ws_headers() == {}
 
-    @patch("brokers.adapters.dhan.streaming_pool.WebSocketConnectionPool")
+    @patch("brokers_core.adapters.dhan.streaming_pool.WebSocketConnectionPool")
     def test_subscribe_gets_connection(self, mock_pool, token, client_id):
         mock_conn = MagicMock()
         mock_conn.is_connected = False
@@ -311,7 +311,7 @@ class TestPooledDhanOrderStream:
         s.update_token("new")
         assert s._access_token == token
 
-    @patch("brokers.adapters.dhan.streaming_pool.WebSocketConnectionPool")
+    @patch("brokers_core.adapters.dhan.streaming_pool.WebSocketConnectionPool")
     def test_start_stop(self, mock_pool, token, client_id):
         mock_conn = MagicMock()
         mock_pool.get_connection.return_value = mock_conn

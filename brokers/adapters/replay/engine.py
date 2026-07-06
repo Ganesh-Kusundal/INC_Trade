@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-from inc_trade.domain.entities import Candle, MarketDepth, Quote
+from brokers.domain.entities import Candle, MarketDepth, Quote
 
 from brokers.adapters.replay.sources import CsvSource
 from brokers.adapters.replay.tick_source import TickSource
@@ -38,7 +38,7 @@ _DEPTH_ASK_LEVELS = 5
 
 def _build_synthetic_depth(symbol: str, exchange: str, ltp: Decimal) -> MarketDepth:
     """Create a minimal 5-level synthetic depth around LTP."""
-    from inc_trade.domain.entities import DepthLevel
+    from brokers.domain.entities import DepthLevel
 
     tick = Decimal("0.05")
     bids = tuple(

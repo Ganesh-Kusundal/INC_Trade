@@ -19,7 +19,7 @@ def _reset_cooldown(tmp_path):
 
 
 class TestDhanAuthTotpCooldown:
-    @patch("brokers.adapters.dhan.auth.requests.post")
+    @patch("brokers_core.adapters.dhan.auth.requests.post")
     @patch("pyotp.TOTP")
     def test_proactive_cooldown_blocks_second_call(
         self, mock_totp_cls, mock_post, tmp_path
@@ -42,7 +42,7 @@ class TestDhanAuthTotpCooldown:
         with pytest.raises(TokenRateLimitError, match="cooldown"):
             auth.generate_token()
 
-    @patch("brokers.adapters.dhan.auth.requests.post")
+    @patch("brokers_core.adapters.dhan.auth.requests.post")
     @patch("pyotp.TOTP")
     def test_broker_rate_limit_records_cooldown(
         self, mock_totp_cls, mock_post, tmp_path

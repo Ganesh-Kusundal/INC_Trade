@@ -12,13 +12,13 @@ from datetime import timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from inc_trade.domain.entities import Quote
+from brokers.domain.entities import Quote
 
 if TYPE_CHECKING:
     from collections.abc import Generator
     from datetime import datetime  # noqa: F401
 
-    from inc_trade.domain.entities import Candle
+    from brokers.domain.entities import Candle
 
 
 class TickSource:

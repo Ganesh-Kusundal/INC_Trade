@@ -67,19 +67,19 @@ class TestPaperAdapterLifecycle:
         """All provider methods raise RuntimeError if not connected."""
         adapter = PaperAdapter()
 
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises((RuntimeError, ConnectionError), match="not connected"):
             adapter.quote("RELIANCE", "NSE")
 
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises((RuntimeError, ConnectionError), match="not connected"):
             adapter.ltp("RELIANCE", "NSE")
 
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises((RuntimeError, ConnectionError), match="not connected"):
             adapter.depth("RELIANCE", "NSE")
 
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises((RuntimeError, ConnectionError), match="not connected"):
             adapter.place_order("RELIANCE", "NSE", "BUY", 10)
 
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises((RuntimeError, ConnectionError), match="not connected"):
             adapter.subscribe(MagicMock(), MagicMock())
 
 

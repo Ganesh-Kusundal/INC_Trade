@@ -10,7 +10,7 @@ from inc_trade.domain import OrderResponse, Quote
 from brokers.adapters.dhan.gateway import DhanGateway
 
 
-@patch("brokers.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
+@patch("brokers_core.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
 @patch("inc_trade.infrastructure.storage.token_store.JsonTokenStateStore")
 def test_gateway_delegates_place_order(_store, _token):
     gw = DhanGateway(access_token="tok", client_id="cid", auto_refresh=False)
@@ -20,7 +20,7 @@ def test_gateway_delegates_place_order(_store, _token):
     gw.close()
 
 
-@patch("brokers.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
+@patch("brokers_core.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
 @patch("inc_trade.infrastructure.storage.token_store.JsonTokenStateStore")
 def test_gateway_observability_methods(_store, _token):
     gw = DhanGateway(access_token="tok", client_id="cid", auto_refresh=False)
@@ -33,7 +33,7 @@ def test_gateway_observability_methods(_store, _token):
     gw.close()
 
 
-@patch("brokers.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
+@patch("brokers_core.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
 @patch("inc_trade.infrastructure.storage.token_store.JsonTokenStateStore")
 def test_gateway_market_data_batch(_store, _token):
     gw = DhanGateway(access_token="tok", client_id="cid", auto_refresh=False)
@@ -46,7 +46,7 @@ def test_gateway_market_data_batch(_store, _token):
     gw.close()
 
 
-@patch("brokers.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
+@patch("brokers_core.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
 @patch("inc_trade.infrastructure.storage.token_store.JsonTokenStateStore")
 def test_gateway_history_returns_dataframe(_store, _token):
     from datetime import datetime
@@ -76,7 +76,7 @@ def test_gateway_history_returns_dataframe(_store, _token):
     gw.close()
 
 
-@patch("brokers.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
+@patch("brokers_core.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
 @patch("inc_trade.infrastructure.storage.token_store.JsonTokenStateStore")
 def test_gateway_stream_subscribes(_store, _token):
     gw = DhanGateway(access_token="tok", client_id="cid", auto_refresh=False)
@@ -95,7 +95,7 @@ def test_gateway_stream_subscribes(_store, _token):
     gw.close()
 
 
-@patch("brokers.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
+@patch("brokers_core.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
 @patch("inc_trade.infrastructure.storage.token_store.JsonTokenStateStore")
 def test_gateway_close_releases_admission_and_pool(_store, _token):
     gw = DhanGateway(access_token="tok", client_id="cid", auto_refresh=False)

@@ -46,6 +46,7 @@ markers = [
     "off_market_safe: safe to run outside market hours",
     "market_hours: requires NSE market hours",
     "architecture: architecture boundary and invariant tests",
+    "contract: adapter contract conformance tests",
 ]
 
 [tool.coverage.run]

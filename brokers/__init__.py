@@ -13,133 +13,133 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from inc_trade.domain import (
+from brokers.domain import (
     Balance as Balance,
 )
-from inc_trade.domain import (
+from brokers.domain import (
     DepthLevel as DepthLevel,
 )
-from inc_trade.domain import (
+from brokers.domain import (
     Holding as Holding,
 )
-from inc_trade.domain import (
+from brokers.domain import (
     MarketDepth as MarketDepth,
 )
-from inc_trade.domain import (
+from brokers.domain import (
     Order as Order,
 )
-from inc_trade.domain import (
+from brokers.domain import (
     OrderResponse as OrderResponse,
 )
-from inc_trade.domain import (
+from brokers.domain import (
     Position as Position,
 )
-from inc_trade.domain import (
+from brokers.domain import (
     Quote as Quote,
 )
-from inc_trade.domain import (
+from brokers.domain import (
     Trade as Trade,
 )
-from inc_trade.domain.enums import (
+from brokers.domain.enums import (
     BrokerID as BrokerID,
 )
-from inc_trade.domain.enums import (
+from brokers.domain.enums import (
     OrderStatus as OrderStatus,
 )
-from inc_trade.domain.enums import (
+from brokers.domain.enums import (
     OrderType as OrderType,
 )
-from inc_trade.domain.enums import (
+from brokers.domain.enums import (
     ProductType as ProductType,
 )
-from inc_trade.domain.enums import (
+from brokers.domain.enums import (
     Side as Side,
 )
-from inc_trade.domain.enums import (
+from brokers.domain.enums import (
     Validity as Validity,
 )
-from inc_trade.domain.exceptions import (
+from brokers.domain.exceptions import (
     AuthenticationError as AuthenticationError,
 )
-from inc_trade.domain.exceptions import (
+from brokers.domain.exceptions import (
     BrokerDegradedError as BrokerDegradedError,
 )
-from inc_trade.domain.exceptions import (
+from brokers.domain.exceptions import (
     BrokerError as BrokerError,
 )
-from inc_trade.domain.exceptions import (
+from brokers.domain.exceptions import (
     BrokerServerError as BrokerServerError,
 )
-from inc_trade.domain.exceptions import (
+from brokers.domain.exceptions import (
     CircuitOpenError as CircuitOpenError,
 )
-from inc_trade.domain.exceptions import (
+from brokers.domain.exceptions import (
     ConfigError as ConfigError,
 )
-from inc_trade.domain.exceptions import (
+from brokers.domain.exceptions import (
     DataError as DataError,
 )
-from inc_trade.domain.exceptions import (
+from brokers.domain.exceptions import (
     InstrumentNotFoundError as InstrumentNotFoundError,
 )
-from inc_trade.domain.exceptions import (
+from brokers.domain.exceptions import (
     NetworkError as NetworkError,
 )
-from inc_trade.domain.exceptions import (
+from brokers.domain.exceptions import (
     NonRetryableError as NonRetryableError,
 )
-from inc_trade.domain.exceptions import (
+from brokers.domain.exceptions import (
     NotSupportedError as NotSupportedError,
 )
-from inc_trade.domain.exceptions import (
+from brokers.domain.exceptions import (
     OrderRejectedError as OrderRejectedError,
 )
-from inc_trade.domain.exceptions import (
+from brokers.domain.exceptions import (
     RateLimitError as RateLimitError,
 )
-from inc_trade.domain.exceptions import (
+from brokers.domain.exceptions import (
     RetryableError as RetryableError,
 )
-from inc_trade.domain.exceptions import (
+from brokers.domain.exceptions import (
     TokenRateLimitError as TokenRateLimitError,
 )
-from inc_trade.domain.exceptions import (
+from brokers.domain.exceptions import (
     TradeXV2Error as TradeXV2Error,
 )
-from inc_trade.domain.exceptions import (
+from brokers.domain.exceptions import (
     ValidationError as ValidationError,
 )
-from inc_trade.ports import (
+from brokers.ports import (
     AuthPort as AuthPort,
 )
-from inc_trade.ports import (
+from brokers.ports import (
     ClockPort as ClockPort,
 )
-from inc_trade.ports import (
+from brokers.ports import (
     HistoricalPort as HistoricalPort,
 )
-from inc_trade.ports import (
+from brokers.ports import (
     InstrumentInfo as InstrumentInfo,
 )
-from inc_trade.ports import (
+from brokers.ports import (
     InstrumentPort as InstrumentPort,
 )
-from inc_trade.ports import (
+from brokers.ports import (
     MarketDataPort as MarketDataPort,
 )
-from inc_trade.ports import (
+from brokers.ports import (
     OrderExecutionPort as OrderExecutionPort,
 )
-from inc_trade.ports import (
+from brokers.ports import (
     PortfolioPort as PortfolioPort,
 )
-from inc_trade.ports import (
+from brokers.ports import (
     StreamingPort as StreamingPort,
 )
-from inc_trade.services.broker_facade import (
+from brokers.services.broker_facade import (
     BrokerFacade as BrokerFacade,
 )
-from inc_trade.services.broker_session import FacadeBrokerSession as BrokerSession
+from brokers.services.broker_session import FacadeBrokerSession as BrokerSession
 
 
 def _build_adapter(
@@ -200,7 +200,7 @@ def _build_facade(
     """Build a BrokerFacade for the given broker name."""
     from pathlib import Path
 
-    from inc_trade.services.broker_facade import BrokerFacade
+    from brokers.services.broker_facade import BrokerFacade
 
     if isinstance(name, BrokerID):
         name = name.value
@@ -219,14 +219,14 @@ def _build_facade(
             auto_refresh=auto_refresh,
             lifecycle=lifecycle,
         )
-        from inc_trade.ports.capabilities import (
+        from brokers.ports.capabilities import (
             ForeverOrderProvider,
             KillSwitchProvider,
             MarginProvider,
             SliceOrderProvider,
             SuperOrderProvider,
         )
-        from inc_trade.ports.extension_registry import DictExtensionRegistry
+        from brokers.ports.extension_registry import DictExtensionRegistry
 
         registry = DictExtensionRegistry()
         registry.register("dhan", cast("type", KillSwitchProvider), dhan_gw.orders)
@@ -247,8 +247,8 @@ def _build_facade(
             access_token=credentials["access_token"],
             allow_live_orders=allow_live_orders,
         )
-        from inc_trade.ports.capabilities import GTTProvider, NewsProvider
-        from inc_trade.ports.extension_registry import DictExtensionRegistry
+        from brokers.ports.capabilities import GTTProvider, NewsProvider
+        from brokers.ports.extension_registry import DictExtensionRegistry
 
         registry = DictExtensionRegistry()
         registry.register("upstox", cast("type", NewsProvider), upstox_gw.news)
@@ -268,7 +268,7 @@ def _build_facade(
             paper_gw = PaperGateway(initial_cash=Decimal(str(initial_cash)))
         else:
             paper_gw = PaperGateway()
-        from inc_trade.ports.extension_registry import DictExtensionRegistry
+        from brokers.ports.extension_registry import DictExtensionRegistry
 
         registry = DictExtensionRegistry()
         return BrokerFacade(
@@ -302,8 +302,8 @@ def connect(
         broker.streaming.subscribe("NSE:RELIANCE", on_tick)
         broker.close()
     """
-    from inc_trade.services.audit_facade import AuditFacade
-    from inc_trade.trading.order_repository import OrderRepository
+    from brokers.services.audit_facade import AuditFacade
+    from brokers.trading.order_repository import OrderRepository
     from brokers_core.infrastructure.event_bus import EventBus
     from brokers_core.market.session import BrokerSession as V3BrokerSession
 

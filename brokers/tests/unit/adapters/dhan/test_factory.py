@@ -17,7 +17,7 @@ def _clear_registry():
     gateway_registry.clear()
 
 
-@patch("brokers.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
+@patch("brokers_core.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
 @patch("inc_trade.infrastructure.storage.token_store.JsonTokenStateStore")
 def test_factory_returns_gateway(_store, _token):
     gw = DhanBrokerFactory.create(access_token="tok", client_id="cid-1")
@@ -25,7 +25,7 @@ def test_factory_returns_gateway(_store, _token):
     gw.close()
 
 
-@patch("brokers.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
+@patch("brokers_core.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
 @patch("inc_trade.infrastructure.storage.token_store.JsonTokenStateStore")
 def test_factory_singleton_per_client_id(_store, _token):
     gw1 = DhanBrokerFactory.create(access_token="tok", client_id="same-client")
@@ -34,7 +34,7 @@ def test_factory_singleton_per_client_id(_store, _token):
     gw1.close()
 
 
-@patch("brokers.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
+@patch("brokers_core.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
 @patch("inc_trade.infrastructure.storage.token_store.JsonTokenStateStore")
 def test_factory_distinct_per_client_id(_store, _token):
     gw1 = DhanBrokerFactory.create(access_token="tok", client_id="client-a")
@@ -44,7 +44,7 @@ def test_factory_distinct_per_client_id(_store, _token):
     gw2.close()
 
 
-@patch("brokers.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
+@patch("brokers_core.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
 @patch("inc_trade.infrastructure.storage.token_store.JsonTokenStateStore")
 def test_factory_builds_gateway_once(_store, _token):
     with patch(

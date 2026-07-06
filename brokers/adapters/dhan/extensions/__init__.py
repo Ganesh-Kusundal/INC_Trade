@@ -1,2 +1,1 @@
-"""Strangler bridge."""
-from brokers_core.adapters.dhan.extensions import *  # noqa: F403
+"""Dhan specific extensions."""

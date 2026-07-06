@@ -1,2 +1,4 @@
-"""Strangler bridge."""
-from brokers_core.adapters.upstox import *  # noqa: F403
+from brokers.adapters.upstox.adapter import UpstoxAdapter
+from brokers.adapters.upstox.gateway import UpstoxGateway
+
+__all__ = ["UpstoxAdapter", "UpstoxGateway"]

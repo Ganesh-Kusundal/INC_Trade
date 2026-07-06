@@ -16,7 +16,7 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from inc_trade.domain.entities import Candle
+from brokers.domain.entities import Candle
 
 logger = logging.getLogger(__name__)
 
