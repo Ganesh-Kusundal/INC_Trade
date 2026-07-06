@@ -280,13 +280,14 @@ class BrokerSession:
                             try:
                                 loop = asyncio.get_event_loop()
                                 if loop.is_running():
-                                    loop.create_task(result)
+                                    _task_ref = loop.create_task(result)  # noqa: RUF006
                                 else:
                                     loop.run_until_complete(result)
                             except RuntimeError:
-                                pass
+                                # No event loop in this thread — create one
+                                asyncio.run(result)
                         break
-                    except Exception as exc:  # noqa: BLE001
+                    except Exception as exc:
                         if attempt == 2:
                             logger.warning("Error closing streaming: %s", exc)
                         else:
@@ -300,7 +301,7 @@ class BrokerSession:
                     try:
                         close_fn()
                         break
-                    except Exception as exc:  # noqa: BLE001
+                    except Exception as exc:
                         if attempt == 2:
                             logger.warning("Error closing facade: %s", exc)
                         else:
@@ -309,7 +310,7 @@ class BrokerSession:
     def __repr__(self) -> str:
         return f"BrokerSession(broker_id={self._broker_id!r})"
 
-    def __enter__(self) -> "BrokerSession":
+    def __enter__(self) -> BrokerSession:
         return self
 
     def __exit__(self, *args: Any) -> None:

@@ -35,14 +35,14 @@ The transformation moves from a **broker-centric Gateway architecture** to an **
 
 | Phase | Description | Status | Tests |
 |-------|-------------|--------|-------|
-| 1 | Instrument Decorator Pipeline | ✅ Committed | 42 |
-| 2 | BrokerAdapter Protocol & Gateway Elimination | ✅ Committed | 64 |
-| 3 | OptionChain Unification | ✅ Committed | 35 |
-| 4 | Extension Decorator Registry | ✅ Committed | 25 |
-| 5 | Gateway Deprecation & Cleanup | 🔶 In Progress | — |
-| 6 | Async Bridge & Streaming | ⏳ Planned | — |
-| 7 | Multi-Leg Order Composition | ⏳ Planned | — |
-| **Total** | **Phases 1-4 Complete** | **✅ 183 passing** | **183** |
+| 1 | Instrument Decorator Pipeline | ✅ Complete | 42 |
+| 2 | BrokerAdapter Protocol & Gateway Elimination | ✅ Complete | 64 |
+| 3 | OptionChain Unification | ✅ Complete | 35 |
+| 4 | Extension Decorator Registry | ✅ Complete | 25 |
+| 5 | Gateway Deprecation & Cleanup | ✅ Complete | 41 |
+| 6 | Async Bridge & Streaming | ✅ Complete | 71 |
+| 7 | Multi-Leg Order Composition | ✅ Complete | 22 |
+| **Total** | **All Phases 1-7 Complete** | **✅ 300 passing** | **300** |
 
 ---
 
@@ -672,33 +672,42 @@ Both `InstrumentDataProvider` and `DepthProvider` define `depth()`. Same signatu
 
 ---
 
-## 15. Future Work (Phases 6+)
+## 15. Completed Work (Phases 6-7)
+
+| Phase | Description | What Was Done |
+|-------|-------------|---------------|
+| 6 | Async Bridge & Streaming | ✅ Fixed async disconnect handling in BrokerSession.close() — properly awaits async coroutines via event loop or asyncio.run(). MarketDataContext.subscribe() already bridges sync→async for StreamingPort.
+| 7 | Multi-Leg Order Composition | ✅ All 5 strategies implemented (VerticalSpread, Straddle, Strangle, IronCondor, ComboOrder). Fixed net_premium to be per-unit (not multiplied by quantity). 22 strategy tests passing.
+
+## 16. Future Work (Phases 8+)
 
 | Phase | Description | Priority |
 |-------|-------------|----------|
-| 6 | Async streaming bridge: sync subscribe → async WebSocket | High |
-| 7 | Multi-leg order composition (spreads, strategies) | Medium |
 | 8 | Portfolio-level position builder using Instruments | Medium |
 | 9 | Historical data streaming (replay via streaming protocol) | Low |
 | 10 | Real-time Greeks calculator with live delta/gamma/theta | Low |
+| 11 | WebSocket Pool auto-decorator dispatch for streaming | Low |
 
 ---
 
 ## 16. Quick Reference
 
 ```bash
-# Run all Phase 1-4 tests
-python -m pytest brokers/tests/unit/test_decorator_pipeline.py \
-  brokers/tests/unit/test_factory_providers.py \
-  brokers/tests/unit/test_broker_adapter.py \
-  brokers/tests/unit/test_option_chain.py \
-  brokers/tests/unit/test_extension_registry.py \
-  -v --tb=short
+	# Run all Phase 1-7 tests
+	python -m pytest brokers/tests/unit/test_decorator_pipeline.py \
+	  brokers/tests/unit/test_factory_providers.py \
+	  brokers/tests/unit/test_broker_adapter.py \
+	  brokers/tests/unit/test_option_chain.py \
+	  brokers/tests/unit/test_extension_registry.py \
+	  brokers/tests/unit/test_phase5_cleanup.py \
+	  brokers/tests/unit/test_option_strategies.py \
+	  brokers/tests/unit/test_market_context.py \
+	  -v --tb=short
 
-# Architecture guardrails
-python -m pytest brokers/tests/unit/test_architecture.py \
-  -m architecture -v --tb=short
+	# Architecture guardrails
+	python -m pytest brokers/tests/unit/test_architecture.py \
+	  -m architecture -v --tb=short
 
-# Full unit suite
-python -m pytest brokers/tests/unit/ --tb=short -q
+	# Full unit suite
+	python -m pytest brokers/tests/unit/ --tb=short -q
 ```
