@@ -1,0 +1,18 @@
+[project]
+name = "brokers-core"
+version = "0.1.0"
+description = "TradeXV2 Broker Core — Object-Centric Trading Platform"
+authors = [{name = "Elite Quantitative Engineering Board"}]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.10"
+
+[tool.ruff]
+line-length = 100
+
+[tool.mypy]
+mypy_path = "src"
+
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"

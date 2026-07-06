@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import FrozenInstanceError, is_dataclass
 from typing import Any
 
-from inc_trade.market.config import MarketDataConfig
+from brokers_core.market.config import MarketDataConfig
 from inc_trade.market.context import MarketDataContext
 from inc_trade.market.instrument import Instrument
 from inc_trade.market.instrument_registry import InstrumentRegistry

@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, ClassVar
 
-from brokers_core.domain.entities import AggregatedExposure, Position
+from inc_trade.domain.entities import AggregatedExposure, Position
 
 logger = logging.getLogger(__name__)
 
