@@ -13,11 +13,12 @@ import os
 from decimal import Decimal
 from pathlib import Path
 
-from brokers.adapters.dhan.orders import DhanOrders
-from brokers.adapters.dhan.gateway import DhanGateway
+import pytest
 from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Side
 
-import pytest
+from brokers.adapters.dhan.gateway import DhanGateway
+from brokers.adapters.dhan.orders import DhanOrders
+
 pytestmark = [pytest.mark.dhan, pytest.mark.off_market_safe, pytest.mark.regression]
 
 # ---------------------------------------------------------------------------

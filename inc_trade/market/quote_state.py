@@ -62,18 +62,6 @@ class QuoteState:
     seq_no: int = 0
     _on_change_callbacks: list = field(default_factory=list, repr=False, compare=False)
 
-    @property
-    def instrument_key(self) -> str:
-        """Deprecated alias for :attr:`composite_key`."""
-        import warnings
-
-        warnings.warn(
-            "QuoteState.instrument_key is deprecated; use composite_key instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.composite_key
-
     def update_from_quote(self, quote: Any) -> None:
         """Update state from a Quote domain entity or tick dict.
 

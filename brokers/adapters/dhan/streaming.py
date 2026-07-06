@@ -9,8 +9,8 @@ from __future__ import annotations
 import json
 import logging
 import struct
+from collections.abc import Callable
 from decimal import Decimal
-from typing import Callable
 
 from brokers.adapters.base_streaming import BaseWebSocketStreaming
 from brokers.adapters.dhan.config import SEGMENT_TO_EXCHANGE

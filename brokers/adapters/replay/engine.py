@@ -25,9 +25,10 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+from inc_trade.domain.entities import Candle, MarketDepth, Quote
+
 from brokers.adapters.replay.sources import CsvSource
 from brokers.adapters.replay.tick_source import TickSource
-from inc_trade.domain.entities import Candle, MarketDepth, Quote
 
 logger = logging.getLogger(__name__)
 

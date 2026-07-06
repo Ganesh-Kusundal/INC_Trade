@@ -8,10 +8,8 @@ on broker-specific segment strings (e.g., ``"NSE_EQ"``, ``"NSE_FNO"``,
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-
-import pytest
 
 from inc_trade.market.instrument import Instrument
 
@@ -32,7 +30,7 @@ class TestContentBasedDetection:
         inst = Instrument(
             symbol="NIFTY FUT",
             exchange="NFO",
-            expiry=datetime(2025, 1, 30, tzinfo=timezone.utc),
+            expiry=datetime(2025, 1, 30, tzinfo=UTC),
         )
         assert inst.is_future() is True
         assert inst.is_equity() is False
@@ -65,7 +63,7 @@ class TestContentBasedDetection:
         inst = Instrument(
             symbol="X",
             exchange="NFO",
-            expiry=datetime(2025, 1, 30, tzinfo=timezone.utc),
+            expiry=datetime(2025, 1, 30, tzinfo=UTC),
             strike=Decimal("100"),
         )
         assert inst.is_future() is False
@@ -85,7 +83,7 @@ class TestContentBasedDetection:
             inst = Instrument(
                 symbol="X",
                 exchange=ex,
-                expiry=datetime(2025, 1, 30, tzinfo=timezone.utc),
+                expiry=datetime(2025, 1, 30, tzinfo=UTC),
             )
             assert inst.is_future() is True, f"exchange={ex!r}"
 

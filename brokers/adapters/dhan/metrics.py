@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from functools import wraps
 from time import perf_counter
-from typing import Any, Callable
+from typing import Any
 
 from prometheus_client import Counter, Gauge, Histogram
 

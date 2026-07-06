@@ -1,8 +1,10 @@
 import gc
-import pytest
 from unittest.mock import patch
 
+import pytest
+
 from brokers.adapters.dhan.gateway import DhanGateway
+
 
 @pytest.fixture
 def mock_dhan_gateway_deps():
@@ -17,7 +19,7 @@ def test_gateway_assembles_components(mock_dhan_gateway_deps):
         client_id="test_client",
         auto_refresh=False
     )
-    
+
     # Assert all 15 components are instantiated
     assert gateway.orders is not None
     assert gateway.super_orders is not None
@@ -42,7 +44,7 @@ def test_gateway_assembles_components(mock_dhan_gateway_deps):
     assert gateway.instruments is not None
     assert gateway.historical is not None
     assert gateway.streaming is not None
-    
+
     gateway.close()
 
 def test_gateway_no_memory_leaks(mock_dhan_gateway_deps):
@@ -52,7 +54,7 @@ def test_gateway_no_memory_leaks(mock_dhan_gateway_deps):
     """
     gc.collect()
     initial_objects = len(gc.get_objects())
-    
+
     # Create and close gateway in a scope
     def create_and_destroy():
         gw = DhanGateway(
@@ -61,12 +63,12 @@ def test_gateway_no_memory_leaks(mock_dhan_gateway_deps):
             auto_refresh=False
         )
         gw.close()
-    
+
     create_and_destroy()
-    
+
     gc.collect()
     final_objects = len(gc.get_objects())
-    
+
     # Depending on Python version and other factors, exact object count might fluctuate slightly,
     # but a massive leak (e.g. cycles from 15 components) would show up as thousands of objects.
     assert abs(final_objects - initial_objects) < 100, f"Potential memory leak detected. Object count grew by {final_objects - initial_objects}"

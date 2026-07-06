@@ -9,10 +9,8 @@ contract.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
 
 import pytest
-
 from inc_trade.domain.cache_policy import POLICY_DEPTH, POLICY_QUOTE
 from inc_trade.domain.entities import MarketDepth, Quote
 from inc_trade.infrastructure.cache.memory_cache import MemoryCache
@@ -177,7 +175,6 @@ class TestMarketRouterBoundary:
             assert forbidden not in src, f"market_router.py imports {forbidden}"
 
     def test_market_router_uses_ports(self) -> None:
-        from inc_trade.market import market_router
 
         # Verify it imports ports
         from inc_trade.ports.cache_port import CachePort

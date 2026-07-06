@@ -10,11 +10,17 @@ import logging
 import threading
 import time
 from collections.abc import Callable
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
 from inc_trade.infrastructure.jwt_expiry import parse_jwt_expiry as _parse_jwt
+from inc_trade.infrastructure.storage.token_store import (
+    JsonTokenStateStore,
+    TokenSource,
+    TokenState,
+)
 
 from .exceptions import UpstoxAuthError
 from .holders import (
@@ -25,7 +31,6 @@ from .holders import (
     UpstoxStaticTokenHolder,
     UpstoxTokenHolder,
 )
-from inc_trade.infrastructure.storage.token_store import JsonTokenStateStore, TokenState, TokenSource
 from .oauth_client import UpstoxOAuthClient
 from .pkce import PkcePair, UpstoxPkceUtil
 from .token_expiry import UpstoxTokenExpiry
@@ -490,10 +495,10 @@ class UpstoxTokenManager:
         if self._state_store is None:
             return
         try:
-            from datetime import datetime, timezone
-            issued = datetime.fromtimestamp(state.issued_at_ms / 1000, tz=timezone.utc) if state.issued_at_ms else None
-            expires = datetime.fromtimestamp(state.expires_at_ms / 1000, tz=timezone.utc) if state.expires_at_ms else None
-            
+            from datetime import datetime
+            issued = datetime.fromtimestamp(state.issued_at_ms / 1000, tz=UTC) if state.issued_at_ms else None
+            expires = datetime.fromtimestamp(state.expires_at_ms / 1000, tz=UTC) if state.expires_at_ms else None
+
             ts = TokenState(
                 access_token=state.access_token,
                 refresh_token=state.refresh_token,

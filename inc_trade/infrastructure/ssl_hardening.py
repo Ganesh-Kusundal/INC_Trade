@@ -40,7 +40,7 @@ class HardenedHTTPSAdapter(HTTPAdapter):
 
     def proxy_manager_for(self, proxy: str, **proxy_kwargs: Any) -> HTTPAdapter:
         proxy_kwargs["ssl_context"] = hardened_ssl_context()
-        return cast(HTTPAdapter, super().proxy_manager_for(proxy, **proxy_kwargs))
+        return cast("HTTPAdapter", super().proxy_manager_for(proxy, **proxy_kwargs))
 
 
 def create_pinned_session() -> requests.Session:

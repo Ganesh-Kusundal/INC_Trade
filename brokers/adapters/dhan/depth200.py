@@ -15,25 +15,26 @@ from __future__ import annotations
 
 import logging
 from threading import RLock
-from typing import Any, TYPE_CHECKING, Dict, Tuple
+from typing import TYPE_CHECKING, Any
 
-from brokers.adapters.dhan.segments import resolve_segment
+from inc_trade.config.endpoints import Dhan
+from inc_trade.domain import MarketDepth
+
 from brokers.adapters.dhan.depth_feed_base import BinaryDepthFeed
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
 from brokers.adapters.dhan.resilience.websocket_rate_limiter_simple import (
     get_dhan_ws_rate_limiter,
 )
-from inc_trade.config.endpoints import Dhan
-from inc_trade.domain import MarketDepth
+from brokers.adapters.dhan.segments import resolve_segment
 
 if TYPE_CHECKING:
     from typing import TypeAlias
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["DhanDepth200Stream", "Depth200ConnectionPool"]
+__all__ = ["Depth200ConnectionPool", "DhanDepth200Stream"]
 
-InstrumentKey: TypeAlias = Tuple[str, str]
+InstrumentKey: TypeAlias = tuple[str, str]
 
 
 class DhanDepth200Stream(BinaryDepthFeed):
@@ -158,7 +159,7 @@ class Depth200ConnectionPool:
         self._event_bus = event_bus
         self._resolver = resolver
         self._max_connections = max_connections
-        self._feeds: Dict[Tuple[str, str], DhanDepth200Stream] = {}
+        self._feeds: dict[tuple[str, str], DhanDepth200Stream] = {}
         self._lock = RLock()
 
     def get_feed(self, instrument: InstrumentKey) -> DhanDepth200Stream:

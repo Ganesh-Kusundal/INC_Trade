@@ -2,48 +2,50 @@
 
 from __future__ import annotations
 
-from brokers import create_broker
-from inc_trade.ports.capabilities import ForeverOrderProvider, NewsProvider
-from brokers.adapters.paper.gateway import PaperGateway
 import pytest
+from inc_trade.ports.capabilities import ForeverOrderProvider, NewsProvider
 
-def test_broker_facade_options_exposure():
-    facade = create_broker("paper")
-    
+import brokers
+
+
+def test_broker_session_options_exposure():
+    broker = brokers.connect("paper")
+
     from inc_trade.domain.exceptions import NotSupportedError
-    import pytest
 
     # Test getting expiries throws error for paper
     with pytest.raises(NotSupportedError):
-        expiries = facade.get_expiries("NIFTY")
+        broker.market.expiries("NIFTY")
 
     # Test getting option chain throws error for paper
     with pytest.raises(NotSupportedError):
-        chain = facade.get_option_chain("NIFTY")
+        broker.market.option_chain("NIFTY")
+
+    broker.close()
 
 
-def test_broker_facade_extensions_dhan():
-    # Because factory is used, Dhan instantiates extensions
-    facade = create_broker("dhan", client_id="test", access_token="test")
-    
+def test_broker_session_extensions_dhan():
+    broker = brokers.connect("dhan", client_id="test", access_token="test")
+
     # Should resolve correctly based on capabilities
-    forever_provider = facade.extensions.resolve(facade.broker_id.value, ForeverOrderProvider)
+    forever_provider = broker.extensions.resolve(broker.broker_id, ForeverOrderProvider)
     assert forever_provider is not None
     assert hasattr(forever_provider, "place_forever_order")
+    broker.close()
 
 
-def test_broker_facade_extensions_upstox():
+def test_broker_session_extensions_upstox():
     from inc_trade.ports.capabilities import GTTProvider
 
-    # Upstox factory
-    facade = create_broker("upstox", access_token="test")
-    
+    broker = brokers.connect("upstox", access_token="test")
+
     # Upstox registers GTTProvider
-    gtt_provider = facade.extensions.resolve(facade.broker_id.value, GTTProvider)
+    gtt_provider = broker.extensions.resolve(broker.broker_id, GTTProvider)
     assert gtt_provider is not None
     assert hasattr(gtt_provider, "place_gtt")
-    
+
     # Upstox registers News
-    news_provider = facade.extensions.resolve(facade.broker_id.value, NewsProvider)
+    news_provider = broker.extensions.resolve(broker.broker_id, NewsProvider)
     assert news_provider is not None
     assert hasattr(news_provider, "get_news")
+    broker.close()

@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-import pytest
+from inc_trade.domain.enums import (
+    OrderStatus,
+    OrderType,
+    ProductType,
+    Side,
+    Validity,
+)
 
 from brokers.adapters.dhan.mapper import (
     _normalize_exchange,
@@ -16,13 +22,6 @@ from brokers.adapters.dhan.mapper import (
     map_position,
     map_quote,
     map_trade,
-)
-from inc_trade.domain.enums import (
-    OrderStatus,
-    OrderType,
-    ProductType,
-    Side,
-    Validity,
 )
 
 

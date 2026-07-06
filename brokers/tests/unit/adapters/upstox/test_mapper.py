@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-import pytest
+from inc_trade.domain.enums import (
+    OrderStatus,
+    OrderType,
+    ProductType,
+    Side,
+    Validity,
+)
 
 from brokers.adapters.upstox.mapper import (
     map_balance,
@@ -16,13 +22,6 @@ from brokers.adapters.upstox.mapper import (
     map_quote,
     map_trade,
     unwrap_data,
-)
-from inc_trade.domain.enums import (
-    OrderStatus,
-    OrderType,
-    ProductType,
-    Side,
-    Validity,
 )
 
 

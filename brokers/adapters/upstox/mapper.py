@@ -26,14 +26,23 @@ from inc_trade.domain.enums import (
     Side,
     Validity,
 )
+from inc_trade.utils.price import to_decimal
+
 from brokers.adapters.upstox.config import (
     ORDER_TYPE_MAP_REVERSE as _ORDER_TYPE_MAP,
+)
+from brokers.adapters.upstox.config import (
     PRODUCT_MAP_REVERSE as _PRODUCT_MAP,
+)
+from brokers.adapters.upstox.config import (
     SIDE_MAP_REVERSE as _SIDE_MAP,
+)
+from brokers.adapters.upstox.config import (
     STATUS_MAP as _STATUS_MAP,
+)
+from brokers.adapters.upstox.config import (
     VALIDITY_MAP_REVERSE as _VALIDITY_MAP,
 )
-from inc_trade.utils.price import to_decimal
 
 
 def unwrap_data(response: dict[str, Any], default: Any = None) -> Any:
@@ -55,21 +64,21 @@ def map_order(data: dict[str, Any]) -> Order:
         order_id=str(data.get("order_id", "")),
         symbol=data.get("trading_symbol", data.get("symbol", "")),
         exchange=data.get("exchange", ""),
-        side=cast(Side, _SIDE_MAP.get(str(data.get("transaction_type", "BUY")).upper(), Side.BUY)),
+        side=cast("Side", _SIDE_MAP.get(str(data.get("transaction_type", "BUY")).upper(), Side.BUY)),
         quantity=int(data.get("quantity", 0)),
         filled_quantity=int(data.get("filled_quantity", 0)),
         price=to_decimal(data.get("price")),
         trigger_price=to_decimal(data.get("trigger_price")),
-        order_type=cast(OrderType, _ORDER_TYPE_MAP.get(
+        order_type=cast("OrderType", _ORDER_TYPE_MAP.get(
             str(data.get("order_type", "MARKET")).upper(), OrderType.MARKET
         )),
-        product_type=cast(ProductType, _PRODUCT_MAP.get(
+        product_type=cast("ProductType", _PRODUCT_MAP.get(
             str(data.get("product", "I")).upper(), ProductType.INTRADAY
         )),
-        validity=cast(Validity, _VALIDITY_MAP.get(
+        validity=cast("Validity", _VALIDITY_MAP.get(
             str(data.get("validity", "DAY")).upper(), Validity.DAY
         )),
-        status=cast(OrderStatus, _STATUS_MAP.get(status_raw, OrderStatus.OPEN)),
+        status=cast("OrderStatus", _STATUS_MAP.get(status_raw, OrderStatus.OPEN)),
         message=data.get("status_message", ""),
     )
 
@@ -151,7 +160,7 @@ def map_position(data: dict[str, Any]) -> Position:
         symbol=data.get("trading_symbol", data.get("symbol", "")),
         exchange=data.get("exchange", ""),
         quantity=int(data.get("net_quantity", data.get("quantity", 0))),
-        product_type=cast(ProductType, _PRODUCT_MAP.get(
+        product_type=cast("ProductType", _PRODUCT_MAP.get(
             str(data.get("product", "I")).upper(), ProductType.INTRADAY
         )),
         average_price=to_decimal(
@@ -201,7 +210,7 @@ def map_trade(data: dict[str, Any]) -> Trade:
         order_id=str(data.get("order_id", "")),
         symbol=data.get("trading_symbol", data.get("symbol", "")),
         exchange=data.get("exchange", ""),
-        side=cast(Side, _SIDE_MAP.get(str(data.get("transaction_type", "BUY")).upper(), Side.BUY)),
+        side=cast("Side", _SIDE_MAP.get(str(data.get("transaction_type", "BUY")).upper(), Side.BUY)),
         quantity=int(data.get("quantity", data.get("traded_quantity", 0))),
         price=to_decimal(data.get("average_price", data.get("price", 0))),
     )

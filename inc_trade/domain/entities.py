@@ -7,7 +7,7 @@ infrastructure, frameworks, or external packages.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from inc_trade.domain.enums import (
@@ -172,7 +172,7 @@ class Quote:
         """Check if quote data is stale based on timestamp."""
         if self.timestamp is None:
             return True
-        age = (datetime.now(timezone.utc) - self.timestamp).total_seconds()
+        age = (datetime.now(UTC) - self.timestamp).total_seconds()
         return age > max_age_seconds
 
     @property

@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from decimal import Decimal
-from typing import Any, Callable
+from typing import Any
 
-from brokers.adapters.dhan.segments import resolve_segment
 from inc_trade.infrastructure.websocket_pool import (
     WebSocketConnection,
     WebSocketConnectionPool,
 )
+
+from brokers.adapters.dhan.segments import resolve_segment
 
 logger = logging.getLogger(__name__)
 

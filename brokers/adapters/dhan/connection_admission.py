@@ -12,7 +12,7 @@ import json
 import logging
 import os
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -44,8 +44,8 @@ def _parse_iso_utc(value: str) -> datetime | None:
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
         if parsed.tzinfo is None:
-            return parsed.replace(tzinfo=timezone.utc)
-        return parsed.astimezone(timezone.utc)
+            return parsed.replace(tzinfo=UTC)
+        return parsed.astimezone(UTC)
     except (TypeError, ValueError):
         return None
 
@@ -160,7 +160,7 @@ class ConnectionAdmission:
         next_allowed = self.next_connect_allowed_at()
         if next_allowed is None:
             return 0.0
-        remaining = (next_allowed - datetime.now(timezone.utc)).total_seconds()
+        remaining = (next_allowed - datetime.now(UTC)).total_seconds()
         return max(0.0, remaining)
 
     def next_connect_allowed_at(self) -> datetime | None:
@@ -199,8 +199,8 @@ class ConnectionAdmission:
         cooldown_seconds = min(base * multiplier, ceiling)
 
         next_dt = datetime.fromtimestamp(
-            datetime.now(timezone.utc).timestamp() + cooldown_seconds,
-            tz=timezone.utc,
+            datetime.now(UTC).timestamp() + cooldown_seconds,
+            tz=UTC,
         )
         payload = {
             "client_id": self._client_id,
@@ -209,7 +209,7 @@ class ConnectionAdmission:
             "reason": "http_429",
             "cooldown_seconds": cooldown_seconds,
             "consecutive_rate_limits": self._consecutive_rate_limits,
-            "recorded_at": datetime.now(timezone.utc).isoformat(),
+            "recorded_at": datetime.now(UTC).isoformat(),
         }
         try:
             self._cooldown_path.write_text(
@@ -256,7 +256,7 @@ class ConnectionAdmission:
         )
         if recorded_at is None:
             return 0
-        age = (datetime.now(timezone.utc) - recorded_at).total_seconds()
+        age = (datetime.now(UTC) - recorded_at).total_seconds()
         if age > self._penalty_window_seconds():
             return 0
         streak = payload.get("consecutive_rate_limits")
@@ -294,7 +294,7 @@ class NoopAdmission:
         return None
 
     def record_rate_limit_cooldown(self) -> datetime:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
     def clear_cooldown(self) -> None:
         pass

@@ -8,14 +8,10 @@ from __future__ import annotations
 
 import os
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-
-from brokers.adapters.paper.gateway import PaperGateway
-from brokers.adapters.replay.engine import ReplayEngine
-from inc_trade.domain.entities import Candle
 from inc_trade.market.context import MarketDataContext
 from inc_trade.market.instrument import Instrument
 from inc_trade.market.instrument_registry import InstrumentRegistry
@@ -28,7 +24,10 @@ from inc_trade.market.scanner.criteria import (
 from inc_trade.market.scanner.result import ScanResult
 from inc_trade.market.scanner.scanner import Scanner
 
-_TODAY = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+from brokers.adapters.paper.gateway import PaperGateway
+from brokers.adapters.replay.engine import ReplayEngine
+
+_TODAY = datetime.now(UTC).strftime("%Y-%m-%d")
 
 CSV_CONTENT = f"""symbol,exchange,timestamp,open,high,low,close,volume
 RELIANCE,NSE,{_TODAY} 00:15:00,2500.00,2510.00,2495.00,2505.00,500000

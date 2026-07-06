@@ -6,7 +6,6 @@ import os
 import tempfile
 from pathlib import Path
 
-
 from inc_trade.infrastructure.credentials import (
     CANONICAL_ENV_FILES,
     CredentialResolver,

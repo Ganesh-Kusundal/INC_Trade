@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import threading
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
 
 logger = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ class GatewayRegistry:
 class _RegistryEntry(Generic[_T]):
     """Internal: a single service registration entry."""
 
-    __slots__ = ("attr_name", "factory", "args", "kwargs")
+    __slots__ = ("args", "attr_name", "factory", "kwargs")
 
     attr_name: str
     factory: type[_T]

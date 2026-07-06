@@ -526,30 +526,31 @@ else → Equity
 
 ---
 
-## 10. Migration: Gateway → Adapter
+## 10. Migration: Gateway → Adapter (COMPLETED)
 
-### 10.1 Coexistence Period
+`BrokerGateway` has been fully removed from the codebase. All broker interfaces
+use `BrokerAdapter` protocol directly. Gateways (`DhanGateway`, etc.) remain
+as internal wiring components but the public protocol surface is now
+`BrokerAdapter`.
 
-Both `BrokerGateway` and `BrokerAdapter` coexist. `BrokerGateway` has deprecation warnings on all public methods.
+| Before | After |
+|--------|-------|
+| `BrokerGateway` protocol | `BrokerAdapter` protocol (5 providers) |
+| Property access (`gw.orders.place_order()`) | Direct method (`adapter.place_order()`) |
+| `create_broker()` → `BrokerFacade` | `connect()` → `BrokerSession` |
+| `gw.instrument_key` | `gw.composite_key` |
+| `get_quote()` / `get_historical_candles()` | `quote()` / `ohlcv()` |
 
-| Aspect | BrokerGateway | BrokerAdapter |
-|--------|---------------|---------------|
-| Pattern | Property access (`gw.orders`) | Direct method (`adapter.quote()`) |
-| Injection | Via service locator / context | Directly into `Instrument` |
-| Lifecycle | `close()` | `connect()` / `disconnect()` |
-| Thread safety | Complex internal locks | Simpler (no sub-service chain) |
-| Deprecation | ⚠️ Deprecated with warnings | ✅ Current |
-| Testability | Requires full gateway mock | Simple protocol mock |
+### Completed Cleanup Tasks
 
-### 10.2 Phase 5 Cleanup Tasks
-
+- [x] `BrokerGateway` protocol removed entirely
 - [x] `BrokerAdapter` protocol with all 5 providers
 - [x] `DhanAdapter`, `UpstoxAdapter`, `PaperAdapter` implementations
-- [ ] Add `warnings.warn("Deprecated", DeprecationWarning)` to `BrokerGateway` methods
-- [ ] Add `with_providers()` method to `Instrument` → eliminate `object.__setattr__`
-- [ ] Remove `_delegate_context` backward-compat alias
+- [x] `with_providers()` method on `Instrument`
+- [x] `_delegate_context` backward-compat alias removed
 - [x] Extension registry for auto-decorator dispatch
-- [ ] Migrate `Future` class annotations
+- [x] All deprecated aliases removed (`get_quote`, `get_historical_candles`, `instrument_key`)
+- [x] `create_broker()` removed (use `connect()`) ⮕ `BrokerSession`
 
 ---
 
@@ -633,7 +634,6 @@ inc_trade/
   ports/
     providers.py           → 5 provider protocols (InstrumentDataProvider, DepthProvider,
                               HistoricalDataProvider, StreamingDataProvider, OrderProvider)
-    broker.py              → BrokerGateway (deprecated protocol)
 
   adapters/
     __init__.py            → Exports BrokerAdapter
@@ -652,7 +652,7 @@ inc_trade/
 
 ### 14.1 Frozen Dataclass Provider Injection (G-3)
 
-`Instrument` is a frozen dataclass. Providers are injected post-construction via `object.__setattr__`. **Phase 5 fix**: Add `with_providers()` method that cleanly sets providers.
+`Instrument` is a frozen dataclass. `with_providers()` is available for clean provider injection. The method returns `self` for chaining.
 
 ### 14.2 Future Is Not a Dataclass
 
@@ -668,14 +668,15 @@ Both `InstrumentDataProvider` and `DepthProvider` define `depth()`. Same signatu
 
 ### 14.5 DhanGateway depth() Ignores levels
 
-`DhanGateway.market_data.depth()` ignores the `levels` parameter. The decorator chain handles this, but the adapter should log a warning.
+`DhanGateway.market_data.depth()` ignores the `levels` parameter. The decorator chain handles this. The adapter accepts `levels` for API compatibility but the gateway resolves the actual level count from the subscription type (depth 20 vs depth 200).
 
 ---
 
-## 15. Completed Work (Phases 6-7)
+## 15. Completed Work
 
 | Phase | Description | What Was Done |
 |-------|-------------|---------------|
+| 5 | Gateway Cleanup | ✅ `BrokerGateway` protocol removed, `BrokerAdapter` protocol established, `create_broker()` → `connect()`, all deprecated aliases removed (`get_quote`, `get_historical_candles`, `instrument_key`), `_delegate_context` removed
 | 6 | Async Bridge & Streaming | ✅ Fixed async disconnect handling in BrokerSession.close() — properly awaits async coroutines via event loop or asyncio.run(). MarketDataContext.subscribe() already bridges sync→async for StreamingPort.
 | 7 | Multi-Leg Order Composition | ✅ All 5 strategies implemented (VerticalSpread, Straddle, Strangle, IronCondor, ComboOrder). Fixed net_premium to be per-unit (not multiplied by quantity). 22 strategy tests passing.
 

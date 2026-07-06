@@ -9,7 +9,7 @@ Architecture:
 from __future__ import annotations
 
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from inc_trade.domain.entities import Order
 from inc_trade.domain.enums import OrderStatus
@@ -103,7 +103,7 @@ class OrderRepository:
                 if filled_quantity is not None
                 else existing.filled_quantity,
                 message=message or existing.message,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 correlation_id=existing.correlation_id,
             )
             self._orders[order_id] = updated

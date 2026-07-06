@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 import logging
 import threading
+from collections.abc import Callable
 from decimal import Decimal
-from typing import Any, Callable
+from typing import Any
 
 import websocket
-
 from inc_trade.domain.entities import Quote
 from inc_trade.infrastructure.reconnect_strategy import run_reconnect_loop
 from inc_trade.infrastructure.seq_counter import SequenceCounter
@@ -23,9 +23,9 @@ DisconnectCallback = Callable[[], None]
 
 __all__ = [
     "BaseWebSocketStreaming",
-    "TickCallback",
     "ConnectCallback",
     "DisconnectCallback",
+    "TickCallback",
 ]
 
 # Module-level monotonic tick sequence counter (Kleppmann ordering guarantee)

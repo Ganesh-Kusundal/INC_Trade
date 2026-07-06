@@ -5,13 +5,15 @@ from __future__ import annotations
 import logging
 import threading
 from collections import defaultdict
+from datetime import UTC
 from pathlib import Path
+
+from inc_trade.config.indices import index_upstox_key, upstox_index_segment
+from inc_trade.ports.instruments import InstrumentInfo
 
 from brokers.adapters.upstox.config import EXCHANGE_TO_SEGMENT
 from brokers.adapters.upstox.instrument_definition import UpstoxInstrumentDefinition
 from brokers.adapters.upstox.instrument_loader import UpstoxInstrumentLoader
-from inc_trade.config.indices import index_upstox_key, upstox_index_segment
-from inc_trade.ports.instruments import InstrumentInfo
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +31,7 @@ def fallback_upstox_instrument_key(symbol: str, exchange: str = "NSE") -> str:
 def resolve_upstox_instrument_key(
     symbol: str,
     exchange: str = "NSE",
-    instruments: "UpstoxInstruments | None" = None,
+    instruments: UpstoxInstruments | None = None,
 ) -> str:
     if instruments is not None and instruments.is_loaded:
         return instruments.instrument_key(symbol, exchange)
@@ -71,11 +73,11 @@ class UpstoxInstruments:
                     if underlying:
                         exp = d.expiry
                         if isinstance(exp, (int, float)):
-                            from datetime import datetime, timezone
+                            from datetime import datetime
 
                             try:
                                 exp = datetime.fromtimestamp(
-                                    exp / 1000, tz=timezone.utc
+                                    exp / 1000, tz=UTC
                                 ).strftime("%Y-%m-%d")
                             except (ValueError, OSError):
                                 continue

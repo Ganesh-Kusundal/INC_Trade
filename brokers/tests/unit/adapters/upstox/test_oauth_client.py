@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC
 from unittest.mock import MagicMock
 
 import pytest
@@ -92,9 +93,9 @@ def test_trigger_token_request_posts_to_v3():
 
 
 def test_fetch_profile_returns_token_expiry_epoch_ms():
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    iso = datetime(2026, 5, 1, 3, 30, tzinfo=timezone.utc).isoformat()
+    iso = datetime(2026, 5, 1, 3, 30, tzinfo=UTC).isoformat()
     session = MagicMock()
     resp = MagicMock()
     resp.status_code = 200

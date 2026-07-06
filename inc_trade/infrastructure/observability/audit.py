@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from inc_trade.infrastructure.correlation import get_current_correlation_id
@@ -61,7 +61,7 @@ class AuditEvent:
 
     def __post_init__(self) -> None:
         self.correlation_id = get_current_correlation_id() or ""
-        self.timestamp = datetime.now(tz=timezone.utc).isoformat()
+        self.timestamp = datetime.now(tz=UTC).isoformat()
 
 
 @dataclass
@@ -686,14 +686,14 @@ FAILURE_TAXONOMY = {
 
 __all__ = [
     "ALERTING_RULES",
+    "FAILURE_TAXONOMY",
+    "METRICS_CATALOG",
     "AuditEvent",
     "AuditLogger",
     "DegradedModeEvent",
-    "FAILURE_TAXONOMY",
     "ExtensionResolveEvent",
     "HistoricalChunkEvent",
     "HistoricalMergeConflictEvent",
-    "METRICS_CATALOG",
     "QuotaEvent",
     "RoutingDecisionEvent",
     "StreamFailoverEvent",

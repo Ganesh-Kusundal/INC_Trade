@@ -1,9 +1,10 @@
 from decimal import Decimal
 from unittest.mock import Mock
 
+from inc_trade.domain.enums import OrderType, ProductType
+
 from brokers.adapters.dhan.extensions.margin import DhanMargin
 from brokers.adapters.dhan.extensions.models import MarginResponse
-from inc_trade.domain.enums import OrderType, ProductType
 
 
 def test_calculate_margin():

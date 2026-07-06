@@ -82,9 +82,10 @@ class TestConnectExtras:
             broker.close()
 
     def test_analytics_calculators_usable(self) -> None:
-        import brokers
         from inc_trade.domain.entities import Trade
         from inc_trade.domain.enums import Side
+
+        import brokers
 
         broker = brokers.connect("paper")
         try:

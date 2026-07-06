@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
 from unittest.mock import MagicMock
 
-from brokers.adapters.upstox.orders import UpstoxOrders
 from inc_trade.config.endpoints import Upstox
 from inc_trade.domain import Order, OrderResponse
 from inc_trade.domain.enums import OrderStatus, Side
 from inc_trade.utils.idempotency_cache import TypedIdempotencyCache as InMemoryIdempotencyCache
+
+from brokers.adapters.upstox.orders import UpstoxOrders
 
 
 def _orders(client=None, **kwargs) -> UpstoxOrders:

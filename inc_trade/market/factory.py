@@ -154,11 +154,9 @@ class InstrumentFactory:
                 tick_size=tick_size,
                 isin=isin,
                 expiry=expiry,
+                underlying=underlying,
+                contract_size=lot_size,
             )
-            # Future's underlying/contract_size are class-level annotations
-            # (not dataclass fields), set them post-construction:
-            object.__setattr__(inst, "underlying", underlying)
-            object.__setattr__(inst, "contract_size", lot_size)
         elif _is_index(sym):
             inst = Index(
                 symbol=sym,

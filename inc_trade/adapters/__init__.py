@@ -1,19 +1,13 @@
-"""Broker Adapters — primary interface to broker capabilities.
+"""Broker Adapters — provider protocol implementations.
 
-The adapters layer replaces the old ``BrokerGateway`` pattern with a
-clean ``BrokerAdapter`` protocol that implements provider interfaces
-directly. Adapters can be injected into ``Instrument`` objects as
-providers for quotes, depth, historical data, streaming, and orders.
+Adapters implement provider protocols (``InstrumentDataProvider``,
+``DepthProvider``, ``OrderProvider``, etc.) and can be injected directly
+into ``Instrument`` objects for quotes, depth, historical data, streaming,
+and orders.
 
 Usage::
 
     from inc_trade.adapters.broker_adapter import BrokerAdapter
-
-    adapter: BrokerAdapter
-    adapter.connect()
-    inst = adapter.instrument("RELIANCE", "NSE")
-    inst.quote()
-    inst.buy(qty=10)
 """
 
 from inc_trade.adapters.broker_adapter import BrokerAdapter as BrokerAdapter

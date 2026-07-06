@@ -116,7 +116,6 @@ class TestBoundaryRules:
 class TestPortStructure:
     ALL_PORTS = [
         "inc_trade.ports.auth.AuthPort",
-        "inc_trade.ports.broker.BrokerGateway",
         "inc_trade.ports.clock.ClockPort",
         "inc_trade.ports.connection_lifecycle.ConnectionLifecyclePort",
         "inc_trade.ports.historical.HistoricalPort",
@@ -153,7 +152,9 @@ class TestPortStructure:
 
         for dotted_path in self.ALL_PORTS:
             cls_name = dotted_path.rsplit(".", 1)[-1]
-            assert hasattr(inc_trade.ports, cls_name), f"{cls_name} not exported from inc_trade.ports"
+            assert hasattr(inc_trade.ports, cls_name), (
+                f"{cls_name} not exported from inc_trade.ports"
+            )
 
 
 @pytest.mark.architecture
@@ -180,8 +181,6 @@ class TestErrorCodeCoverage:
         # Check both the re-export shim AND the real implementation
         from inc_trade.domain import error_codes as it_error_codes
         from inc_trade.domain import exceptions as it_exceptions
-
-        from inc_trade.domain import error_codes, exceptions
 
         it_exc_source = Path(it_exceptions.__file__).read_text()
         defined = [
@@ -246,7 +245,7 @@ class TestInfrastructureBoundary:
                 if module.startswith("brokers.adapters") or module.startswith("brokers.services"):
                     rel = filepath.relative_to(BROKERS_ROOT.parent)
                     violations.append(f"  {rel}:{lineno}: imports {module}")
-        assert not violations, f"Trading imports from services (forbidden):\n" + "\n".join(
+        assert not violations, "Trading imports from services (forbidden):\n" + "\n".join(
             violations
         )
 
@@ -290,7 +289,7 @@ class TestNoBrokerIdentifiersInDomain:
                         if violation not in self.ALLOWED_VIOLATIONS:
                             violations.append(f"  {rel}: contains '{pattern}'")
         assert not violations, (
-            f"Broker-specific identifiers found in domain/ports/market:\n" + "\n".join(violations)
+            "Broker-specific identifiers found in domain/ports/market:\n" + "\n".join(violations)
         )
 
 
@@ -311,7 +310,7 @@ class TestSingleIdempotencyImplementation:
             if "idempoten" in filepath.name.lower():
                 rel = filepath.relative_to(BROKERS_ROOT.parent)
                 violations.append(f"  {rel}: idempotency logic outside core/")
-        assert not violations, f"Idempotency logic found outside core/:\n" + "\n".join(violations)
+        assert not violations, "Idempotency logic found outside core/:\n" + "\n".join(violations)
 
 
 @pytest.mark.architecture
@@ -325,7 +324,7 @@ class TestNoCompatGateways:
                 continue
             rel = filepath.relative_to(BROKERS_ROOT)
             violations.append(f"  {rel}")
-        assert not violations, f"Compat gateway files found (should be removed):\n" + "\n".join(
+        assert not violations, "Compat gateway files found (should be removed):\n" + "\n".join(
             violations
         )
 
@@ -351,7 +350,7 @@ class TestNoRawDictInDomain:
                     if node.annotation.id == "dict":
                         rel = filepath.relative_to(BROKERS_ROOT)
                         violations.append(f"  {rel}:{node.lineno}: raw dict field")
-        assert not violations, f"Domain entities have raw dict fields:\n" + "\n".join(violations)
+        assert not violations, "Domain entities have raw dict fields:\n" + "\n".join(violations)
 
 
 @pytest.mark.architecture
@@ -439,7 +438,7 @@ class TestNoHasattrOnGateway:
                     f"  brokers/services/broker_facade.py:{node.lineno}: hasattr() call"
                 )
         assert not violations, (
-            f"hasattr() calls found in BrokerFacade (use ExtensionRegistry.resolve()):\n"
+            "hasattr() calls found in BrokerFacade (use ExtensionRegistry.resolve()):\n"
             + "\n".join(violations)
         )
 
@@ -464,7 +463,7 @@ class TestNoAdapterImportsService:
                     if str(rel) not in self.ALLOWED_PATTERNS:
                         violations.append(f"  {rel}:{lineno}: imports {module}")
         assert not violations, (
-            f"Adapters importing from services (violates clean architecture):\n"
+            "Adapters importing from services (violates clean architecture):\n"
             + "\n".join(violations)
         )
 
@@ -491,7 +490,6 @@ class TestServiceLayer:
     def test_order_service_depends_only_on_ports(self) -> None:
         import inspect
 
-        from inc_trade.ports.order_execution import OrderExecutionPort
         from inc_trade.services.order_service import OrderService
 
         # Check that OrderService only imports from allowed modules
@@ -521,16 +519,11 @@ class TestServiceLayer:
             )
 
 
-class TestBrokerGatewayContract:
-    """All broker gateways must implement BrokerGateway protocol."""
+class TestGatewayContract:
+    """All broker gateways must implement the required port properties."""
 
-    def test_dhan_gateway_implements_broker_gateway(self) -> None:
-        # Use isinstance() with a mock instance since issubclass() doesn't work
-        # with protocols that have properties
-        import inspect
-
+    def test_dhan_gateway_has_required_ports(self) -> None:
         from brokers.adapters.dhan.gateway import DhanGateway
-        from inc_trade.ports.broker import BrokerGateway
 
         assert hasattr(DhanGateway, "broker_id"), "DhanGateway must have broker_id property"
         assert hasattr(DhanGateway, "capabilities"), "DhanGateway must have capabilities property"
@@ -543,13 +536,8 @@ class TestBrokerGatewayContract:
         assert hasattr(DhanGateway, "streaming"), "DhanGateway must have streaming property"
         assert hasattr(DhanGateway, "extensions"), "DhanGateway must have extensions property"
 
-    def test_upstox_gateway_implements_broker_gateway(self) -> None:
-        # Use isinstance() with a mock instance since issubclass() doesn't work
-        # with protocols that have properties
-        import inspect
-
+    def test_upstox_gateway_has_required_ports(self) -> None:
         from brokers.adapters.upstox.gateway import UpstoxGateway
-        from inc_trade.ports.broker import BrokerGateway
 
         assert hasattr(UpstoxGateway, "broker_id"), "UpstoxGateway must have broker_id property"
         assert hasattr(UpstoxGateway, "capabilities"), (
@@ -598,7 +586,7 @@ class TestHttpClientPort:
                     if str(rel) not in self.ALLOWED_PATTERNS:
                         violations.append(f"  {rel}:{lineno}: imports {module}")
         assert not violations, (
-            f"Adapters importing concrete HTTP clients (use HttpClientPort):\n"
+            "Adapters importing concrete HTTP clients (use HttpClientPort):\n"
             + "\n".join(violations)
         )
 
@@ -701,7 +689,7 @@ class TestExtensionPackage:
                 if module.startswith("brokers.adapters"):
                     rel = filepath.relative_to(BROKERS_ROOT.parent)
                     violations.append(f"  {rel}:{lineno}: imports {module}")
-        assert not violations, f"Extensions importing from adapters (forbidden):\n" + "\n".join(
+        assert not violations, "Extensions importing from adapters (forbidden):\n" + "\n".join(
             violations
         )
 
@@ -785,7 +773,7 @@ class TestServiceConstructorArgLimit:
                         f"  {obj.__module__}.{obj.__name__}.__init__ has {len(params)} parameters: {params} (limit: 5)"
                     )
         assert not violations, (
-            f"Constructor parameter count violations found (limit: 5 parameters):\n"
+            "Constructor parameter count violations found (limit: 5 parameters):\n"
             + "\n".join(violations)
         )
 
@@ -807,8 +795,8 @@ class TestMarketLayer:
                 if module.startswith("brokers.adapters") or module.startswith("brokers.trading"):
                     rel = filepath.relative_to(BROKERS_ROOT.parent)
                     violations.append(f"  {rel}:{lineno}: imports {module}")
-        assert not violations, (
-            f"Market imports from adapters or trading (forbidden):\n" + "\n".join(violations)
+        assert not violations, "Market imports from adapters or trading (forbidden):\n" + "\n".join(
+            violations
         )
 
     def test_market_does_not_import_services(self) -> None:
@@ -824,9 +812,7 @@ class TestMarketLayer:
                 if module.startswith("brokers.services"):
                     rel = filepath.relative_to(BROKERS_ROOT.parent)
                     violations.append(f"  {rel}:{lineno}: imports {module}")
-        assert not violations, f"Market imports from services (forbidden):\n" + "\n".join(
-            violations
-        )
+        assert not violations, "Market imports from services (forbidden):\n" + "\n".join(violations)
 
 
 @pytest.mark.architecture
@@ -846,8 +832,8 @@ class TestTradingLayer:
                 if module.startswith("brokers.market") or module.startswith("brokers.adapters"):
                     rel = filepath.relative_to(BROKERS_ROOT.parent)
                     violations.append(f"  {rel}:{lineno}: imports {module}")
-        assert not violations, (
-            f"Trading imports from market or adapters (forbidden):\n" + "\n".join(violations)
+        assert not violations, "Trading imports from market or adapters (forbidden):\n" + "\n".join(
+            violations
         )
 
     def test_trading_does_not_import_services(self) -> None:
@@ -863,6 +849,6 @@ class TestTradingLayer:
                 if module.startswith("brokers.services"):
                     rel = filepath.relative_to(BROKERS_ROOT.parent)
                     violations.append(f"  {rel}:{lineno}: imports {module}")
-        assert not violations, f"Trading imports from services (forbidden):\n" + "\n".join(
+        assert not violations, "Trading imports from services (forbidden):\n" + "\n".join(
             violations
         )

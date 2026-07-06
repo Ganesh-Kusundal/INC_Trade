@@ -1,7 +1,10 @@
-"""BrokerSession — composition root for the next-gen broker public API.
+"""BrokerSession — composition root for the broker public API.
 
-This is the recommended entry point returned by ``brokers.connect()``.
-It supports two construction modes:
+Returned by ``brokers.connect()``. Clients use named properties
+(``orders``, ``market``, ``streaming``, etc.) instead of a monolithic
+gateway facade.
+
+Supports two construction modes:
 
 1. **Port-injection mode** (blueprint style, used by tests and DI containers)::
 
@@ -17,7 +20,7 @@ It supports two construction modes:
 
 2. **Facade-delegation mode** (used by ``brokers.connect()``)::
 
-       facade = create_broker("paper")
+       facade = BrokerFacade(...)
        session = BrokerSession(broker_id="paper", facade=facade)
 
 Usage::

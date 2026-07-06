@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import os
-import time
 from pathlib import Path
 
 import pytest
-
 from inc_trade.infrastructure.credentials import CredentialResolver
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]

@@ -41,25 +41,14 @@ from inc_trade.domain.entities import (
 )
 from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
 from inc_trade.domain.events import (
-    EVENT_ORDER_CANCELLED,
-    EVENT_ORDER_MODIFIED,
-    EVENT_ORDER_PLACED,
-    EVENT_ORDER_REJECTED,
     OrderCancelledEvent,
     OrderModifiedEvent,
     OrderPlacedEvent,
     OrderRejectedEvent,
     OrderStateChangeEvent,
 )
-from inc_trade.domain.exceptions import BrokerError
 from inc_trade.domain.validators.order_validator import (
-    validate_exchange,
-    validate_limit_price,
     validate_order,
-    validate_price,
-    validate_quantity,
-    validate_symbol,
-    validate_trigger_price,
 )
 from inc_trade.ports.event_publisher import EventPublisherPort
 from inc_trade.ports.fill_detection import FillDetectionPort
@@ -74,7 +63,7 @@ logger = logging.getLogger(__name__)
 class _IdempotencyEntry:
     """Internal idempotency cache entry with TTL."""
 
-    __slots__ = ("response", "expires_at")
+    __slots__ = ("expires_at", "response")
 
     def __init__(self, response: OrderResponse, ttl_seconds: float = 86400.0) -> None:
         self.response = response

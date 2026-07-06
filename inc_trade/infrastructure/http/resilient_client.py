@@ -8,12 +8,10 @@ from __future__ import annotations
 
 import logging
 import urllib.parse
-from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import Any
 
 import requests
-
 from inc_trade.domain.exceptions import (
     AuthenticationError,
     BrokerError,
@@ -109,7 +107,7 @@ class ResilientHttpClient:
 
     def delete(self, endpoint: str, params: dict[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
         return self._request("DELETE", endpoint, params=params, **kwargs)
-        
+
     def update_token(self, new_token: str) -> None:
         if "access-token" in self._session.headers:
             self._session.headers["access-token"] = new_token
@@ -137,7 +135,7 @@ class ResilientHttpClient:
             ))
         except TokenRefreshSignal:
             logger.debug("token_refreshed_retrying", extra={"endpoint": endpoint})
-            
+
             if hasattr(self, "_token_refresh_fn") and self._token_refresh_fn:
                 try:
                     new_token = self._token_refresh_fn()
@@ -145,7 +143,7 @@ class ResilientHttpClient:
                         self.update_token(new_token)
                 except Exception as exc:
                     logger.warning("token_refresh_failed", extra={"error": str(exc)})
-                    
+
             try:
                 return dict(cb.call(
                     lambda: self._retry.call(_do_request),

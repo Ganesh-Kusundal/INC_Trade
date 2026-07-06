@@ -5,7 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from inc_trade.domain.entities import Order
-from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
+from inc_trade.domain.enums import OrderStatus, Side
 from inc_trade.trading.order_repository import OrderRepository
 
 

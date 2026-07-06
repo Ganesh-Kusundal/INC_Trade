@@ -8,11 +8,10 @@ from __future__ import annotations
 
 import logging
 import socket
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 import requests
-
 from inc_trade.domain.exceptions import AuthenticationError, TokenRateLimitError
 from inc_trade.infrastructure.totp_cooldown import TOTPCooldown, TotpRateLimitError
 
@@ -40,7 +39,7 @@ def _prefer_ipv4() -> None:
             return ipv4 if ipv4 else results
 
         socket.getaddrinfo = getaddrinfo_ipv4
-        setattr(socket, "_dhan_ipv4_patched", True)
+        socket._dhan_ipv4_patched = True
 
 
 class DhanAuth:
@@ -119,7 +118,7 @@ class DhanAuth:
             self._state = TokenState(
                 access_token=self._access_token,
                 source=TokenSource.TOTP if self._totp_secret else TokenSource.STATIC,
-                issued_at=datetime.now(timezone.utc),
+                issued_at=datetime.now(UTC),
                 expires_at=compute_token_expiry(token_lifetime_seconds),
             )
 
@@ -220,7 +219,7 @@ class DhanAuth:
         if not token:
             raise AuthenticationError(f"Token generation failed: no token in response: {body}")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         self._state = TokenState(
             access_token=token,
             source=TokenSource.TOTP,

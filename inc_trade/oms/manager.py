@@ -11,7 +11,6 @@ NEVER imports: services/, infrastructure/, adapters/
 from __future__ import annotations
 
 import logging
-import threading
 from decimal import Decimal
 from typing import Any
 

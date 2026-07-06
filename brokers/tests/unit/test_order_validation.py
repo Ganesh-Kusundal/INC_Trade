@@ -5,7 +5,6 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-
 from inc_trade.domain.enums import OrderType, ProductType
 from inc_trade.domain.exceptions import OrderRejectedError, ValidationError
 from inc_trade.services.order_validation import (

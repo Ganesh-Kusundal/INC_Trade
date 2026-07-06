@@ -11,11 +11,8 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
-
-from inc_trade.domain.cache_policy import POLICY_HISTORICAL_DAILY, CachePolicy
+from inc_trade.domain.cache_policy import CachePolicy
 from inc_trade.domain.entities import Candle
-from inc_trade.ports.cache_port import CachePort
-from inc_trade.ports.historical_provider import HistoricalProvider
 
 
 class _DictCache:

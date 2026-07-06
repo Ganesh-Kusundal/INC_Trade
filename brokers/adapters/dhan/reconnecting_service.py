@@ -13,7 +13,7 @@ import logging
 import threading
 import time
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Generic, TypeVar
 
 log = logging.getLogger(__name__)
@@ -82,7 +82,7 @@ class ReconnectingServiceMixin(Generic[_CallbackT]):
 
     def _note_message_received(self) -> None:
         """Mark that a message was consumed. Updates freshness signal."""
-        self._last_message_at = datetime.now(timezone.utc)
+        self._last_message_at = datetime.now(UTC)
         self._last_monotonic_at = time.monotonic()
         self._message_count += 1
 
@@ -116,7 +116,6 @@ class ReconnectingServiceMixin(Generic[_CallbackT]):
 
     def _emit_reconnect_metric(self) -> None:
         try:
-            import prometheus_client
 
             from brokers.adapters.dhan.metrics import dhan_ws_reconnect_total
 

@@ -1,9 +1,8 @@
-"""Tests for Phase 5: Gateway Deprecation & Cleanup.
+"""Tests for Instrument with_providers() and _delegate_context removal.
 
 Covers:
 - ``with_providers()`` method on Instrument
 - ``_delegate_context`` removal (only ``_context`` remains)
-- ``BrokerGateway`` deprecation warning
 - Factory still works after refactor
 """
 
@@ -202,72 +201,6 @@ class TestFactoryRefactored:
         )
         assert inst._order_provider is op
         assert inst.buy(quantity=10) == {"order_id": "ORD001"}
-
-
-# ── BrokerGateway Deprecation Tests ───────────────────────────────────────
-
-
-class TestBrokerGatewayDeprecation:
-    """BrokerGateway import should emit DeprecationWarning."""
-
-    def test_broker_gateway_has_deprecation_docstring(self) -> None:
-        """BrokerGateway class should mention deprecation in its docstring."""
-        from inc_trade.ports.broker import BrokerGateway
-
-        assert "deprecated" in BrokerGateway.__doc__.lower()
-
-    def test_broker_gateway_warns_on_subclass(self) -> None:
-        """Subclassing BrokerGateway should emit DeprecationWarning."""
-        from inc_trade.ports.broker import BrokerGateway
-
-        with pytest.warns(DeprecationWarning, match="inherits from deprecated BrokerGateway"):
-
-            class TempGateway(BrokerGateway):  # type: ignore[misc]
-                @property
-                def broker_id(self) -> str:
-                    return "temp"
-
-                def capabilities(self) -> None:
-                    return None
-
-                @property
-                def orders(self) -> None:
-                    return None
-
-                @property
-                def market_data(self) -> None:
-                    return None
-
-                @property
-                def portfolio(self) -> None:
-                    return None
-
-                @property
-                def historical(self) -> None:
-                    return None
-
-                @property
-                def instruments(self) -> None:
-                    return None
-
-                @property
-                def options(self) -> None:
-                    return None
-
-                @property
-                def auth(self) -> None:
-                    return None
-
-                @property
-                def streaming(self) -> None:
-                    return None
-
-                @property
-                def extensions(self) -> None:
-                    return None
-
-                def close(self) -> None:
-                    return None
 
 
 # ── Instrument Identity Tests ─────────────────────────────────────────────

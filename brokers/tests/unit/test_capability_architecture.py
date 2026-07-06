@@ -2,23 +2,20 @@
 
 from __future__ import annotations
 
-from brokers.adapters.paper.gateway import PaperGateway
 from inc_trade.domain.constants.capabilities import (
-    FEATURE_HISTORICAL,
-    FEATURE_MARKET_DATA,
     FEATURE_ORDERS,
-    FEATURE_PORTFOLIO,
 )
-from inc_trade.ports.broker import BrokerGateway
 from inc_trade.services.broker_router import BrokerRouter
 from inc_trade.services.capability_discovery import CapabilityDiscovery
+
+from brokers.adapters.paper.gateway import PaperGateway
 
 
 class TestCapabilityBasedArchitecture:
     """Test that the capability-based architecture works correctly."""
 
-    def test_gateway_implements_broker_gateway(self) -> None:
-        """Verify that PaperGateway implements BrokerGateway protocol."""
+    def test_gateway_implements_gateway_protocol(self) -> None:
+        """Verify that PaperGateway has all required gateway properties."""
         gateway = PaperGateway()
 
         # Check all required properties exist

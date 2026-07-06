@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
 from unittest.mock import MagicMock
 
-import pytest
+from inc_trade.domain import OrderResponse
+from inc_trade.domain.enums import OrderStatus, Side
+from inc_trade.utils.idempotency_cache import TypedIdempotencyCache
 
 from brokers.adapters.dhan.identity import DhanInstrumentRef
 from brokers.adapters.dhan.orders import DhanOrders
-from inc_trade.domain import OrderResponse
-from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Side
-from inc_trade.utils.idempotency_cache import TypedIdempotencyCache
 
 
 def _equity_ref(symbol: str = "RELIANCE", lot_size: int = 1) -> DhanInstrumentRef:

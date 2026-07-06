@@ -8,15 +8,14 @@ from __future__ import annotations
 
 import os
 import tempfile
-from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from datetime import UTC, datetime
 
 import pytest
-
-from brokers.adapters.replay.engine import ReplayEngine
 from inc_trade.domain.entities import Candle
 from inc_trade.infrastructure.cache.memory_cache import MemoryCache
 from inc_trade.services.historical_router import HistoricalRouter
+
+from brokers.adapters.replay.engine import ReplayEngine
 
 CSV_CONTENT = """symbol,exchange,timestamp,open,high,low,close,volume
 RELIANCE,NSE,2024-01-02 09:15:00,2500.00,2510.00,2495.00,2505.00,500000
@@ -62,7 +61,7 @@ def router(cache: MemoryCache, replay_provider: ReplayEngine) -> HistoricalRoute
 
 
 def _ts(year: int, month: int, day: int, hour: int = 0, minute: int = 0) -> datetime:
-    return datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
+    return datetime(year, month, day, hour, minute, tzinfo=UTC)
 
 
 @pytest.mark.integration

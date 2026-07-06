@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import time
 import threading
+import time
 
 import pytest
-
-from inc_trade.resilience.rate_limiter import TokenBucketRateLimiter
-from inc_trade.resilience.circuit_breaker import CircuitBreaker, CircuitState
-from inc_trade.resilience.retry import RetryPolicy
 from inc_trade.domain.exceptions import CircuitOpenError
+from inc_trade.resilience.circuit_breaker import CircuitBreaker, CircuitState
+from inc_trade.resilience.rate_limiter import TokenBucketRateLimiter
+from inc_trade.resilience.retry import RetryPolicy
 
 
 class TestTokenBucketRateLimiter:

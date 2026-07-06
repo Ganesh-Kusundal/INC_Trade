@@ -18,8 +18,6 @@ from decimal import Decimal
 from inspect import getmembers, isfunction, ismethod
 
 import pytest
-
-import brokers
 from inc_trade.domain.enums import (
     OrderStatus,
     OrderType,
@@ -33,6 +31,8 @@ from inc_trade.trading.audit import OrderStateChange, OrderStateHistory
 from inc_trade.trading.execution_router import ExecutionRouter
 from inc_trade.trading.oms import OrderManagementSystem
 from inc_trade.trading.order_repository import OrderRepository
+
+import brokers
 
 # ---------------------------------------------------------------------------
 # Helpers / fixtures
@@ -252,7 +252,7 @@ class TestBrokerSessionAuditAttribute:
         # The accessor should be either a property or a method — never a
         # plain attribute set in __init__ that would be trivially mutable.
         sess = BrokerSession(broker_id="test")
-        attr = getattr(BrokerSession, "audit")
+        attr = BrokerSession.audit
         assert isinstance(attr, property) or ismethod(attr) or isfunction(attr)
 
 

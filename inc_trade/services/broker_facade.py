@@ -1,19 +1,13 @@
-"""Broker facade — primary entry point enforcing service layer usage.
+"""Broker facade — composes gateway with service layer.
 
-Usage::
-
-    from brokers import create_broker
-
-    broker = create_broker("dhan", access_token="...", client_id="...")
-    resp = broker.place_order("RELIANCE", "NSE", Side.BUY, 10)
-    quote = broker.get_quote("RELIANCE")
-    positions = broker.get_positions()
+Internal class used by ``brokers.connect()`` to build a composition root.
+Wraps a gateway and enforces service-layer validation, idempotency,
+and logging.
 """
 
 from __future__ import annotations
 
 import logging
-import warnings
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
@@ -31,7 +25,6 @@ from inc_trade.domain import (
     Trade,
 )
 from inc_trade.domain.enums import BrokerID, OrderType, ProductType, Side, Validity
-from inc_trade.ports.broker import BrokerGateway
 from inc_trade.ports.extension_registry import ExtensionRegistryPort
 from inc_trade.services.historical_service import HistoricalService
 from inc_trade.services.instrument_service import InstrumentService
@@ -45,21 +38,20 @@ logger = logging.getLogger(__name__)
 
 
 class BrokerFacade:
-    """Primary entry point for broker operations.
+    """Wraps a gateway with the service layer.
 
-    Wraps a BrokerGateway and enforces service layer usage by delegating
-    all operations through application services. This ensures consistent
+    Delegates all operations through application services for consistent
     validation, idempotency, logging, and error handling.
 
     Args:
-        gateway: A BrokerGateway implementation (e.g. DhanGateway).
+        gateway: A broker gateway implementation (e.g. DhanGateway).
         allow_live_orders: Enable live order placement (kill switch).
             Defaults to True. Set to False to block order placement/cancellation.
     """
 
     def __init__(
         self,
-        gateway: BrokerGateway,
+        gateway: Any,
         allow_live_orders: bool = True,
         extension_registry: ExtensionRegistryPort | None = None,
     ):
@@ -77,15 +69,6 @@ class BrokerFacade:
         self._historical_service = HistoricalService(gateway.historical)
         self._instrument_service = InstrumentService(gateway.instruments)
         self._options_service = OptionsService(getattr(gateway, "options", None))
-
-    # --- Deprecation helper ---
-
-    def _warn_deprecated(self, method_name: str) -> None:
-        warnings.warn(
-            f"BrokerFacade.{method_name}() is deprecated, use BrokerSession equivalent instead",
-            DeprecationWarning,
-            stacklevel=3,
-        )
 
     # --- Identity ---
 
@@ -110,12 +93,7 @@ class BrokerFacade:
         correlation_id: str = "",
         request: Any | None = None,
     ) -> OrderResponse:
-        """Place an order through the service layer.
-
-        .. deprecated::
-            Use ``session.orders.place_order()`` via :class:`BrokerSession` instead.
-        """
-        self._warn_deprecated("place_order")
+        """Place an order through the service layer."""
         return self._order_service.place_order(
             symbol=symbol,
             exchange=exchange,
@@ -138,12 +116,7 @@ class BrokerFacade:
         order_type: OrderType | None = None,
         validity: Validity | None = None,
     ) -> OrderResponse:
-        """Modify an existing order through the service layer.
-
-        .. deprecated::
-            Use ``session.orders.modify_order()`` via :class:`BrokerSession` instead.
-        """
-        self._warn_deprecated("modify_order")
+        """Modify an existing order through the service layer."""
         return self._order_service.modify_order(
             order_id=order_id,
             quantity=quantity,
@@ -153,12 +126,7 @@ class BrokerFacade:
         )
 
     def cancel_order(self, order_id: str) -> OrderResponse:
-        """Cancel an order through the service layer.
-
-        .. deprecated::
-            Use ``session.orders.cancel_order()`` via :class:`BrokerSession` instead.
-        """
-        self._warn_deprecated("cancel_order")
+        """Cancel an order through the service layer."""
         return self._order_service.cancel_order(order_id)
 
     def get_order(self, order_id: str) -> Order | None:
@@ -176,12 +144,7 @@ class BrokerFacade:
     # --- Market Data ---
 
     def get_quote(self, symbol: str, exchange: str = "NSE") -> Quote:
-        """Get current quote for a symbol.
-
-        .. deprecated::
-            Use ``session.market.quote()`` via :class:`BrokerSession` instead.
-        """
-        self._warn_deprecated("get_quote")
+        """Get current quote for a symbol."""
         return self._market_data_service.quote(symbol, exchange)
 
     def quote(self, symbol: str, exchange: str = "NSE") -> Quote:
@@ -269,50 +232,25 @@ class BrokerFacade:
     # --- Portfolio ---
 
     def get_positions(self) -> list[Position]:
-        """Get current positions.
-
-        .. deprecated::
-            Use ``session.portfolio.positions()`` via :class:`BrokerSession` instead.
-        """
-        self._warn_deprecated("get_positions")
+        """Get current positions."""
         return self._portfolio_service.positions()
 
     def get_trades(self) -> list[Trade]:
-        """Get trade history.
-
-        .. deprecated::
-            Use ``session.portfolio.trades()`` via :class:`BrokerSession` instead.
-        """
-        self._warn_deprecated("get_trades")
+        """Get trade history."""
         return self._portfolio_service.trades()
 
     def get_holdings(self) -> list[Holding]:
-        """Get holdings.
-
-        .. deprecated::
-            Use ``session.portfolio.holdings()`` via :class:`BrokerSession` instead.
-        """
-        self._warn_deprecated("get_holdings")
+        """Get holdings."""
         return self._portfolio_service.holdings()
 
     def get_balance(self) -> Balance:
-        """Get account balance.
-
-        .. deprecated::
-            Use ``session.portfolio.funds()`` via :class:`BrokerSession` instead.
-        """
-        self._warn_deprecated("get_balance")
+        """Get account balance."""
         return self._portfolio_service.funds()
 
     # --- Instruments ---
 
     def search_instruments(self, query: str) -> list[InstrumentInfo]:
-        """Search for instruments.
-
-        .. deprecated::
-            Use ``session.instruments.search()`` via :class:`BrokerSession` instead.
-        """
-        self._warn_deprecated("search_instruments")
+        """Search for instruments."""
         return self._instrument_service.search(query)
 
     def get_instrument(self, symbol: str, exchange: str = "NSE") -> InstrumentInfo:
@@ -354,16 +292,6 @@ class BrokerFacade:
     # --- Deprecated: Direct gateway access ---
 
     @property
-    def _underlying_gateway(self) -> BrokerGateway:
-        """Access the underlying gateway (deprecated).
-
-        This is provided for backward compatibility. New code should
-        use the facade methods directly.
-        """
-        warnings.warn(
-            "_underlying_gateway is deprecated. Use facade service methods directly "
-            "(e.g. broker.orders, broker.market_data, broker.portfolio).",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+    def _underlying_gateway(self) -> Any:
+        """Access the underlying gateway."""
         return self._gateway

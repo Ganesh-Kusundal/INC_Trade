@@ -5,8 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import NamedTuple
 
-from brokers.adapters.dhan.auth import DhanAuth
 from inc_trade.ports.token_store import TokenStorePort
+
+from brokers.adapters.dhan.auth import DhanAuth
 
 
 class AuthComponents(NamedTuple):

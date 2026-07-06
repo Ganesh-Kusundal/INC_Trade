@@ -5,11 +5,9 @@ from __future__ import annotations
 from decimal import Decimal
 from unittest.mock import MagicMock, PropertyMock, patch
 
-import pandas as pd
-import pytest
+from inc_trade.domain import OrderResponse, Quote
 
 from brokers.adapters.dhan.gateway import DhanGateway
-from inc_trade.domain import MarketDepth, OrderResponse, Quote
 
 
 @patch("brokers.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")

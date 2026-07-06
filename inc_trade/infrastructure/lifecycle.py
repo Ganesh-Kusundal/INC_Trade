@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Protocol, runtime_checkable
 
 from inc_trade.domain.constants import DEFAULT_STOP_TIMEOUT_SECONDS
@@ -116,7 +116,7 @@ class LifecycleManager:
             self._last_health[name] = HealthStatus(
                 state=HealthState.STOPPED,
                 service=name,
-                last_check=datetime.now(timezone.utc),
+                last_check=datetime.now(UTC),
                 detail="registered",
             )
             start_all_invoked = self._start_all_invoked
@@ -199,7 +199,7 @@ class LifecycleManager:
                     HealthStatus(
                         state=HealthState.FAILED,
                         service=name,
-                        last_check=datetime.now(timezone.utc),
+                        last_check=datetime.now(UTC),
                         detail="start failed",
                     ),
                 ).to_dict()
@@ -208,7 +208,7 @@ class LifecycleManager:
                 status = HealthStatus(
                     state=HealthState.STOPPED,
                     service=name,
-                    last_check=datetime.now(timezone.utc),
+                    last_check=datetime.now(UTC),
                     detail="not started",
                 )
                 with self._lock:
@@ -221,7 +221,7 @@ class LifecycleManager:
                 status = HealthStatus(
                     state=HealthState.FAILED,
                     service=name,
-                    last_check=datetime.now(timezone.utc),
+                    last_check=datetime.now(UTC),
                     detail=f"health() raised: {type(exc).__name__}: {exc}",
                 )
             with self._lock:
@@ -265,7 +265,7 @@ class LifecycleManager:
                 self._last_health[name] = HealthStatus(
                     state=HealthState.FAILED,
                     service=name,
-                    last_check=datetime.now(timezone.utc),
+                    last_check=datetime.now(UTC),
                     detail=f"start raised: {type(exc).__name__}: {exc}",
                 )
 
@@ -300,7 +300,7 @@ class LifecycleManager:
                 self._last_health[name] = HealthStatus(
                     state=HealthState.FAILED,
                     service=name,
-                    last_check=datetime.now(timezone.utc),
+                    last_check=datetime.now(UTC),
                     detail=f"stop did not return within {timeout:.1f}s",
                 )
             return
@@ -315,7 +315,7 @@ class LifecycleManager:
                 self._last_health[name] = HealthStatus(
                     state=HealthState.FAILED,
                     service=name,
-                    last_check=datetime.now(timezone.utc),
+                    last_check=datetime.now(UTC),
                     detail=f"stop raised: {container['err']}",
                 )
             return
@@ -344,7 +344,7 @@ def build_health(
     return HealthStatus(
         state=state,
         service=name,
-        last_check=datetime.now(timezone.utc),
+        last_check=datetime.now(UTC),
         detail=detail,
         metrics=dict(metrics or {}),
     )

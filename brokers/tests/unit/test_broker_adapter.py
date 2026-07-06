@@ -597,3 +597,49 @@ class TestAdapterArchitecture:
         # The brokers.adapters.dhan.gateway should NOT be loaded
         assert "brokers.adapters.dhan.gateway" not in sys.modules
         assert "brokers.adapters.dhan" not in sys.modules
+
+
+# ── DhanAdapter Depth Warning Tests ────────────────────────────────────────
+
+
+class TestDhanDepthWarning:
+    """DhanAdapter.depth() should warn when levels > 5."""
+
+    def test_depth_warns_when_levels_greater_than_5(self, caplog: Any) -> None:
+        """Calling depth(200) should emit a warning about ignored levels."""
+        import logging
+
+        with patch("brokers.adapters.dhan.gateway.DhanGateway") as mock_gw:
+            mock_instance = MagicMock()
+            mock_gw.return_value = mock_instance
+            mock_instance.streaming.is_connected = True
+            mock_instance.market_data.depth.return_value = MarketDepth(symbol="RELIANCE")
+
+            adapter = DhanAdapter(client_id="test", access_token="test")
+            adapter.connect()
+
+            with caplog.at_level(logging.WARNING):
+                result = adapter.depth("RELIANCE", "NSE", levels=200)
+
+            assert result.symbol == "RELIANCE"
+            assert "DhanAdapter.depth" in caplog.text
+            assert "ignores the levels parameter" in caplog.text
+
+    def test_depth_does_not_warn_for_5_levels(self, caplog: Any) -> None:
+        """Calling depth(5) should NOT emit a warning."""
+        import logging
+
+        with patch("brokers.adapters.dhan.gateway.DhanGateway") as mock_gw:
+            mock_instance = MagicMock()
+            mock_gw.return_value = mock_instance
+            mock_instance.streaming.is_connected = True
+            mock_instance.market_data.depth.return_value = MarketDepth(symbol="RELIANCE")
+
+            adapter = DhanAdapter(client_id="test", access_token="test")
+            adapter.connect()
+
+            with caplog.at_level(logging.WARNING):
+                result = adapter.depth("RELIANCE", "NSE", levels=5)
+
+            assert result.symbol == "RELIANCE"
+            assert "DhanAdapter.depth" not in caplog.text

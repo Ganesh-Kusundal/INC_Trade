@@ -115,8 +115,7 @@ class DhanAdapter(BrokerAdapter):
     def depth(self, symbol: str, exchange: str = "NSE", levels: int = 5) -> MarketDepth:
         """Get market depth with up to 200 levels.
 
-        The ``levels`` parameter is accepted for API compatibility but the
-        underlying Dhan gateway resolves the actual level count based on
+        The underlying Dhan gateway resolves the actual level count based on
         the subscription type (depth 20 vs depth 200).
         """
         self._require_gateway()

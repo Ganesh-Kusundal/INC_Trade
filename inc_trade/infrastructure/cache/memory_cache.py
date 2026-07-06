@@ -11,7 +11,7 @@ from typing import Any
 class _CacheEntry:
     """Internal cache entry with TTL tracking."""
 
-    __slots__ = ("value", "expires_at", "created_at")
+    __slots__ = ("created_at", "expires_at", "value")
 
     def __init__(self, value: Any, ttl_seconds: float | None = None) -> None:
         self.value = value

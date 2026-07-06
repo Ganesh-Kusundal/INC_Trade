@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import threading
 
-import pytest
-
 from inc_trade.infrastructure.seq_counter import SequenceCounter
 
 
@@ -65,7 +63,7 @@ class TestTickSeqNoStamping:
 
     def _make_streaming(self):
         """Create a minimal BaseWebSocketStreaming subclass for testing."""
-        from brokers.adapters.base_streaming import BaseWebSocketStreaming, _TICK_SEQ
+        from brokers.adapters.base_streaming import _TICK_SEQ, BaseWebSocketStreaming
 
         _TICK_SEQ.reset()  # Start fresh for reproducibility
 
@@ -117,7 +115,6 @@ class TestTickSeqNoStamping:
 
     def test_quote_carries_seq_no(self) -> None:
         """Quote built by stream() callback carries the seq_no from the tick dict."""
-        from decimal import Decimal
 
         from inc_trade.domain.entities import Quote
 

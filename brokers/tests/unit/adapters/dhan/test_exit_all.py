@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import MagicMock, patch
 
 from brokers.adapters.dhan.exit_all import DhanExitAll

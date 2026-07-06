@@ -24,7 +24,14 @@ import logging
 from decimal import Decimal
 from typing import Any
 
-from inc_trade.domain.entities import Balance, Candle, Holding, Order, OrderResponse, Position, Trade
+from inc_trade.domain.entities import (
+    Balance,
+    Holding,
+    Order,
+    OrderResponse,
+    Position,
+    Trade,
+)
 from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
 from inc_trade.ports.order_execution import OrderExecutionPort
 from inc_trade.ports.portfolio import PortfolioPort

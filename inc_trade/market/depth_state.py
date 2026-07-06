@@ -56,18 +56,6 @@ class DepthState:
     timestamp: datetime | None = None
     seq_no: int = 0
 
-    @property
-    def instrument_key(self) -> str:
-        """Deprecated alias for :attr:`composite_key`."""
-        import warnings
-
-        warnings.warn(
-            "DepthState.instrument_key is deprecated; use composite_key instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.composite_key
-
     def update_from_depth(
         self,
         bids: list[dict[str, Any]] | None = None,
@@ -120,11 +108,15 @@ class DepthState:
                 existing[i].orders = orders
             else:
                 # New level — must allocate
-                existing.append(DepthLevelState(
-                    price=price, quantity=quantity, orders=orders,
-                ))
+                existing.append(
+                    DepthLevelState(
+                        price=price,
+                        quantity=quantity,
+                        orders=orders,
+                    )
+                )
         # Trim if fewer levels
-        del existing[len(new_data):]
+        del existing[len(new_data) :]
 
     def snapshot(self) -> Any:
         """Return an immutable MarketDepth entity."""

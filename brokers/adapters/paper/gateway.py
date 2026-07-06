@@ -1,18 +1,18 @@
 """Paper trading gateway — in-memory broker for testing and simulation.
 
-Implements BrokerGateway with no external dependencies. All state is
-held in memory and lost when the gateway is closed.
+No external dependencies. All state is held in memory and lost when
+the gateway is closed.
 """
 
 from __future__ import annotations
 
 import threading
 import uuid
+from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Callable
+from typing import Any
 
-from brokers.adapters.paper.capabilities import paper_capabilities
 from inc_trade.domain import (
     Balance,
     Holding,
@@ -28,8 +28,10 @@ from inc_trade.domain.enums import BrokerID, OrderStatus, OrderType, ProductType
 from inc_trade.ports import (
     InstrumentInfo,
 )
-from inc_trade.ports.extension_registry import ExtensionRegistry, ExtensionRegistryPort
+from inc_trade.ports.extension_registry import ExtensionRegistryPort
 from inc_trade.ports.streaming import StreamingPort
+
+from brokers.adapters.paper.capabilities import paper_capabilities
 
 
 class _PaperOrders:

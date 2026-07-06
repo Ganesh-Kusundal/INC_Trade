@@ -1,4 +1,4 @@
-"""Dhan gateway — composes all Dhan adapters into BrokerGateway.
+"""Dhan gateway — composes all Dhan adapters into a single interface.
 
 Wires up the complete token lifecycle: auth, HTTP client with 401 auto-retry,
 streaming with lazy token access, background refresh scheduler, token broadcast,
@@ -11,6 +11,24 @@ import contextlib
 import logging
 from pathlib import Path
 from typing import Any
+
+from inc_trade.domain.enums import BrokerID
+from inc_trade.infrastructure.lifecycle import LifecycleManager
+from inc_trade.infrastructure.token_broadcast import TokenManager
+from inc_trade.ports.capabilities import (
+    AlertsProvider,
+    ExitAllProvider,
+    ForeverOrderProvider,
+    IPManagementProvider,
+    MarginProvider,
+    SliceOrderProvider,
+    SuperOrderProvider,
+)
+from inc_trade.ports.event_publisher import EventPublisherPort
+from inc_trade.ports.extension_registry import ExtensionRegistryPort
+from inc_trade.ports.risk_manager import RiskManagerPort
+from inc_trade.ports.streaming import StreamingPort
+from inc_trade.ports.token_store import TokenStorePort
 
 from brokers.adapters.dhan.auth import DhanAuth
 from brokers.adapters.dhan.capabilities import dhan_capabilities
@@ -31,38 +49,16 @@ from brokers.adapters.dhan.order_stream import DhanOrderStream
 from brokers.adapters.dhan.orders import DhanOrders
 from brokers.adapters.dhan.portfolio import DhanPortfolio
 from brokers.adapters.dhan.streaming import DhanStreaming
-from inc_trade.domain.capabilities import BrokerCapabilities
-from inc_trade.domain.enums import BrokerID
-from inc_trade.infrastructure.lifecycle import LifecycleManager
-from inc_trade.infrastructure.token_broadcast import TokenManager
-from inc_trade.ports.capabilities import (
-    AlertsProvider,
-    ExitAllProvider,
-    ForeverOrderProvider,
-    IPManagementProvider,
-    MarginProvider,
-    SliceOrderProvider,
-    SuperOrderProvider,
-)
-from inc_trade.ports.event_publisher import EventPublisherPort
-from inc_trade.ports.extension_registry import ExtensionRegistry, ExtensionRegistryPort
-from inc_trade.ports.risk_manager import RiskManagerPort
-from inc_trade.ports.streaming import StreamingPort
-from inc_trade.ports.token_store import TokenStorePort
 
 logger = logging.getLogger(__name__)
 
 
 class DhanGateway:
-    """Dhan broker adapter implementing BrokerGateway protocol.
+    """Dhan broker adapter — manages the complete token lifecycle.
 
-    Manages the complete token lifecycle:
-    - Auth with TOTP generation and state tracking
-    - HTTP client with 401 auto-retry via token refresh
-    - Streaming with lazy token access (reconnects use latest token)
-    - Background refresh scheduler with rate-limit backoff
-    - Token broadcast to notify all consumers of refreshes
-    - Optional persistence to JSON store and .env file
+    Handles auth with TOTP generation, HTTP client with 401 auto-retry,
+    streaming with lazy token access, background refresh scheduling,
+    token broadcast, and optional persistence.
 
     Args:
         access_token: Pre-configured access token (skips TOTP if provided).

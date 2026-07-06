@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
-
-from inc_trade.domain.enums import OrderStatus
 
 
 @dataclass(frozen=True)
@@ -18,7 +16,7 @@ class DomainEvent:
     payload: dict[str, Any]
     symbol: str | None = None
     source: str | None = None
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @classmethod
     def now(
@@ -34,7 +32,7 @@ class DomainEvent:
             payload=payload,
             symbol=symbol,
             source=source,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
 
@@ -83,7 +81,7 @@ class QuoteTickEvent:
     oi: int = 0
     source: str = ""
     event_type: str = EVENT_QUOTE_TICK
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
@@ -97,7 +95,7 @@ class DepthUpdateEvent:
     asks: tuple[tuple[Decimal, int], ...] = ()
     source: str = ""
     event_type: str = EVENT_DEPTH_UPDATE
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 # ── Order Events ────────────────────────────────────────────────────────────
@@ -118,7 +116,7 @@ class OrderPlacedEvent:
     price: Decimal = Decimal("0")
     trigger_price: str = ""
     event_type: str = EVENT_ORDER_PLACED
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
@@ -134,7 +132,7 @@ class OrderFilledEvent:
     remaining_quantity: int = 0
     is_complete: bool = False
     event_type: str = EVENT_ORDER_FILLED
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
@@ -148,7 +146,7 @@ class OrderRejectedEvent:
     reason: str = ""
     is_retryable: bool = False
     event_type: str = EVENT_ORDER_REJECTED
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
@@ -162,7 +160,7 @@ class OrderModifiedEvent:
     old_quantity: int = 0
     new_quantity: int = 0
     event_type: str = EVENT_ORDER_MODIFIED
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
@@ -175,7 +173,7 @@ class OrderCancelledEvent:
     symbol: str = ""
     cancelled_quantity: int = 0
     event_type: str = EVENT_ORDER_CANCELLED
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
@@ -189,7 +187,7 @@ class OrderStateChangeEvent:
     to_status: str = ""
     reason: str = ""
     event_type: str = EVENT_ORDER_STATE_CHANGE
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
@@ -201,4 +199,4 @@ class ConnectionEvent:
     broker_id: str = ""
     message: str = ""
     event_type: str = EVENT_CONNECTION
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))

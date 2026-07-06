@@ -6,8 +6,9 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from brokers.adapters.dhan.gateway import DhanGateway
 from inc_trade.infrastructure.registry import GatewayRegistry
+
+from brokers.adapters.dhan.gateway import DhanGateway
 
 gateway_registry = GatewayRegistry()
 

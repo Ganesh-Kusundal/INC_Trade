@@ -6,7 +6,6 @@ can be in-memory, Redis, or any other caching backend.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 from typing import Any, Protocol, runtime_checkable
 
 

@@ -569,37 +569,6 @@ class MarketDataContext:
             self._quote_states[key] = QuoteState(composite_key=key)
         return self._quote_states[key]
 
-    # ── Backward compatibility aliases ─────────────────────────────────
-
-    def get_quote(self, symbol: str, exchange: str = "NSE") -> Quote:
-        """Backward-compatible alias for ``quote()``.
-
-        Legacy consumers calling ``broker.market.get_quote()`` continue
-        to work while migrating to the new ``quote()`` method.
-        """
-        return self.quote(symbol, exchange)
-
-    def get_historical_candles(
-        self,
-        symbol: str,
-        exchange: str,
-        start_time: datetime,
-        end_time: datetime,
-        resolution: str,
-    ) -> list[Candle]:
-        """Backward-compatible alias for ``ohlcv()``.
-
-        Legacy consumers calling ``broker.market.get_historical_candles()``
-        continue to work while migrating to the new ``ohlcv()`` method.
-        """
-        return self.ohlcv(
-            symbol=symbol,
-            exchange=exchange,
-            start_time=start_time,
-            end_time=end_time,
-            resolution=resolution,
-        )
-
 
 class InstrumentHandle:
     """Lightweight handle wrapping an Instrument with market data access.

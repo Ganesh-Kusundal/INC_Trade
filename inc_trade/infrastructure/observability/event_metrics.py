@@ -32,7 +32,6 @@ from dataclasses import dataclass
 from threading import Lock
 from typing import Any
 
-
 # ---------------------------------------------------------------------------
 # Self-contained Counter (avoids dependency on infrastructure.metrics)
 # ---------------------------------------------------------------------------

@@ -6,10 +6,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
+from inc_trade.domain.exceptions import BrokerError
+from inc_trade.infrastructure.http.resilient_client import TokenRefreshSignal
 
 from brokers.adapters.upstox.http import UpstoxHttpClient
-from inc_trade.domain.exceptions import AuthenticationError, BrokerError
-from inc_trade.infrastructure.http.resilient_client import TokenRefreshSignal
 
 
 def _mock_response(status_code=200, json_data=None):

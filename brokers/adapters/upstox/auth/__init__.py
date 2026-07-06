@@ -7,8 +7,15 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from datetime import UTC
 from typing import Any
 
+from inc_trade.infrastructure.storage.token_store import JsonTokenStateStore
+
+from brokers.adapters.upstox.auth.config import (
+    UpstoxConnectionSettings,
+    UpstoxSettingsLoader,
+)
 from brokers.adapters.upstox.auth.exceptions import UpstoxApiError, UpstoxAuthError
 from brokers.adapters.upstox.auth.holders import (
     ThreadSafeTokenHolder,
@@ -18,17 +25,12 @@ from brokers.adapters.upstox.auth.holders import (
     UpstoxStaticTokenHolder,
     UpstoxTokenHolder,
 )
-from brokers.adapters.upstox.auth.config import (
-    UpstoxConnectionSettings,
-    UpstoxSettingsLoader,
-)
-from inc_trade.infrastructure.storage.token_store import JsonTokenStateStore
 from brokers.adapters.upstox.auth.oauth_client import TokenResponse, UpstoxOAuthClient
 from brokers.adapters.upstox.auth.pkce import PkcePair, UpstoxPkceUtil
+from brokers.adapters.upstox.auth.redirect_server import UpstoxRedirectServer
 from brokers.adapters.upstox.auth.token_expiry import UpstoxTokenExpiry
 from brokers.adapters.upstox.auth.token_manager import UpstoxTokenManager
 from brokers.adapters.upstox.auth.totp_client import UpstoxTotpClient
-from brokers.adapters.upstox.auth.redirect_server import UpstoxRedirectServer
 from brokers.adapters.upstox.auth.totp_scheduler import TotpRefreshScheduler
 
 logger = logging.getLogger(__name__)
@@ -123,7 +125,7 @@ class UpstoxAuth:
             return None
         from datetime import datetime, timezone
 
-        return datetime.fromtimestamp(exp_ms / 1000, tz=timezone.utc)
+        return datetime.fromtimestamp(exp_ms / 1000, tz=UTC)
 
     @property
     def analytics_only(self) -> bool:
@@ -147,20 +149,20 @@ __all__ = [
     "ThreadSafeTokenHolder",
     "TokenResponse",
     "TokenSnapshot",
+    "TotpRefreshScheduler",
     "UpstoxAnalyticsTokenHolder",
     "UpstoxApiError",
     "UpstoxAuth",
     "UpstoxAuthError",
+    "UpstoxConnectionSettings",
     "UpstoxExtendedTokenHolder",
     "UpstoxOAuthClient",
     "UpstoxPkceUtil",
     "UpstoxRedirectServer",
+    "UpstoxSettingsLoader",
     "UpstoxStaticTokenHolder",
     "UpstoxTokenExpiry",
     "UpstoxTokenHolder",
     "UpstoxTokenManager",
     "UpstoxTotpClient",
-    "TotpRefreshScheduler",
-    "UpstoxConnectionSettings",
-    "UpstoxSettingsLoader",
 ]

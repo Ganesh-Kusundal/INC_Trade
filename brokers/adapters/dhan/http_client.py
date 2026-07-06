@@ -1,13 +1,14 @@
 """Dhan HTTP client factory and response mapping."""
 
 import urllib.parse
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import requests
-
-from brokers.adapters.dhan.config import ENDPOINTS, RATE_LIMITS, READ_PREFIXES, WRITE_PREFIXES
 from inc_trade.domain.exceptions import BrokerError, BrokerServerError, RateLimitError
 from inc_trade.infrastructure.http.resilient_client import ResilientHttpClient, TokenRefreshSignal
+
+from brokers.adapters.dhan.config import ENDPOINTS, RATE_LIMITS, READ_PREFIXES, WRITE_PREFIXES
 
 
 def _dhan_categorize(endpoint: str) -> str:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from inc_trade.domain.enums import BrokerID
@@ -85,6 +85,19 @@ class BrokerCapabilities:
     def supports(self, feature: str) -> bool:
         return bool(getattr(self, f"supports_{feature}", False))
 
+    def has_feature(self, feature: str) -> bool:
+        """Check if a feature is supported — delegates to supports()."""
+        return self.supports(feature)
+
+    def get_feature_metadata(self, feature: str) -> dict[str, Any]:
+        """Return basic metadata for a feature."""
+        supported = self.supports(feature)
+        return {
+            "description": f"Feature '{feature}'",
+            "supported_exchanges": list(self.product_types) if supported else [],
+            "limitations": [] if supported else ["Not supported by this broker"],
+        }
+
     def limit_for(self, endpoint_class: str) -> RateLimitProfile | None:
         for profile in self.rate_limit_profiles:
             if profile.endpoint_class == endpoint_class:
@@ -141,5 +154,5 @@ class CapabilityDescriptor:
             broker_id=capabilities.broker_id,
             capabilities=capabilities,
             extensions=extensions,
-            observed_at=datetime.now(tz=timezone.utc),
+            observed_at=datetime.now(tz=UTC),
         )

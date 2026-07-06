@@ -4,15 +4,15 @@ from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-
-from brokers.adapters.dhan.identity import DhanInstrumentRef
-from brokers.adapters.dhan.use_cases.place_order import PlaceOrderUseCase
 from inc_trade.domain import OrderRequest, OrderResponse
 from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
 from inc_trade.domain.exceptions import InstrumentNotFoundError
+
+from brokers.adapters.dhan.identity import DhanInstrumentRef
+from brokers.adapters.dhan.use_cases.place_order import PlaceOrderUseCase
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -295,7 +295,6 @@ class TestValidate:
         assert uc.validate(self._ref(), req) is None
 
     def test_invariant_invalid_security_id(self) -> None:
-        from brokers.adapters.dhan.config import DHAN_SEGMENTS
 
         uc, client, resolver, idempotency = _make_uc()
         ref = DhanInstrumentRef(
@@ -313,7 +312,6 @@ class TestValidate:
             uc.execute(_default_request())
 
     def test_invariant_invalid_exchange_segment(self) -> None:
-        from brokers.adapters.dhan.config import DHAN_SEGMENTS
 
         uc, client, resolver, idempotency = _make_uc()
         ref = DhanInstrumentRef(

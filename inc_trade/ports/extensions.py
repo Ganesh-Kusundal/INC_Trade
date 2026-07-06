@@ -28,7 +28,7 @@ from decimal import Decimal
 from typing import Any, Protocol, runtime_checkable
 
 from inc_trade.domain.entities import Order, OrderResponse
-from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
+from inc_trade.domain.enums import OrderType, ProductType
 
 
 @runtime_checkable

@@ -10,11 +10,7 @@ from __future__ import annotations
 from inc_trade.domain.constants.capabilities import (
     FEATURE_ALERTS,
     FEATURE_AUTH,
-    FEATURE_BASKET_ORDERS,
-    FEATURE_BRACKET_ORDERS,
-    FEATURE_COVER_ORDERS,
     FEATURE_DEPTH200,
-    FEATURE_EDIS,
     FEATURE_EXIT_ALL,
     FEATURE_FOREVER_ORDERS,
     FEATURE_GTT,

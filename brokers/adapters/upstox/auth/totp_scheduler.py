@@ -15,9 +15,10 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from brokers.adapters.upstox.auth.token_manager import UpstoxTokenManager
-from inc_trade.infrastructure.lifecycle import HealthState, ManagedService, build_health
 from inc_trade.domain.lifecycle_health import HealthStatus
+from inc_trade.infrastructure.lifecycle import HealthState, ManagedService, build_health
+
+from brokers.adapters.upstox.auth.token_manager import UpstoxTokenManager
 
 logger = logging.getLogger(__name__)
 

@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from unittest.mock import Mock
 
-import pytest
-from unittest.mock import MagicMock, Mock, patch
+from inc_trade.domain.enums import OrderType, Side
 
 from brokers.adapters.dhan.alerts import DhanAlerts
 from brokers.adapters.dhan.conditional_triggers import DhanConditionalTriggers
 from brokers.adapters.dhan.edis import DhanEDIS
 from brokers.adapters.dhan.ledger import DhanLedger
 from brokers.adapters.dhan.mtf import DhanMTF
-from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
-
 
 # ---------------------------------------------------------------------------
 # Helpers

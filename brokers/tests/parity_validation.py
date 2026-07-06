@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import sys
 import traceback
+from datetime import UTC
 
 
 def _check(label: str, fn):
@@ -43,7 +44,7 @@ def main() -> int:
     run("AppConfig.from_env()", w1_schema)
 
     def w1_defaults():
-        from inc_trade.config.defaults import get_config, reset_config, DEFAULT_CONFIG
+        from inc_trade.config.defaults import DEFAULT_CONFIG, get_config, reset_config
         reset_config()
         cfg = get_config()
         assert cfg is get_config()
@@ -51,11 +52,12 @@ def main() -> int:
     run("get_config() cached singleton", w1_defaults)
 
     def w1_profiles():
+        import os
+
         from inc_trade.config.profiles import load_profile
         from inc_trade.config.profiles.dev import DevProfile
-        from inc_trade.config.profiles.staging import StagingProfile
         from inc_trade.config.profiles.prod import ProdProfile
-        import os
+        from inc_trade.config.profiles.staging import StagingProfile
         os.environ["APP_ENV"] = "dev"
         p = load_profile()
         assert isinstance(p, DevProfile)
@@ -68,7 +70,7 @@ def main() -> int:
     run("Profile loading (dev/staging/prod)", w1_profiles)
 
     def w1_validator():
-        from inc_trade.config.validator import ConfigValidator, ValidationProfile, ValidationResult
+        from inc_trade.config.validator import ConfigValidator, ValidationProfile
         v = ConfigValidator(profile=ValidationProfile.DEV, env={})
         r = v.validate()
         assert r.valid is True
@@ -84,7 +86,7 @@ def main() -> int:
     run("SecretsManager", w2_secrets)
 
     def w2_credentials():
-        from inc_trade.infrastructure.credentials import CredentialResolver, read_secret
+        from inc_trade.infrastructure.credentials import CredentialResolver
         cr = CredentialResolver()
         assert cr.resolve_env_path("dhan") is not None
     run("CredentialResolver", w2_credentials)
@@ -146,9 +148,10 @@ def main() -> int:
     print("\n=== Wave 5: Lifecycle ===")
 
     def w5_lifecycle():
-        from inc_trade.infrastructure.lifecycle import LifecycleManager, ManagedService
+        from datetime import datetime
+
         from inc_trade.domain.lifecycle_health import HealthState, HealthStatus
-        from datetime import datetime, timezone
+        from inc_trade.infrastructure.lifecycle import LifecycleManager
 
         class Svc:
             name = "test"
@@ -157,7 +160,7 @@ def main() -> int:
             def stop(self, timeout_seconds=5.0): pass
             def health(self):
                 return HealthStatus(state=HealthState.HEALTHY, service="test",
-                                    last_check=datetime.now(timezone.utc))
+                                    last_check=datetime.now(UTC))
 
         mgr = LifecycleManager()
         mgr.register(Svc())
@@ -171,9 +174,12 @@ def main() -> int:
     print("\n=== Wave 6: JWT + TOTP ===")
 
     def w6_jwt():
+        import base64
+        import json
+        import time
+        from datetime import datetime
+
         from inc_trade.infrastructure.jwt_expiry import parse_jwt_expiry
-        from datetime import datetime, timezone
-        import base64, json, time
         h = base64.urlsafe_b64encode(json.dumps({"alg": "HS256"}).encode()).rstrip(b"=")
         p = base64.urlsafe_b64encode(json.dumps({"exp": int(time.time()) + 3600}).encode()).rstrip(b"=")
         token = f"{h.decode()}.{p.decode()}.sig"
@@ -229,7 +235,7 @@ def main() -> int:
     run("Endpoints (Dhan + Upstox)", w8_endpoints)
 
     def w8_indices():
-        from inc_trade.config.indices import is_index, INDEX_SYMBOLS, index_upstox_key
+        from inc_trade.config.indices import INDEX_SYMBOLS, index_upstox_key, is_index
         assert is_index("NIFTY") is True
         assert is_index("RELIANCE") is False
         assert len(INDEX_SYMBOLS) > 30
@@ -237,7 +243,7 @@ def main() -> int:
     run("Indices (41 symbols)", w8_indices)
 
     def w8_registry():
-        from inc_trade.infrastructure.registry import BrokerRegistry, ServiceRegistry
+        from inc_trade.infrastructure.registry import BrokerRegistry
         reg = BrokerRegistry()
         reg.register("dhan", object())
         assert reg.has("dhan")
@@ -245,8 +251,10 @@ def main() -> int:
     run("BrokerRegistry", w8_registry)
 
     def w8_bootstrap():
-        from inc_trade.infrastructure.bootstrap import Bootstrap, BootstrapError
-        import asyncio, os
+        import asyncio
+        import os
+
+        from inc_trade.infrastructure.bootstrap import Bootstrap
         os.environ["APP_ENV"] = "dev"
         result = asyncio.run(
             Bootstrap.run(skip_validation=True, broker_names=["dhan"])

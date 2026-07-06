@@ -11,6 +11,9 @@ from __future__ import annotations
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
+from inc_trade.domain import OrderRequest
+from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
+
 from brokers.adapters.dhan.config import (
     ENDPOINTS,
     ORDER_TYPE_MAP,
@@ -22,8 +25,6 @@ from brokers.adapters.dhan.identity import DhanInstrumentRef
 from brokers.adapters.dhan.orders import DhanOrders
 from brokers.adapters.dhan.payload import build_dhan_order_payload
 from brokers.adapters.dhan.use_cases.place_order import PlaceOrderUseCase
-from inc_trade.domain import OrderRequest
-from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
 
 # ---------------------------------------------------------------------------
 # Fixtures

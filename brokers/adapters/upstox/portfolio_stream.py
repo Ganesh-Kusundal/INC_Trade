@@ -8,8 +8,9 @@ import threading
 from collections.abc import Callable
 from typing import Any
 
-from brokers.adapters.upstox.feed_authorizer import UpstoxFeedAuthorizer
 from inc_trade.infrastructure.websocket_runner import ReconnectingWebSocketRunner
+
+from brokers.adapters.upstox.feed_authorizer import UpstoxFeedAuthorizer
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 from inc_trade.domain.exceptions import (
     AuthenticationError,
     BrokerDegradedError,

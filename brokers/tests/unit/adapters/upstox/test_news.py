@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from brokers.adapters.upstox.news import UpstoxNews
 from inc_trade.config.endpoints import Upstox
+
+from brokers.adapters.upstox.news import UpstoxNews
 
 
 def _make_adapter(client_get_return=None):

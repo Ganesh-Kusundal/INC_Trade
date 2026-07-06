@@ -14,9 +14,10 @@ from __future__ import annotations
 
 import uuid
 
-from brokers.adapters.dhan.identity import DhanInstrumentRef
 from inc_trade.domain.entities import OrderRequest
 from inc_trade.utils.price import to_wire_float
+
+from brokers.adapters.dhan.identity import DhanInstrumentRef
 
 
 def build_dhan_order_payload(

@@ -5,7 +5,6 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-
 from inc_trade.domain import OptionChain, OptionLeg, OptionStrike
 from inc_trade.ports import OptionsPort
 

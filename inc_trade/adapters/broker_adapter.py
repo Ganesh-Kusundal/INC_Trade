@@ -1,16 +1,10 @@
-"""BrokerAdapter protocol — replaces BrokerGateway as the primary broker interface.
+"""BrokerAdapter protocol — primary broker interface for provider injection.
 
 A ``BrokerAdapter`` implements the provider protocols directly so that
-it can be injected into ``Instrument`` objects. This eliminates the
-gateway pattern where the adapter returns service objects via properties.
-
-Key differences from ``BrokerGateway``:
-
-- ``BrokerGateway`` exposes **properties** (``.orders``, ``.market_data``, etc.)
-- ``BrokerAdapter`` IS the provider — it directly implements ``quote()``,
-  ``depth()``, ``place_order()``, etc.
-- ``BrokerAdapter.instrument()`` creates an ``Instrument`` with itself
-  injected as all providers.
+it can be injected into ``Instrument`` objects. Unlike the gateway pattern
+(which exposes properties like ``.orders``, ``.market_data``), an adapter
+IS the provider — it directly implements ``quote()``, ``depth()``,
+``place_order()``, etc.
 
 Usage::
 

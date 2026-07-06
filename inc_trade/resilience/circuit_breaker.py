@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 from inc_trade.domain.exceptions import CircuitOpenError
 
@@ -146,9 +147,7 @@ class CircuitBreaker:
             self._failure_count += 1
             self._last_failure_time = time.monotonic()
 
-            if self._state is CircuitState.HALF_OPEN:
-                self._transition_to(CircuitState.OPEN)
-            elif (
+            if self._state is CircuitState.HALF_OPEN or (
                 self._state is CircuitState.CLOSED
                 and self._failure_count >= self._failure_threshold
             ):

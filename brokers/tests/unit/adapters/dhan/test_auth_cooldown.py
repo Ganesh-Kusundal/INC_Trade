@@ -5,10 +5,10 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-from brokers.adapters.dhan.auth import DhanAuth
 from inc_trade.domain.exceptions import TokenRateLimitError
 from inc_trade.infrastructure.totp_cooldown import TOTPCooldown
+
+from brokers.adapters.dhan.auth import DhanAuth
 
 
 @pytest.fixture(autouse=True)

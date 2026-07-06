@@ -2,16 +2,15 @@
 
 Usage::
 
-    from brokers import create_broker
+    from brokers import connect
 
-    gw = create_broker("dhan", access_token="...", client_id="...")
-    gw = create_broker("upstox", access_token="...")
-    gw = create_broker("paper")
+    broker = connect("dhan", access_token="...", client_id="...")
+    broker = connect("upstox", access_token="...")
+    broker = connect("paper")
 """
 
 from __future__ import annotations
 
-import warnings
 from typing import Any, cast
 
 from inc_trade.domain import (
@@ -114,9 +113,6 @@ from inc_trade.ports import (
     AuthPort as AuthPort,
 )
 from inc_trade.ports import (
-    BrokerGateway as BrokerGateway,
-)
-from inc_trade.ports import (
     ClockPort as ClockPort,
 )
 from inc_trade.ports import (
@@ -146,7 +142,7 @@ from inc_trade.services.broker_facade import (
 from inc_trade.services.broker_session import BrokerSession as BrokerSession
 
 
-def create_broker(
+def _build_facade(
     name: str | BrokerID,
     allow_live_orders: bool = False,
     env_path: str | None = None,
@@ -154,42 +150,12 @@ def create_broker(
     auto_refresh: bool = True,
     lifecycle: Any | None = None,
     **credentials: Any,
-) -> "BrokerFacade":
-    """Factory — create a broker facade by name.
-
-    .. deprecated::
-        Use :func:`brokers.connect()` instead.
-
-    Returns a BrokerFacade that enforces service layer usage.
-
-    Args:
-        name: Broker name — "dhan", "upstox", or "paper" (str or BrokerID).
-        allow_live_orders: Enable live order placement (kill switch). Defaults to False for safety.
-        env_path: Path to .env file for token persistence (Dhan only).
-        token_state_dir: Directory for JSON token state persistence (Dhan only).
-        auto_refresh: Enable background token refresh scheduler (Dhan only).
-        lifecycle: Optional lifecycle manager to register scheduler with (Dhan only).
-        **credentials: Broker-specific credentials.
-            - dhan: access_token, client_id, pin, totp_secret
-            - upstox: access_token
-            - paper: initial_cash (optional)
-
-    Returns:
-        A BrokerFacade instance wrapping the underlying gateway.
-
-    Raises:
-        ValueError: If broker name is unknown.
-    """
-    warnings.warn(
-        "create_broker() is deprecated, use brokers.connect() instead",
-        DeprecationWarning,
-        stacklevel=2,
-    )
+) -> BrokerFacade:
+    """Build a BrokerFacade for the given broker name."""
     from pathlib import Path
 
     from inc_trade.services.broker_facade import BrokerFacade
 
-    # Normalize BrokerID enum to string
     if isinstance(name, BrokerID):
         name = name.value
     name = name.lower().strip()
@@ -217,14 +183,14 @@ def create_broker(
         from inc_trade.ports.extension_registry import DictExtensionRegistry
 
         registry = DictExtensionRegistry()
-        registry.register("dhan", cast(type, KillSwitchProvider), dhan_gw.orders)
-        registry.register("dhan", cast(type, SliceOrderProvider), dhan_gw.orders)
+        registry.register("dhan", cast("type", KillSwitchProvider), dhan_gw.orders)
+        registry.register("dhan", cast("type", SliceOrderProvider), dhan_gw.orders)
         registry.register("dhan", MarginProvider, dhan_gw.margin)
         registry.register("dhan", ForeverOrderProvider, dhan_gw.forever_orders)
         registry.register("dhan", SuperOrderProvider, dhan_gw.super_orders)
 
         return BrokerFacade(
-            cast(BrokerGateway, dhan_gw),
+            dhan_gw,
             allow_live_orders=allow_live_orders,
             extension_registry=registry,
         )
@@ -239,10 +205,10 @@ def create_broker(
         from inc_trade.ports.extension_registry import DictExtensionRegistry
 
         registry = DictExtensionRegistry()
-        registry.register("upstox", cast(type, NewsProvider), upstox_gw.news)
-        registry.register("upstox", cast(type, GTTProvider), upstox_gw.gtt)
+        registry.register("upstox", cast("type", NewsProvider), upstox_gw.news)
+        registry.register("upstox", cast("type", GTTProvider), upstox_gw.gtt)
         return BrokerFacade(
-            cast(BrokerGateway, upstox_gw),
+            upstox_gw,
             allow_live_orders=allow_live_orders,
             extension_registry=registry,
         )
@@ -260,7 +226,7 @@ def create_broker(
 
         registry = DictExtensionRegistry()
         return BrokerFacade(
-            cast(BrokerGateway, paper_gw),
+            paper_gw,
             allow_live_orders=allow_live_orders,
             extension_registry=registry,
         )
@@ -276,10 +242,10 @@ def connect(
     lifecycle: Any | None = None,
     **credentials: Any,
 ) -> BrokerSession:
-    """Create a BrokerSession — the recommended public API.
+    """Create a BrokerSession — the primary public API.
 
-    Wraps create_broker() and returns a typed BrokerSession composition root
-    with named port properties (orders, market, streaming, auth, portfolio, historical).
+    Returns a typed BrokerSession composition root with named port
+    properties (orders, market, streaming, auth, portfolio, historical).
 
     Example::
 
@@ -293,7 +259,7 @@ def connect(
     from inc_trade.services.audit_facade import AuditFacade
     from inc_trade.trading.order_repository import OrderRepository
 
-    facade = create_broker(
+    facade = _build_facade(
         name,
         allow_live_orders=allow_live_orders,
         env_path=env_path,

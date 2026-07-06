@@ -5,12 +5,12 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-
-from brokers.adapters.paper.gateway import PaperGateway
 from inc_trade.domain import Side
 from inc_trade.domain.enums import OrderType
 from inc_trade.domain.exceptions import OrderRejectedError, ValidationError
 from inc_trade.services.order_service import OrderService
+
+from brokers.adapters.paper.gateway import PaperGateway
 
 
 class TestOrderService:
@@ -120,10 +120,10 @@ class TestMarketDataService:
         self.gw.set_quote("TCS", Decimal("3500"))
         # Call single quote to pre-cache RELIANCE
         q1 = self.service.quote("RELIANCE")
-        
+
         # Call batch for both
         batch = self.service.quote_batch(["RELIANCE", "TCS"])
-        
+
         assert "RELIANCE" in batch
         assert "TCS" in batch
         # Verify the cached object was returned for RELIANCE

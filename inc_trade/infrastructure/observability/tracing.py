@@ -50,7 +50,9 @@ except ImportError:
     _HAS_OTEL = False
 
 try:
-    from inc_trade.infrastructure.observability.opentelemetry_setup import otel_available as _otel_active
+    from inc_trade.infrastructure.observability.opentelemetry_setup import (
+        otel_available as _otel_active,
+    )
 except ImportError:
     _otel_active = False
 

@@ -6,28 +6,21 @@ state transition validation, event publishing, and query methods.
 
 from __future__ import annotations
 
-from decimal import Decimal
 from typing import Any
 
 import pytest
-
 from inc_trade.domain import (
     Order,
     OrderResponse,
     OrderStateError,
     Side,
 )
-from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Validity
+from inc_trade.domain.enums import OrderStatus
 from inc_trade.domain.events import (
     EVENT_ORDER_CANCELLED,
     EVENT_ORDER_MODIFIED,
     EVENT_ORDER_PLACED,
-    EVENT_ORDER_REJECTED,
     EVENT_ORDER_STATE_CHANGE,
-    OrderCancelledEvent,
-    OrderModifiedEvent,
-    OrderPlacedEvent,
-    OrderStateChangeEvent,
 )
 from inc_trade.trading.execution_router import ExecutionRouter
 from inc_trade.trading.order_repository import OrderRepository

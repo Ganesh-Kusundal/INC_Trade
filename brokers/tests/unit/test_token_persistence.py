@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-
+from datetime import UTC, datetime, timedelta
 
 from inc_trade.infrastructure.storage.token_store import (
     JsonTokenStateStore,
@@ -73,8 +72,8 @@ class TestJsonTokenStateStore:
         state = TokenState(
             access_token="test-token",
             source=TokenSource.TOTP,
-            issued_at=datetime.now(timezone.utc),
-            expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+            issued_at=datetime.now(UTC),
+            expires_at=datetime.now(UTC) + timedelta(days=1),
         )
         store.save(state)
         loaded = store.load()
@@ -140,7 +139,7 @@ class TestUpdateEnvToken:
 class TestComputeTokenExpiry:
     def test_returns_future_datetime(self):
         expiry = compute_token_expiry()
-        assert expiry > datetime.now(timezone.utc)
+        assert expiry > datetime.now(UTC)
 
     def test_returns_datetime_object(self):
         expiry = compute_token_expiry()

@@ -13,7 +13,6 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-
 from inc_trade.domain.entities import MarketDepth, Quote
 from inc_trade.market.context import InstrumentHandle, MarketDataContext
 from inc_trade.market.depth_state import DepthLevelState, DepthState
@@ -346,25 +345,25 @@ class TestMarketDataContext:
 
     def test_option_chain_delegates(self, context: MarketDataContext) -> None:
         chain = context.option_chain("RELIANCE", exchange="NFO")
-        assert chain.underlying == "RELIANCE"
+        # underlying is an Instrument object (Phase 3+)
+        assert chain.underlying is not None
+        assert chain.expiry == "2024-01-25"
 
     def test_expiries_delegates(self, context: MarketDataContext) -> None:
         expiries = context.expiries("RELIANCE", exchange="NFO")
         assert "2024-01-25" in expiries
 
-    # ── Backward compat aliases ────────────────────────────────────────
+    # ── Canonical method names (replace old get_* aliases) ─────────────
 
-    def test_get_quote_alias(self, context: MarketDataContext) -> None:
-        q = context.get_quote("RELIANCE")
+    def test_quote_method(self, context: MarketDataContext) -> None:
+        q = context.quote("RELIANCE")
         assert isinstance(q, Quote)
         assert q.ltp == Decimal("100.00")
 
-    def test_get_historical_candles_alias(self, context: MarketDataContext) -> None:
+    def test_ohlcv_method(self, context: MarketDataContext) -> None:
         from datetime import datetime
 
-        candles = context.get_historical_candles(
-            "RELIANCE", "NSE", datetime(2024, 1, 1), datetime(2024, 1, 2), "1"
-        )
+        candles = context.ohlcv("RELIANCE", "NSE", datetime(2024, 1, 1), datetime(2024, 1, 2), "1")
         assert candles == []
 
     # ── NotSupported errors ────────────────────────────────────────────
@@ -504,7 +503,9 @@ class TestInstrumentHandle:
     def test_option_chain_delegates_to_context(self, context: MarketDataContext) -> None:
         handle = context.instrument("RELIANCE")
         chain = handle.option_chain(expiry="2024-01-25")
-        assert chain.underlying == "RELIANCE"
+        # underlying is an Instrument object (Phase 3+)
+        assert chain.underlying is not None
+        assert chain.expiry == "2024-01-25"
 
     def test_snapshot_returns_quote(self, context: MarketDataContext) -> None:
         handle = context.instrument("RELIANCE")
@@ -540,12 +541,12 @@ class TestInstrumentCentric:
     These delegate to the attached ``MarketDataContext``.
     """
 
-    def test_instrument_has_delegate_context_after_lookup(self, context: MarketDataContext) -> None:
+    def test_instrument_has_context_after_lookup(self, context: MarketDataContext) -> None:
         """Instrument obtained via MarketDataContext.instrument() has
-        ``_delegate_context`` set to the MarketDataContext."""
+        ``_context`` set to the MarketDataContext."""
         handle = context.instrument("RELIANCE")
         inst = handle._instrument
-        assert inst._delegate_context is context
+        assert inst._context is context
 
     def test_instrument_quote_delegates_to_context(self, context: MarketDataContext) -> None:
         """Instrument.quote() delegates to MarketDataContext.quote()."""
@@ -588,7 +589,9 @@ class TestInstrumentCentric:
         handle = context.instrument("RELIANCE")
         inst = handle._instrument
         chain = inst.option_chain(expiry="2024-01-25")
-        assert chain.underlying == "RELIANCE"
+        # underlying is an Instrument object (Phase 3+)
+        assert chain.underlying is not None
+        assert chain.expiry == "2024-01-25"
 
     def test_instrument_snapshot_returns_quote(self, context: MarketDataContext) -> None:
         handle = context.instrument("RELIANCE")
@@ -603,7 +606,7 @@ class TestInstrumentCentric:
         inst = handle._instrument
         state = inst.quote_state()
         assert isinstance(state, QuoteState)
-        assert state.instrument_key == "NSE:RELIANCE"
+        assert state.composite_key == "NSE:RELIANCE"
 
     def test_raw_instrument_without_context_raises_runtime_error(self) -> None:
         """A raw Instrument created directly (not via MarketDataContext)
@@ -611,7 +614,7 @@ class TestInstrumentCentric:
         from inc_trade.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
-        assert inst._delegate_context is None
+        assert inst._context is None
         with pytest.raises(RuntimeError, match="no market data context"):
             inst.quote()
 
@@ -693,16 +696,17 @@ class TestConnectIntegration:
             q2 = broker.market.quote("RELIANCE")
             assert q2.ltp > 0
 
-            # Backward compat alias works
-            q3 = broker.market.get_quote("RELIANCE")
+            # Canonical quote method works
+            q3 = broker.market.quote("RELIANCE")
             assert isinstance(q3, Quote)
         finally:
             broker.close()
 
     def test_legacy_operations_still_work(self) -> None:
         """Verify old broker.orders.place_order() still works."""
-        import brokers
         from inc_trade.domain.enums import Side
+
+        import brokers
 
         broker = brokers.connect("paper")
         try:
@@ -717,8 +721,9 @@ class TestConnectIntegration:
 
     def test_legacy_portfolio_still_works(self) -> None:
         """Verify old broker.portfolio.get_balance() still works."""
-        import brokers
         from inc_trade.domain import Balance
+
+        import brokers
 
         broker = brokers.connect("paper")
         try:

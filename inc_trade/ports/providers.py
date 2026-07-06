@@ -13,7 +13,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Protocol, runtime_checkable
 
-from inc_trade.domain.entities import Candle, MarketDepth, OptionChain, Quote
+from inc_trade.domain.entities import Candle, MarketDepth, Quote
 
 
 @runtime_checkable
@@ -21,7 +21,7 @@ class InstrumentDataProvider(Protocol):
     """Protocol for real-time market data access.
 
     Broker adapters implement this to provide quote, LTP, and depth
-    data to Instruments without requiring a full BrokerGateway.
+    data directly to Instruments.
     """
 
     def quote(self, symbol: str, exchange: str) -> Quote: ...

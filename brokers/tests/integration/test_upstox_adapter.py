@@ -5,11 +5,10 @@ from __future__ import annotations
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
-
-from brokers.adapters.upstox.gateway import UpstoxGateway
 from inc_trade.domain import Side
 from inc_trade.domain.enums import OrderStatus, OrderType
-from inc_trade.ports import BrokerGateway
+
+from brokers.adapters.upstox.gateway import UpstoxGateway
 
 
 def _mock_response(json_data, status_code=200):
@@ -18,13 +17,6 @@ def _mock_response(json_data, status_code=200):
     resp.json.return_value = json_data
     resp.text = str(json_data)
     return resp
-
-
-class TestUpstoxGatewayProtocol:
-    def test_satisfies_broker_gateway(self):
-        gw = UpstoxGateway(access_token="test")
-        assert isinstance(gw, BrokerGateway)
-        gw.close()
 
 
 class TestUpstoxOrders:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -38,14 +39,15 @@ class TestTotpBootstrap:
         settings = _make_settings()
         mock_jwt_expiry.return_value = 9999999999999
 
-        from inc_trade.infrastructure.storage.token_store import TokenState, TokenSource
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
+
+        from inc_trade.infrastructure.storage.token_store import TokenSource, TokenState
         mock_store = MagicMock()
         mock_store.load.return_value = TokenState(
             access_token="persisted-token",
             refresh_token=None,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=1),
-            issued_at=datetime.now(timezone.utc),
+            expires_at=datetime.now(UTC) + timedelta(days=1),
+            issued_at=datetime.now(UTC),
             source=TokenSource.TOTP,
         )
 
@@ -151,14 +153,15 @@ class TestTotpBootstrap:
         """Transient 401 should not trigger a fresh TOTP login when token is still valid."""
         settings = _make_settings()
         token_manager = UpstoxTokenManager(settings, state_store=MagicMock())
-        from inc_trade.infrastructure.storage.token_store import TokenState, TokenSource
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
+
+        from inc_trade.infrastructure.storage.token_store import TokenSource, TokenState
         state = token_manager._from_persisted(
             TokenState(
                 access_token="still-valid-token",
                 refresh_token=None,
-                expires_at=datetime.now(timezone.utc) + timedelta(days=1),
-                issued_at=datetime.now(timezone.utc),
+                expires_at=datetime.now(UTC) + timedelta(days=1),
+                issued_at=datetime.now(UTC),
                 source=TokenSource.TOTP,
             )
         )

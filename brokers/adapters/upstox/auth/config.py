@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 from inc_trade.domain.constants.timeouts import DEFAULT_HTTP_TIMEOUT_SECONDS
 

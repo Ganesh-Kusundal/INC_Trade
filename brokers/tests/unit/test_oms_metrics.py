@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
 from inc_trade.domain.enums import OrderType, Side
 from inc_trade.trading.execution_router import ExecutionRouter
 from inc_trade.trading.oms import OrderManagementSystem

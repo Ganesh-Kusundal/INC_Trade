@@ -1,13 +1,12 @@
-"""Contract tests — verify any broker adapter satisfies the BrokerGateway protocol.
+"""Contract tests — verify any broker adapter's composite port surface.
 
-These tests use a mock adapter to verify the protocol contract. Real adapters
-(Dhan, Upstox, Paper) must also pass these tests.
+These tests use a mock adapter to verify that all required ports
+are implemented. Real adapters (Dhan, Upstox, Paper) must also pass.
 """
 
 from __future__ import annotations
 
 from decimal import Decimal
-
 
 from inc_trade.domain import (
     Balance,
@@ -19,7 +18,6 @@ from inc_trade.domain import (
 )
 from inc_trade.domain.enums import OrderStatus
 from inc_trade.ports import (
-    BrokerGateway,
     InstrumentInfo,
 )
 
@@ -93,9 +91,7 @@ class _FakeAuth:
 
 
 class _FakeHistorical:
-    def get_historical_candles(
-        self, symbol, exchange, start_time, end_time, resolution
-    ):
+    def get_historical_candles(self, symbol, exchange, start_time, end_time, resolution):
         return []
 
 
@@ -169,17 +165,14 @@ class _FakeBroker:
     @property
     def extensions(self):
         from inc_trade.ports.extension_registry import DictExtensionRegistry
+
         return DictExtensionRegistry()
 
     def close(self):
         pass
 
 
-class TestBrokerGatewayContract:
-    def test_satisfies_protocol(self):
-        gw = _FakeBroker()
-        assert isinstance(gw, BrokerGateway)
-
+class TestBrokerContract:
     def test_place_order(self):
         gw = _FakeBroker()
         resp = gw.orders.place_order("RELIANCE", "NSE", Side.BUY, 10)

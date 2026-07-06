@@ -21,7 +21,6 @@ import sys
 import threading
 import time
 from dataclasses import asdict, dataclass, field
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -67,8 +66,9 @@ class CheckResult:
 
 
 def _load_gateway() -> DhanGateway:
-    from brokers.adapters.dhan.gateway import DhanGateway
     from inc_trade.infrastructure.credentials import CredentialResolver
+
+    from brokers.adapters.dhan.gateway import DhanGateway
 
     resolver = CredentialResolver(project_root=_REPO)
     env_path = resolver.resolve_env_path("dhan") or _REPO / ".env.local"

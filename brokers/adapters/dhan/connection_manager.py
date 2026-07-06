@@ -8,16 +8,17 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Callable
 
-from brokers.adapters.dhan.auth import DhanAuth
-from brokers.adapters.dhan.token_broadcast import TokenBroadcast
 from inc_trade.infrastructure.lifecycle import LifecycleManager
 from inc_trade.infrastructure.token_broadcast import TokenManager
 from inc_trade.ports.token_store import TokenStorePort
 from inc_trade.resilience.token_scheduler import TokenRefreshScheduler
+
+from brokers.adapters.dhan.auth import DhanAuth
+from brokers.adapters.dhan.token_broadcast import TokenBroadcast
 
 logger = logging.getLogger(__name__)
 

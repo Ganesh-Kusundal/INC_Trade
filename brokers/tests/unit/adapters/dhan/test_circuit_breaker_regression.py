@@ -10,14 +10,14 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
-from brokers.adapters.dhan.http_client import create_dhan_http_client
 from inc_trade.domain.exceptions import BrokerServerError
 from inc_trade.resilience.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
     CircuitState,
 )
+
+from brokers.adapters.dhan.http_client import create_dhan_http_client
 
 
 def test_dhan_place_order_with_read_cb_open_still_posts_order() -> None:

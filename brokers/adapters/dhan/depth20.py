@@ -11,13 +11,15 @@ Header layout: security_id at offset 4
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
-from brokers.adapters.dhan.segments import resolve_segment
-from brokers.adapters.dhan.depth_feed_base import BinaryDepthFeed
-from brokers.adapters.dhan.identity import DhanInstrumentResolver
 from inc_trade.config.endpoints import Dhan
 from inc_trade.domain import MarketDepth
+
+from brokers.adapters.dhan.depth_feed_base import BinaryDepthFeed
+from brokers.adapters.dhan.identity import DhanInstrumentResolver
+from brokers.adapters.dhan.segments import resolve_segment
 
 logger = logging.getLogger(__name__)
 

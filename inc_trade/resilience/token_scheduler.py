@@ -9,7 +9,8 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import Any, Callable, Protocol, runtime_checkable
+from collections.abc import Callable
+from typing import Any, Protocol, runtime_checkable
 
 from inc_trade.domain.exceptions import TokenRateLimitError
 

@@ -18,10 +18,8 @@ import websocket
 from brokers.adapters.base_streaming import BaseWebSocketStreaming
 from brokers.adapters.upstox.config import SEGMENT_TO_EXCHANGE
 from brokers.adapters.upstox.feed_authorizer import UpstoxFeedAuthorizer
-from brokers.adapters.upstox.instruments import resolve_upstox_instrument_key
-from brokers.adapters.upstox.instruments import UpstoxInstruments
+from brokers.adapters.upstox.instruments import UpstoxInstruments, resolve_upstox_instrument_key
 from brokers.adapters.upstox.tick_mapper import frame_to_quote, frame_to_tick_dict
-from inc_trade.domain import Quote
 
 logger = logging.getLogger(__name__)
 

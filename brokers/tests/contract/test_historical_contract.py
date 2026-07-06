@@ -6,10 +6,9 @@ the HistoricalPort protocol contract.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from inc_trade.ports.historical import HistoricalPort
 
 
@@ -17,7 +16,7 @@ class HistoricalContractTests:
     """Mixin-style contract tests for HistoricalPort."""
 
     def test_get_historical_candles_returns_list(self, historical: HistoricalPort) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         try:
             candles = historical.get_historical_candles("RELIANCE", "NSE", now, now, "1D")
             assert isinstance(candles, list)
@@ -28,7 +27,7 @@ class HistoricalContractTests:
     def test_candles_are_candle_type(self, historical: HistoricalPort) -> None:
         from inc_trade.domain import Candle
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         try:
             candles = historical.get_historical_candles("RELIANCE", "NSE", now, now, "1D")
             for c in candles:
@@ -38,7 +37,7 @@ class HistoricalContractTests:
 
     def test_empty_for_invalid_range(self, historical: HistoricalPort) -> None:
         """Request with invalid resolution should return empty list or raise."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         try:
             candles = historical.get_historical_candles("RELIANCE", "NSE", now, now, "INVALID")
             assert isinstance(candles, list)

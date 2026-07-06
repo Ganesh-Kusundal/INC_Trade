@@ -9,7 +9,6 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-
 from inc_trade.domain import OrderStateError
 from inc_trade.domain.entities import Order
 from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity

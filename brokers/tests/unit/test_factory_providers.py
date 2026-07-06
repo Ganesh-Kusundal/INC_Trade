@@ -8,7 +8,7 @@ Covers:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import MagicMock
 
@@ -249,7 +249,7 @@ class TestInstrumentBuySell:
         inst = InstrumentFactory.create(
             symbol="NIFTY",
             exchange="NFO",
-            expiry=datetime(2025, 1, 30, tzinfo=timezone.utc),
+            expiry=datetime(2025, 1, 30, tzinfo=UTC),
             strike=Decimal("18000"),
             option_type="CE",
             lot_size=50,
@@ -263,7 +263,7 @@ class TestInstrumentBuySell:
         inst = InstrumentFactory.create(
             symbol="RELIANCE",
             exchange="NFO",
-            expiry=datetime(2025, 6, 26, tzinfo=timezone.utc),
+            expiry=datetime(2025, 6, 26, tzinfo=UTC),
             lot_size=1,
             provider=mock_provider,
         )

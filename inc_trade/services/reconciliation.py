@@ -1,13 +1,12 @@
 import asyncio
 import logging
-from dataclasses import dataclass, field
-from typing import Literal, Any
 import time
+from dataclasses import dataclass, field
+from typing import Any, Literal
 
 from inc_trade.domain import Order, Position
 from inc_trade.domain.entities import OrderResponse
 from inc_trade.domain.enums import OrderStatus
-from inc_trade.ports.broker import BrokerGateway
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +51,7 @@ class ReconciliationEngine:
     Also provides core logic to compare local OMS state against broker-authoritative state.
     """
 
-    def __init__(self, broker: BrokerGateway | None = None, sync_interval_seconds: int = 30):
+    def __init__(self, broker: Any | None = None, sync_interval_seconds: int = 30):
         self.broker = broker
         self.sync_interval_seconds = sync_interval_seconds
         self._running = False
@@ -339,4 +338,3 @@ class BrokerReconciliation:
 
 # Alias for backward compatibility
 DhanReconciliation = BrokerReconciliation
-

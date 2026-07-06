@@ -15,14 +15,6 @@ from __future__ import annotations
 import logging
 from typing import Any, Protocol
 
-from brokers.adapters.upstox.config import (
-    EXCHANGE_TO_SEGMENT,
-    ORDER_TYPE_MAP,
-    PRODUCT_TYPE_MAP,
-    VALIDITY_MAP,
-)
-from brokers.adapters.upstox.instruments import UpstoxInstruments, resolve_upstox_instrument_key
-from brokers.adapters.upstox.mapper import map_order_response
 from inc_trade.domain import Order, OrderRequest, OrderResponse
 from inc_trade.domain.enums import OrderStatus, OrderType, ProductType
 from inc_trade.domain.exceptions import ValidationError
@@ -33,6 +25,15 @@ from inc_trade.domain.validators.order_validator import (
 from inc_trade.ports.instruments import InstrumentInfo
 from inc_trade.utils.idempotency_cache import TypedIdempotencyCache
 from inc_trade.utils.price import to_wire_float
+
+from brokers.adapters.upstox.config import (
+    EXCHANGE_TO_SEGMENT,
+    ORDER_TYPE_MAP,
+    PRODUCT_TYPE_MAP,
+    VALIDITY_MAP,
+)
+from brokers.adapters.upstox.instruments import UpstoxInstruments, resolve_upstox_instrument_key
+from brokers.adapters.upstox.mapper import map_order_response
 
 # Segment codes for Upstox derivative (F&O, MCX, currency) exchanges.
 # Used by this use case to enforce the broker-specific product/segment

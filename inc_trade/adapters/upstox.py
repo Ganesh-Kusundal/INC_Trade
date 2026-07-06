@@ -110,8 +110,7 @@ class UpstoxAdapter(BrokerAdapter):
     def depth(self, symbol: str, exchange: str = "NSE", levels: int = 5) -> MarketDepth:
         """Get market depth with up to 30 levels.
 
-        The ``levels`` parameter is accepted for API compatibility. The
-        underlying Upstox gateway supports up to 30 levels via WebSocket.
+        The underlying Upstox gateway supports up to 30 levels via WebSocket.
         """
         self._require_gateway()
         return self._gw.market_data.depth(symbol, exchange)

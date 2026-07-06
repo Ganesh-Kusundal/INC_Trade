@@ -9,7 +9,6 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-
 from inc_trade.ports.market_data import MarketDataPort
 
 
@@ -68,7 +67,6 @@ class TestMarketDataContractConformance:
     @pytest.fixture
     def market_data(self) -> MarketDataPort:
         """Override in broker-specific subclasses with real instance."""
-        from inc_trade.ports.market_data import MarketDataPort
 
         pytest.skip("No concrete MarketDataPort fixture provided")
 
@@ -96,7 +94,6 @@ class TestMarketDataContractConformance:
 class TestDhanMarketDataContract(TestMarketDataContractConformance):
     @pytest.fixture
     def market_data(self) -> MarketDataPort:
-        from brokers.adapters.dhan.gateway import DhanGateway
 
         pytest.skip("Dhan integration test — requires credentials")
 
@@ -104,7 +101,6 @@ class TestDhanMarketDataContract(TestMarketDataContractConformance):
 class TestUpstoxMarketDataContract(TestMarketDataContractConformance):
     @pytest.fixture
     def market_data(self) -> MarketDataPort:
-        from brokers.adapters.upstox.gateway import UpstoxGateway
 
         pytest.skip("Upstox integration test — requires credentials")
 

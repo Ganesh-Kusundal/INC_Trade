@@ -2,7 +2,7 @@
 
 Mirrors the ``DhanGatewayBuilder`` pattern. The UpstoxGateway
 constructor delegates its complex wiring to this builder, keeping
-the gateway itself focused on its public BrokerGateway protocol surface.
+the gateway itself focused on its public port surface.
 
 Architecture rules:
 - Imports only from ``brokers.domain``, ``brokers.ports``,
@@ -185,9 +185,7 @@ class UpstoxGatewayBuilder:
         )
 
         gw._portfolio = UpstoxPortfolio(gw._client, gw._urls)
-        gw._instruments = UpstoxInstruments(
-            cache_path=gw._settings.instrument_cache_path
-        )
+        gw._instruments = UpstoxInstruments(cache_path=gw._settings.instrument_cache_path)
         gw._historical = UpstoxHistorical(
             gw._client,
             urls=gw._urls,

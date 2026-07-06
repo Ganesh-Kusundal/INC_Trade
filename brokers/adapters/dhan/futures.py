@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
-from brokers.adapters.dhan.identity import DhanInstrumentRef, DhanInstrumentResolver
 from inc_trade.ports.http_client_port import HttpClientPort
+
+from brokers.adapters.dhan.identity import DhanInstrumentRef, DhanInstrumentResolver
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +119,7 @@ class DhanFutures:
         DhanInstrumentRef | None
             The resolved futures instrument reference, or None if not found.
         """
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        now = datetime.now(UTC).replace(tzinfo=None)
 
         futures_with_expiry: list[tuple[datetime, DhanInstrumentRef]] = []
         for ref in self._iter_futures_refs(underlying):
@@ -170,7 +171,7 @@ class DhanFutures:
         exchange: str,
     ) -> list[DhanInstrumentRef]:
         """Return all active futures contracts for an underlying, sorted by expiry."""
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        now = datetime.now(UTC).replace(tzinfo=None)
 
         futures_with_expiry: list[tuple[datetime, DhanInstrumentRef]] = []
         for ref in self._iter_futures_refs(underlying):

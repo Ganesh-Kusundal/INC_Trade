@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import timedelta
 
 # Default TTLs for different data types (in seconds)
 CACHE_TTL_HISTORICAL_1M: int = 300  # 5 min — 1m candles change frequently

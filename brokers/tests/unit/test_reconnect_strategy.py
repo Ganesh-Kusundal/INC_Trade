@@ -10,7 +10,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from inc_trade.infrastructure.reconnect_strategy import ReconnectStrategy, run_reconnect_loop
 
 

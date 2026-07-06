@@ -14,7 +14,7 @@ import logging
 import os
 import tempfile
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -64,7 +64,7 @@ class TokenState:
         if self.expires_at is None:
             return float("inf")
         if self.expires_at.tzinfo is not None:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
         else:
             now = datetime.now()
         return (self.expires_at - now).total_seconds()
@@ -286,7 +286,7 @@ def compute_token_expiry(lifetime_seconds: int = 86400) -> datetime:
     Returns:
         Datetime when the token expires (UTC).
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     try:
         session_end_today = now.replace(hour=0, minute=30, second=0, microsecond=0)
         if now < session_end_today:

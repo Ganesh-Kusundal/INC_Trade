@@ -8,13 +8,13 @@ from __future__ import annotations
 
 import os
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
+from inc_trade.domain.entities import Candle, MarketDepth, Quote
 
 from brokers.adapters.replay.engine import ReplayEngine
-from inc_trade.domain.entities import Candle, MarketDepth, Quote
 
 CSV_CONTENT = """symbol,exchange,timestamp,open,high,low,close,volume
 RELIANCE,NSE,2024-01-02 09:15:00,2500.00,2510.00,2495.00,2505.00,500000
@@ -99,8 +99,8 @@ class TestReplayEngineHistoricalProvider:
     """Tests for HistoricalProvider interface."""
 
     def test_get_historical_candles(self, engine: ReplayEngine):
-        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
-        end = datetime(2024, 1, 31, tzinfo=timezone.utc)
+        start = datetime(2024, 1, 1, tzinfo=UTC)
+        end = datetime(2024, 1, 31, tzinfo=UTC)
         candles = engine.get_historical_candles(
             symbol="RELIANCE",
             exchange="NSE",
@@ -115,8 +115,8 @@ class TestReplayEngineHistoricalProvider:
 
     def test_get_historical_candles_filtered_range(self, engine: ReplayEngine):
         """Only the first candle should be within this narrow range."""
-        start = datetime(2024, 1, 2, 9, 14, tzinfo=timezone.utc)
-        end = datetime(2024, 1, 2, 9, 16, tzinfo=timezone.utc)
+        start = datetime(2024, 1, 2, 9, 14, tzinfo=UTC)
+        end = datetime(2024, 1, 2, 9, 16, tzinfo=UTC)
         candles = engine.get_historical_candles(
             symbol="RELIANCE",
             exchange="NSE",
@@ -128,8 +128,8 @@ class TestReplayEngineHistoricalProvider:
 
     def test_get_historical_candles_empty(self, engine: ReplayEngine):
         """No candles for an unknown symbol."""
-        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
-        end = datetime(2024, 1, 31, tzinfo=timezone.utc)
+        start = datetime(2024, 1, 1, tzinfo=UTC)
+        end = datetime(2024, 1, 31, tzinfo=UTC)
         candles = engine.get_historical_candles(
             symbol="UNKNOWN",
             exchange="NSE",

@@ -348,7 +348,6 @@ class TestAtexitCleanup:
 
     def test_atexit_callback_registered_on_import(self) -> None:
         """Importing the module must register at least one atexit callback."""
-        from inc_trade.infrastructure import websocket_pool
 
         # The module already imported by the test harness has had
         # ``_register_default_cleanup`` called; there must be at least

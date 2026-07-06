@@ -55,7 +55,7 @@ class TestUpstoxGateway:
     def test_news_retrieval(self, mock_streaming_class):
         gw = UpstoxGateway(access_token="test-access-token")
         assert gw.news is not None
-        
+
         # Mock http client get response
         gw._client.get = MagicMock(return_value={"data": [{"id": 1, "title": "News 1"}]})
         res = gw.news.get_news(symbol="RELIANCE")
@@ -71,7 +71,7 @@ class TestUpstoxGateway:
 
         on_depth = MagicMock()
         handle = gw.stream_depth("RELIANCE", "NSE", "DEPTH_30", on_depth)
-        
+
         assert handle is not None
         assert mock_ws.mode == "full_d30"
         assert mock_ws.on_depth == on_depth

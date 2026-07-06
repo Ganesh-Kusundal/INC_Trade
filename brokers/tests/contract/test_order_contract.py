@@ -2,12 +2,8 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
-
 import pytest
-
 from inc_trade.domain import OrderResponse, Side
-from inc_trade.domain.enums import OrderStatus
 from inc_trade.ports.order_execution import OrderExecutionPort
 
 

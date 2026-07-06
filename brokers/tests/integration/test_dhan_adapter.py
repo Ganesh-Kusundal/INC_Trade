@@ -6,12 +6,11 @@ from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import pytest
+from inc_trade.domain import Side
+from inc_trade.infrastructure.totp_cooldown import TOTPCooldown
 
 from brokers.adapters.dhan.gateway import DhanGateway
 from brokers.adapters.dhan.identity import DhanInstrumentRef
-from inc_trade.domain import Side
-from inc_trade.infrastructure.totp_cooldown import TOTPCooldown
-from inc_trade.ports import BrokerGateway
 
 
 @pytest.fixture(autouse=True)
@@ -58,13 +57,6 @@ def _equity_ref(symbol: str = "RELIANCE", security_id: str = "2885") -> DhanInst
 def _patch_resolver(gw: DhanGateway, ref: DhanInstrumentRef | None = None):
     ref = ref or _equity_ref()
     gw._resolver.resolve = MagicMock(return_value=ref)  # type: ignore[method-assign]
-
-
-class TestDhanGatewayProtocol:
-    def test_satisfies_broker_gateway(self):
-        gw = DhanGateway(access_token="test", client_id="test")
-        assert isinstance(gw, BrokerGateway)
-        gw.close()
 
 
 class TestDhanOrders:

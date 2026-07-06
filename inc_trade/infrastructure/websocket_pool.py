@@ -27,11 +27,11 @@ import hashlib
 import json
 import logging
 import threading
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 import websocket
 
-from inc_trade.domain.exceptions import BrokerDegradedError
 from inc_trade.infrastructure.reconnect_strategy import ReconnectStrategy, run_reconnect_loop
 
 logger = logging.getLogger(__name__)
@@ -470,7 +470,7 @@ class WebSocketPoolScope:
     :func:`_register_default_cleanup`, which runs at import time.
     """
 
-    _default_factory: Optional[WebSocketPoolFactory] = None
+    _default_factory: WebSocketPoolFactory | None = None
     _lock = threading.Lock()
 
     @classmethod

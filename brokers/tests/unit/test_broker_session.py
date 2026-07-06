@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-import warnings
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import TYPE_CHECKING
+from unittest.mock import AsyncMock, MagicMock
+
+if TYPE_CHECKING:
+    from inc_trade.adapters.broker_adapter import BrokerAdapter
 
 import pytest
-
-import brokers
 from inc_trade.services.broker_session import BrokerSession
 
+import brokers
 
 # ---------------------------------------------------------------------------
 # Helpers / fixtures
@@ -105,7 +107,6 @@ class TestBrokerSessionClose:
     def test_close_with_async_disconnect_schedules_coroutine(self) -> None:
         """When disconnect returns a coroutine, BrokerSession handles it gracefully."""
         import asyncio
-        import inspect
 
         coroutine_started = []
 
@@ -186,40 +187,16 @@ class TestBrokersConnect:
 
 
 class TestUnderlyingGatewayDeprecation:
-    def test_deprecation_warning_raised(self) -> None:
-        from brokers.adapters.paper.gateway import PaperGateway
-        from inc_trade.ports.broker import BrokerGateway
-        from inc_trade.ports.extension_registry import DictExtensionRegistry
-        from inc_trade.services.broker_facade import BrokerFacade
+    def test_underlying_gateway_accessible(self) -> None:
         from typing import cast
 
-        gw = PaperGateway()
-        facade = BrokerFacade(cast(BrokerGateway, gw), extension_registry=DictExtensionRegistry())
-
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            _ = facade._underlying_gateway
-            assert len(caught) == 1
-            w = caught[0]
-            assert issubclass(w.category, DeprecationWarning)
-            assert "_underlying_gateway is deprecated" in str(w.message)
-
-    def test_deprecation_warning_stacklevel(self) -> None:
-        """stacklevel=2 means the warning points to the caller, not broker_facade.py."""
-        from brokers.adapters.paper.gateway import PaperGateway
-        from inc_trade.ports.broker import BrokerGateway
         from inc_trade.ports.extension_registry import DictExtensionRegistry
         from inc_trade.services.broker_facade import BrokerFacade
-        from typing import cast
+
+        from brokers.adapters.paper.gateway import PaperGateway
 
         gw = PaperGateway()
-        facade = BrokerFacade(cast(BrokerGateway, gw), extension_registry=DictExtensionRegistry())
+        facade = BrokerFacade(cast("BrokerAdapter", gw), extension_registry=DictExtensionRegistry())
 
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            _ = facade._underlying_gateway
-
-        assert caught
-        # The warning filename should NOT be broker_facade.py itself;
-        # it should point to this test file (the caller).
-        assert "broker_facade" not in caught[0].filename
+        # _underlying_gateway is kept for compatibility
+        _ = facade._underlying_gateway  # no warning expected

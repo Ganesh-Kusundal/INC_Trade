@@ -3,20 +3,17 @@
 from __future__ import annotations
 
 import struct
-import threading
-from datetime import datetime, timezone
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
+from inc_trade.domain.lifecycle_health import HealthState, HealthStatus
 
 from brokers.adapters.dhan.depth_feed_base import (
-    BinaryDepthFeed,
     _HEADER_SIZE,
     _LEVEL_SIZE,
+    BinaryDepthFeed,
 )
-from inc_trade.domain.entities import DepthLevel, MarketDepth
-from inc_trade.domain.lifecycle_health import HealthState, HealthStatus
 
 
 def _build_depth_packet(

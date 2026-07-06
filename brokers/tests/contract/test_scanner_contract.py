@@ -11,7 +11,6 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
-
 from inc_trade.domain.entities import Candle, Quote
 from inc_trade.market.scanner.criteria import (
     CrossingMA,

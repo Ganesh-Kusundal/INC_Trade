@@ -143,8 +143,8 @@ class UpstoxRedirectServer:
             await self.start()
         try:
             await asyncio.wait_for(self._received.wait(), timeout=timeout)
-        except asyncio.TimeoutError as exc:
-            raise asyncio.TimeoutError(
+        except TimeoutError as exc:
+            raise TimeoutError(
                 f"Authorization timeout after {timeout:.1f}s"
             ) from exc
         if self._error:

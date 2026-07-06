@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Protocol, runtime_checkable
+from collections.abc import Callable
+from typing import Any, Protocol, runtime_checkable
 
-from inc_trade.domain.entities import MarketDepth, Quote
+from inc_trade.domain.entities import Quote
 
 
 @runtime_checkable

@@ -22,21 +22,21 @@ from __future__ import annotations
 
 from inc_trade.infrastructure.observability.alerting import (
     Alert,
+    AlertingEngine,
     AlertLevel,
     AlertRule,
-    AlertingEngine,
     create_default_alert_rules,
 )
 from inc_trade.infrastructure.observability.audit import (
     ALERTING_RULES,
+    FAILURE_TAXONOMY,
+    METRICS_CATALOG,
     AuditEvent,
     AuditLogger,
     DegradedModeEvent,
-    FAILURE_TAXONOMY,
     ExtensionResolveEvent,
     HistoricalChunkEvent,
     HistoricalMergeConflictEvent,
-    METRICS_CATALOG,
     QuotaEvent,
     RoutingDecisionEvent,
     StreamFailoverEvent,

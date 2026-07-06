@@ -13,8 +13,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-
-from inc_trade.domain.entities import Balance, Order, OrderResponse, Position, Trade
+from inc_trade.domain.entities import Balance, Order, OrderResponse, Position
 from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
 from inc_trade.trading.account import Account, AccountStatus, AccountType
 from inc_trade.trading.account_registry import AccountRegistry
@@ -395,8 +394,9 @@ class TestTradingIntegration:
 
     def test_place_order_through_trading_context(self) -> None:
         """Verify orders can be placed through broker.trading."""
-        import brokers
         from inc_trade.domain.enums import Side
+
+        import brokers
 
         broker = brokers.connect("paper")
         try:
@@ -409,8 +409,9 @@ class TestTradingIntegration:
 
     def test_portfolio_through_trading_context(self) -> None:
         """Verify portfolio access through broker.trading."""
-        import brokers
         from inc_trade.domain import Balance
+
+        import brokers
 
         broker = brokers.connect("paper")
         try:
@@ -423,8 +424,9 @@ class TestTradingIntegration:
 
     def test_legacy_orders_still_work(self) -> None:
         """Verify old broker.orders.place_order() still works."""
-        import brokers
         from inc_trade.domain.enums import Side
+
+        import brokers
 
         broker = brokers.connect("paper")
         try:
@@ -435,8 +437,9 @@ class TestTradingIntegration:
 
     def test_both_paths_coexist(self) -> None:
         """Verify old and new order paths both work simultaneously."""
-        import brokers
         from inc_trade.domain.enums import Side
+
+        import brokers
 
         broker = brokers.connect("paper")
         try:

@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import time
 from decimal import Decimal
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from inc_trade.market.cache_decorator import CachedDecorator
@@ -28,7 +28,6 @@ from inc_trade.market.depth_decorators import (
     Depth20Decorator,
     Depth30Decorator,
     Depth200Decorator,
-    DepthDecorator,
 )
 from inc_trade.market.instrument import Instrument
 from inc_trade.market.log_decorator import LoggedDecorator

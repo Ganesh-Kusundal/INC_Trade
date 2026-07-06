@@ -190,13 +190,12 @@ def test_mcx_required_raises_when_supplement_missing(temp_cache_dir: Path) -> No
     compact_text = _COMPACT_FIXTURE.read_text(encoding="utf-8")
     with patch.object(
         InstrumentLoader, "_download_compact_csv", return_value=compact_text
-    ):
-        with pytest.raises(FileNotFoundError):
-            InstrumentLoader.load_csv_text(
-                force_refresh=True,
-                mcx_required=True,
-                mcx_csv_path=temp_cache_dir / "missing_mcx.csv",
-            )
+    ), pytest.raises(FileNotFoundError):
+        InstrumentLoader.load_csv_text(
+            force_refresh=True,
+            mcx_required=True,
+            mcx_csv_path=temp_cache_dir / "missing_mcx.csv",
+        )
 
 
 def test_mcx_optional_skips_on_failure(temp_cache_dir: Path) -> None:

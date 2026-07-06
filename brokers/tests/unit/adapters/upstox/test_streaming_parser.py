@@ -7,7 +7,6 @@ from unittest.mock import MagicMock, patch
 
 from brokers.adapters.upstox.streaming import UpstoxStreaming, UpstoxV3Decoder
 
-
 PROTO_PATCH = "brokers.adapters.upstox.proto.market_feed_pb2.FeedResponse"
 
 

@@ -5,9 +5,9 @@ from __future__ import annotations
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-from brokers.adapters.dhan.gateway import DhanGateway
 from inc_trade.domain import Side
 
+from brokers.adapters.dhan.gateway import DhanGateway
 
 SAMPLE_CSV = (
     "SEM_TRADING_SYMBOL,SEM_SMST_SECURITY_ID,SEM_EXM_EXCH_ID,SEM_INSTRUMENT_NAME,"

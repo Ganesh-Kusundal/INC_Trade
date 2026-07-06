@@ -34,7 +34,6 @@ from __future__ import annotations
 import logging
 import threading
 from decimal import Decimal
-from typing import Any
 
 from inc_trade.domain.entities import Order, OrderResponse
 from inc_trade.domain.enums import OrderType, ProductType, Side, Validity

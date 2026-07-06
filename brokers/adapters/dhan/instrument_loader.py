@@ -19,7 +19,6 @@ from datetime import date, datetime
 from pathlib import Path
 
 import requests
-
 from inc_trade.config.endpoints import Dhan
 
 logger = logging.getLogger(__name__)

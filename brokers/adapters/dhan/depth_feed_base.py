@@ -13,21 +13,19 @@ import json
 import logging
 import struct
 import threading
-import time
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from brokers.adapters.dhan.connection_admission import (
-    ConnectionAdmission,
-    NoopAdmission,
-)
-from brokers.adapters.dhan.reconnecting_service import ReconnectingServiceMixin
-from inc_trade.config.endpoints import Dhan
 from inc_trade.domain import DepthLevel, MarketDepth
 from inc_trade.domain.lifecycle_health import HealthState, HealthStatus
 from inc_trade.infrastructure.lifecycle import ManagedService
+
+from brokers.adapters.dhan.connection_admission import (
+    ConnectionAdmission,
+)
+from brokers.adapters.dhan.reconnecting_service import ReconnectingServiceMixin
 
 logger = logging.getLogger(__name__)
 
@@ -219,7 +217,7 @@ class BinaryDepthFeed(ReconnectingServiceMixin, ManagedService):
             is_connected = self._is_connected
             reconnect_count = self._reconnect_count
             last_message_age = (
-                (datetime.now(timezone.utc) - self._last_message_at).total_seconds()
+                (datetime.now(UTC) - self._last_message_at).total_seconds()
                 if self._last_message_at is not None
                 else None
             )
@@ -237,7 +235,7 @@ class BinaryDepthFeed(ReconnectingServiceMixin, ManagedService):
         return HealthStatus(
             state=state,
             service=self.name,
-            last_check=datetime.now(timezone.utc),
+            last_check=datetime.now(UTC),
             detail=detail,
             metrics={
                 "reconnect_count": reconnect_count,
@@ -331,7 +329,7 @@ class BinaryDepthFeed(ReconnectingServiceMixin, ManagedService):
                                 self._process_binary_message(message)
                             backoff = 1.0
 
-                        except asyncio.TimeoutError:
+                        except TimeoutError:
                             continue
 
                         except websockets.ConnectionClosed:
@@ -499,7 +497,7 @@ class BinaryDepthFeed(ReconnectingServiceMixin, ManagedService):
                 symbol=symbol,
                 bids=list(entry["bids"]),
                 asks=list(entry["asks"]),
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
         callbacks = self._snapshot_callbacks(self._depth_callbacks)

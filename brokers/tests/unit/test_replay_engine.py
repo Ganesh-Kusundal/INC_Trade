@@ -8,11 +8,11 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
+from inc_trade.domain.entities import Candle, Quote
 
 from brokers.adapters.replay.engine import ReplayEngine
 from brokers.adapters.replay.sources import CsvSource
 from brokers.adapters.replay.tick_source import TickSource
-from inc_trade.domain.entities import Candle, Quote
 
 
 def _write_sample_csv(path: str) -> None:

@@ -6,7 +6,6 @@ import threading
 from unittest.mock import MagicMock
 
 import pytest
-
 from inc_trade.market.subscription_manager import SubscriptionManager, SubscriptionState
 
 

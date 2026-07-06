@@ -6,7 +6,6 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
-
 from inc_trade.domain.entities import Candle, OptionLeg, Trade
 from inc_trade.domain.enums import Side
 from inc_trade.market.analytics.atr import ATRCalculator

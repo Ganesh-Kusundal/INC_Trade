@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 import time
+from datetime import UTC
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from inc_trade.infrastructure.storage.token_store import JsonTokenStateStore
 
 from brokers.adapters.upstox.auth.config import UpstoxConnectionSettings
-from inc_trade.infrastructure.storage.token_store import JsonTokenStateStore
 from brokers.adapters.upstox.auth.token_manager import UpstoxTokenManager
 
 
@@ -33,9 +34,9 @@ def test_initial_holder_is_static():
 
 def test_bootstrap_loads_persisted_state(tmp_path):
     path = tmp_path / "upstox-token.json"
-    from datetime import datetime, timedelta, timezone
-    future_exp = datetime.now(timezone.utc) + timedelta(hours=1)
-    now = datetime.now(timezone.utc)
+    from datetime import datetime, timedelta
+    future_exp = datetime.now(UTC) + timedelta(hours=1)
+    now = datetime.now(UTC)
     path.write_text(
         json.dumps(
             {

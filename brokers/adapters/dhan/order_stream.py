@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Callable, Any
+from collections.abc import Callable
+from typing import Any
+
+from inc_trade.domain.entities import Order
 
 from brokers.adapters.base_streaming import BaseWebSocketStreaming
-from inc_trade.domain.entities import Order
 
 logger = logging.getLogger(__name__)
 

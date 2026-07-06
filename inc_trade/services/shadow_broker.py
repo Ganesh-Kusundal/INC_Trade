@@ -149,7 +149,7 @@ class ShadowBroker:
 
         try:
             shadow_result = shadow_method(*args, **kwargs)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning(
                 "ShadowBroker: shadow raised exception on '%s': %s: %s",
                 method_name,

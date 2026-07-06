@@ -8,7 +8,6 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-
 from inc_trade.market.instrument import Instrument
 from inc_trade.market.quote_state import QuoteState
 
@@ -34,7 +33,7 @@ def context() -> Any:
 
 def _attach(inst: Instrument, ctx: Any) -> Instrument:
     """Attach a market data context to a frozen Instrument."""
-    object.__setattr__(inst, "_delegate_context", ctx)
+    object.__setattr__(inst, "_context", ctx)
     return inst
 
 

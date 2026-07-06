@@ -15,7 +15,6 @@ from dataclasses import FrozenInstanceError
 from decimal import Decimal
 
 import pytest
-
 from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
 from inc_trade.domain.events import EVENT_ORDER_STATE_CHANGE, OrderStateChangeEvent
 from inc_trade.trading.audit import OrderStateChange, OrderStateHistory

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def parse_jwt_expiry(token: str | None) -> datetime | None:
@@ -30,7 +30,7 @@ def is_expired(token: str | None, clock_skew_ms: int = 0) -> bool:
     exp_ms = _parse_expiry_epoch_ms(token)
     if exp_ms < 0:
         return True
-    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    now_ms = int(datetime.now(UTC).timestamp() * 1000)
     return now_ms >= (exp_ms - clock_skew_ms)
 
 
@@ -39,7 +39,7 @@ def seconds_until_expiry(token: str | None, clock_skew_s: int = 30) -> int:
     exp_ms = _parse_expiry_epoch_ms(token)
     if exp_ms < 0:
         return 0
-    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    now_ms = int(datetime.now(UTC).timestamp() * 1000)
     remaining_ms = exp_ms - now_ms
     remaining_s = max(0, remaining_ms // 1000 - clock_skew_s)
     return remaining_s

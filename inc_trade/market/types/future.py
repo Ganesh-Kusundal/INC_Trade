@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from decimal import Decimal
 
 from inc_trade.market.instrument import Instrument
 
 
+@dataclass(frozen=True)
 class Future(Instrument):
-    """Futures instrument with expiry management."""
+    """Futures instrument with expiry management.
+
+    .. note::
+        ``underlying`` and ``contract_size`` are proper dataclass fields
+        (not class-level annotations). They participate in ``__init__``,
+        ``__eq__``, and ``__hash__`` alongside the base Instrument fields.
+    """
 
     underlying: str = ""
     contract_size: int = 1

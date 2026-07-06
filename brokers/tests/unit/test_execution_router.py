@@ -5,11 +5,9 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-
 from inc_trade.domain.entities import Order, OrderResponse
 from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
 from inc_trade.domain.exceptions import BrokerError
-from inc_trade.ports.order_execution import OrderExecutionPort
 from inc_trade.trading.execution_router import ExecutionRouter
 
 

@@ -1,10 +1,19 @@
-"""Upstox gateway — composes all Upstox adapters into BrokerGateway."""
+"""Upstox gateway — composes all Upstox adapters into a single interface."""
 
 from __future__ import annotations
 
 import logging
 from dataclasses import replace
 from typing import Any
+
+from inc_trade.domain.capabilities import BrokerCapabilities
+from inc_trade.domain.enums import BrokerID
+from inc_trade.ports.capabilities import (
+    GTTProvider,
+    NewsProvider,
+)
+from inc_trade.ports.extension_registry import ExtensionRegistryPort
+from inc_trade.ports.streaming import StreamingPort
 
 from brokers.adapters.base_streaming import StreamHandle
 from brokers.adapters.upstox.auth import UpstoxAuth
@@ -28,20 +37,12 @@ from brokers.adapters.upstox.portfolio import UpstoxPortfolio
 from brokers.adapters.upstox.portfolio_stream import UpstoxPortfolioStream
 from brokers.adapters.upstox.streaming import UpstoxStreaming
 from brokers.adapters.upstox.urls import resolve_upstox_urls
-from inc_trade.domain.capabilities import BrokerCapabilities
-from inc_trade.domain.enums import BrokerID
-from inc_trade.ports.capabilities import (
-    GTTProvider,
-    NewsProvider,
-)
-from inc_trade.ports.extension_registry import ExtensionRegistry, ExtensionRegistryPort
-from inc_trade.ports.streaming import StreamingPort
 
 logger = logging.getLogger(__name__)
 
 
 class UpstoxGateway:
-    """Upstox broker adapter implementing BrokerGateway protocol."""
+    """Upstox broker adapter — composes all Upstox sub-adapters."""
 
     _broker_id: BrokerID = BrokerID.UPSTOX
 
@@ -215,9 +216,10 @@ class UpstoxGateway:
 
             self._extension_registry = DictExtensionRegistry()
             from typing import cast
+
             # Register extensions
-            self._extension_registry.register("upstox", cast(type, NewsProvider), self._news)
-            self._extension_registry.register("upstox", cast(type, GTTProvider), self._gtt)
+            self._extension_registry.register("upstox", cast("type", NewsProvider), self._news)
+            self._extension_registry.register("upstox", cast("type", GTTProvider), self._gtt)
         return self._extension_registry
 
     @property

@@ -2,8 +2,9 @@ from datetime import datetime
 from decimal import Decimal
 from unittest.mock import Mock
 
-from brokers.adapters.dhan.historical import DhanHistorical
 from inc_trade.domain.entities import Candle
+
+from brokers.adapters.dhan.historical import DhanHistorical
 
 
 def test_dhan_get_historical_candles():

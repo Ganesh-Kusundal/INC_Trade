@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from inc_trade.domain.enums import OrderStatus
 from inc_trade.domain.order_lifecycle import (
     ORDER_STATUS_TRANSITIONS,

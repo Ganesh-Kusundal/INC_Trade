@@ -3,23 +3,18 @@
 import os
 
 import pytest
-
+from inc_trade.config.defaults import DEFAULT_CONFIG, get_config, reset_config
+from inc_trade.config.profiles import load_profile
+from inc_trade.config.profiles.dev import DevProfile
+from inc_trade.config.profiles.prod import ProdProfile
+from inc_trade.config.profiles.staging import StagingProfile
 from inc_trade.config.schema import (
-    ApiConfig,
     AppConfig,
-    DhanConfig,
-    TradingConfig,
-    UpstoxConfig,
     load_api_config,
     load_dhan_config,
     load_trading_config,
     load_upstox_config,
 )
-from inc_trade.config.defaults import DEFAULT_CONFIG, get_config, reset_config
-from inc_trade.config.profiles import load_profile
-from inc_trade.config.profiles.dev import DevProfile
-from inc_trade.config.profiles.staging import StagingProfile
-from inc_trade.config.profiles.prod import ProdProfile
 
 
 class TestAppConfig:

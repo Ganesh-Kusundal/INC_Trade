@@ -9,8 +9,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from inc_trade.ports.broker import BrokerGateway
-from inc_trade.ports.capabilities import Capabilities
 from inc_trade.services.broker_router import BrokerRouter
 
 logger = logging.getLogger(__name__)
@@ -44,12 +42,7 @@ class CapabilityDiscovery:
         try:
             caps = gateway.capabilities() if (gateway := self._router.route(broker_id)) else None
             if caps is not None:
-                # BrokerCapabilities uses supports() method
-                if hasattr(caps, "supports"):
-                    return caps.supports(feature)
-                # Fallback for old Capabilities protocol
-                if hasattr(caps, "has_feature"):
-                    return caps.has_feature(feature)
+                return caps.supports(feature)
             return False
         except ValueError:
             return False

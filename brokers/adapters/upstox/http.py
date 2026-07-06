@@ -14,21 +14,20 @@ from collections.abc import Callable
 from typing import Any
 
 import requests
-
-from brokers.adapters.upstox.config import (
-    RATE_LIMITS,
-    READ_PREFIXES,
-    WRITE_PREFIXES,
-)
 from inc_trade.domain.constants.timeouts import DEFAULT_HTTP_TIMEOUT_SECONDS
 from inc_trade.domain.exceptions import (
-    AuthenticationError,
     BrokerError,
     BrokerServerError,
     RateLimitError,
 )
 from inc_trade.infrastructure.http.resilient_client import ResilientHttpClient, TokenRefreshSignal
 from inc_trade.infrastructure.ssl_hardening import create_pinned_session
+
+from brokers.adapters.upstox.config import (
+    RATE_LIMITS,
+    READ_PREFIXES,
+    WRITE_PREFIXES,
+)
 
 logger = logging.getLogger(__name__)
 

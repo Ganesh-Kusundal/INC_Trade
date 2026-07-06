@@ -5,7 +5,6 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-
 from inc_trade.domain.entities import MarketDepth, Quote
 from inc_trade.infrastructure.cache.memory_cache import MemoryCache
 from inc_trade.market.market_router import MarketRouter

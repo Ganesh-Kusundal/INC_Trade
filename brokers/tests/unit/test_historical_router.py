@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Any
-
-import pytest
+from datetime import UTC, datetime, timedelta
 
 from inc_trade.domain.cache_policy import (
-    POLICY_HISTORICAL_INTRADAY,
     CachePolicy,
     policy_for_resolution,
 )
@@ -110,8 +106,8 @@ class TestHistoricalRouterBasic:
     def setup_method(self) -> None:
         self.cache = MemoryCache()
         self.router = HistoricalRouter(cache=self.cache)
-        self.t0 = datetime(2024, 1, 1, tzinfo=timezone.utc)
-        self.t1 = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        self.t0 = datetime(2024, 1, 1, tzinfo=UTC)
+        self.t1 = datetime(2024, 1, 2, tzinfo=UTC)
         self.candles = [
             _make_candle("RELIANCE", self.t0),
             _make_candle("RELIANCE", self.t1),
@@ -150,8 +146,8 @@ class TestHistoricalRouterProviderFallback:
     def setup_method(self) -> None:
         self.cache = MemoryCache()
         self.router = HistoricalRouter(cache=self.cache)
-        self.t0 = datetime(2024, 1, 1, tzinfo=timezone.utc)
-        self.t1 = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        self.t0 = datetime(2024, 1, 1, tzinfo=UTC)
+        self.t1 = datetime(2024, 1, 2, tzinfo=UTC)
 
     def test_fallback_to_secondary(self) -> None:
         """Primary fails → secondary provider serves data."""
@@ -205,7 +201,7 @@ class TestHistoricalRouterCacheKey:
     def setup_method(self) -> None:
         self.cache = MemoryCache()
         self.router = HistoricalRouter(cache=self.cache)
-        self.t0 = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        self.t0 = datetime(2024, 1, 1, tzinfo=UTC)
 
     def test_different_symbols_different_cache(self) -> None:
         """Different symbols don't share cache entries."""
@@ -266,8 +262,8 @@ class TestHistoricalRouterBatch:
     def setup_method(self) -> None:
         self.cache = MemoryCache()
         self.router = HistoricalRouter(cache=self.cache)
-        self.t0 = datetime(2024, 1, 1, tzinfo=timezone.utc)
-        self.t1 = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        self.t0 = datetime(2024, 1, 1, tzinfo=UTC)
+        self.t1 = datetime(2024, 1, 2, tzinfo=UTC)
         candles = [_make_candle("RELIANCE", self.t0)]
         self.router.add_provider(_FakeProvider("test", candles))
 
@@ -301,7 +297,7 @@ class TestHistoricalRouterMerge:
     """Candle merging and deduplication."""
 
     def test_merge_deduplicates_by_timestamp(self) -> None:
-        t = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        t = datetime(2024, 1, 1, tzinfo=UTC)
         existing = [_make_candle("R", t, close=100.0)]
         new_candles = [_make_candle("R", t, close=200.0)]  # Same timestamp
         merged = HistoricalRouter._merge_candles(existing, new_candles)
@@ -309,16 +305,16 @@ class TestHistoricalRouterMerge:
         assert merged[0].close == 200  # New overwrites
 
     def test_merge_combines_different_timestamps(self) -> None:
-        t1 = datetime(2024, 1, 1, tzinfo=timezone.utc)
-        t2 = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        t1 = datetime(2024, 1, 1, tzinfo=UTC)
+        t2 = datetime(2024, 1, 2, tzinfo=UTC)
         existing = [_make_candle("R", t1)]
         new_candles = [_make_candle("R", t2)]
         merged = HistoricalRouter._merge_candles(existing, new_candles)
         assert len(merged) == 2
 
     def test_merge_sorts_by_timestamp(self) -> None:
-        t1 = datetime(2024, 1, 2, tzinfo=timezone.utc)
-        t2 = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        t1 = datetime(2024, 1, 2, tzinfo=UTC)
+        t2 = datetime(2024, 1, 1, tzinfo=UTC)
         existing = [_make_candle("R", t1)]
         new_candles = [_make_candle("R", t2)]
         merged = HistoricalRouter._merge_candles(existing, new_candles)

@@ -1,10 +1,14 @@
 """Upstox HTTP client factory and response mapping."""
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
+
 import requests
+from inc_trade.domain.exceptions import BrokerError, BrokerServerError, RateLimitError
 from inc_trade.infrastructure.http.resilient_client import ResilientHttpClient, TokenRefreshSignal
+
 from brokers.adapters.upstox.config import RATE_LIMITS, READ_PREFIXES, WRITE_PREFIXES
-from inc_trade.domain.exceptions import AuthenticationError, RateLimitError, BrokerServerError, BrokerError
+
 
 def _upstox_categorize(endpoint: str) -> str:
     for prefix in READ_PREFIXES:
@@ -49,14 +53,14 @@ def create_upstox_http_client(
 ) -> ResilientHttpClient:
     base_v2 = base_url_v2 or "https://api.upstox.com"
     base_hft = base_url_hft or "https://api-hft.upstox.com"
-    
+
     def _build_url(endpoint: str) -> str:
         if endpoint.startswith("http"):
             return endpoint
         if "/v3/" in endpoint:
             return f"{base_hft}{endpoint}"
         return f"{base_v2}{endpoint}"
-        
+
     client = ResilientHttpClient(
         rate_limits=RATE_LIMITS,
         categorize_fn=_upstox_categorize,

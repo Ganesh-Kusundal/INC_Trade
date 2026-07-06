@@ -2,16 +2,15 @@
 
 import asyncio
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
-from inc_trade.core.di import CircularDependencyError, Container, Scope, ServiceNotFoundError
+from inc_trade.core.di import Container, Scope, ServiceNotFoundError
 from inc_trade.core.di_scopes import ScopeManager
 from inc_trade.domain.lifecycle_health import HealthState, HealthStatus
 from inc_trade.infrastructure.bootstrap import Bootstrap, BootstrapError, BootstrapResult
 from inc_trade.infrastructure.jwt_expiry import parse_jwt_expiry
-from inc_trade.infrastructure.lifecycle import LifecycleManager, ManagedService
+from inc_trade.infrastructure.lifecycle import LifecycleManager
 from inc_trade.infrastructure.registry import (
     BrokerHealthSnapshot,
     BrokerRegistry,
@@ -111,12 +110,12 @@ class _FakeService:
             return HealthStatus(
                 state=HealthState.HEALTHY,
                 service=self.name,
-                last_check=datetime.now(timezone.utc),
+                last_check=datetime.now(UTC),
             )
         return HealthStatus(
             state=HealthState.STOPPED,
             service=self.name,
-            last_check=datetime.now(timezone.utc),
+            last_check=datetime.now(UTC),
         )
 
 

@@ -6,7 +6,6 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
-
 from inc_trade.domain.entities import Quote
 from inc_trade.market.streaming_router import StreamingBackend, StreamingRouter
 

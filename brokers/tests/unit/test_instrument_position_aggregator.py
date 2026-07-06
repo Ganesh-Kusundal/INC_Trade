@@ -5,7 +5,6 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-
 from inc_trade.domain.entities import AggregatedExposure, Position
 from inc_trade.market import AggregatedExposure as MarketAggregatedExposure
 from inc_trade.market import Instrument

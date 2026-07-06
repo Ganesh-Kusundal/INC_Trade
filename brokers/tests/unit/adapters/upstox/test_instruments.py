@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
+
+from inc_trade.domain.entities import InstrumentInfo
 
 from brokers.adapters.upstox.instrument_definition import UpstoxInstrumentDefinition
 from brokers.adapters.upstox.instruments import UpstoxInstruments
-from inc_trade.domain.entities import InstrumentInfo
 
 
 def _make_def(**overrides) -> UpstoxInstrumentDefinition:

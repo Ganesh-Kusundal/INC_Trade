@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
-
-from brokers.adapters.dhan.auth import DhanAuth
 from inc_trade.domain.exceptions import TokenRateLimitError
 from inc_trade.infrastructure.storage.token_store import TokenSource, TokenState
 from inc_trade.resilience.token_scheduler import TokenRefreshScheduler
+
+from brokers.adapters.dhan.auth import DhanAuth
 
 
 class TestTokenRefreshScheduler:
@@ -20,15 +20,15 @@ class TestTokenRefreshScheduler:
             auth.state = TokenState(
                 access_token="test-token",
                 source=TokenSource.TOTP,
-                issued_at=datetime.now(timezone.utc),
-                expires_at=datetime.now(timezone.utc) + timedelta(hours=2),
+                issued_at=datetime.now(UTC),
+                expires_at=datetime.now(UTC) + timedelta(hours=2),
             )
         else:
             auth.state = TokenState(
                 access_token="test-token",
                 source=TokenSource.TOTP,
-                issued_at=datetime.now(timezone.utc),
-                expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+                issued_at=datetime.now(UTC),
+                expires_at=datetime.now(UTC) - timedelta(hours=1),
             )
         auth.generate_token.return_value = "new-token"
         return auth

@@ -12,10 +12,11 @@ from __future__ import annotations
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
-from brokers.adapters.dhan.identity import DhanInstrumentRef
-from brokers.adapters.dhan.use_cases.place_order import PlaceOrderUseCase
 from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
 from inc_trade.domain.validators.order_validator import validate_order
+
+from brokers.adapters.dhan.identity import DhanInstrumentRef
+from brokers.adapters.dhan.use_cases.place_order import PlaceOrderUseCase
 
 _DERIVATIVE_SEGMENTS = frozenset({"NSE_FNO", "NSE_MCX", "BSE_FNO"})
 _EQUITY_ONLY_PRODUCTS = frozenset({"CNC"})

@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from inc_trade.resilience.backoff_policy import BackoffPolicy
@@ -42,7 +43,7 @@ class ReconnectStrategy:
         max_delay: float = 60.0,
         max_retries: int = 10,
         retry_logger: Callable[[str], None] | None = None,
-        policy: "BackoffPolicy | None" = None,
+        policy: BackoffPolicy | None = None,
     ) -> None:
         self._base_delay = base_delay
         self._max_delay = max_delay
@@ -108,7 +109,7 @@ def run_reconnect_loop(
     base_delay: float = 5.0,
     max_delay: float = 60.0,
     max_retries: int = 10,
-    policy: "BackoffPolicy | None" = None,
+    policy: BackoffPolicy | None = None,
 ) -> None:
     """Run a reconnect loop using ``ReconnectStrategy``.
 

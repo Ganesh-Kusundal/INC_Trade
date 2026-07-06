@@ -10,10 +10,7 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
-
-from brokers.adapters.paper.gateway import PaperGateway
-from inc_trade.domain.entities import Order, OrderResponse
-from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
+from inc_trade.domain.enums import OrderStatus, OrderType, Side
 from inc_trade.domain.events import (
     OrderCancelledEvent,
     OrderModifiedEvent,
@@ -23,6 +20,8 @@ from inc_trade.domain.events import (
 from inc_trade.trading.execution_router import ExecutionRouter
 from inc_trade.trading.oms import OrderManagementSystem
 from inc_trade.trading.order_repository import OrderRepository
+
+from brokers.adapters.paper.gateway import PaperGateway
 
 
 class _RecordingEventBus:

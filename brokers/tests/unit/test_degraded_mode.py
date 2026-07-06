@@ -5,7 +5,6 @@ from __future__ import annotations
 import time
 
 import pytest
-
 from inc_trade.market.degraded_mode import DegradedGuard, DegradedMode
 
 

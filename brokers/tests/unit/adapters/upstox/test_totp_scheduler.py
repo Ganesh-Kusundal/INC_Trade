@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from brokers.adapters.upstox.auth.totp_scheduler import TotpRefreshScheduler
 from inc_trade.infrastructure.lifecycle import HealthState
+
+from brokers.adapters.upstox.auth.totp_scheduler import TotpRefreshScheduler
 
 
 class TestTotpRefreshSchedulerLifecycle:
