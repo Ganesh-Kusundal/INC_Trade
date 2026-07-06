@@ -1,202 +1,222 @@
-"""Unit tests for BrokerSession, brokers.connect(), and _underlying_gateway deprecation."""
+"""Tests for BrokerSession — the single entry point for broker connections."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, MagicMock
-
-if TYPE_CHECKING:
-    from inc_trade.adapters.broker_adapter import BrokerAdapter
+from datetime import datetime
+from decimal import Decimal
+from unittest.mock import MagicMock
 
 import pytest
-from inc_trade.services.broker_session import BrokerSession
-
-import brokers
-
-# ---------------------------------------------------------------------------
-# Helpers / fixtures
-# ---------------------------------------------------------------------------
+from inc_trade.market.session import BrokerSession
 
 
-def _make_ports() -> dict:
-    """Return a dict of mock port objects."""
-    streaming = MagicMock()
-    streaming.disconnect = AsyncMock()
-    return {
-        "orders": MagicMock(name="orders_port"),
-        "market": MagicMock(name="market_data_port"),
-        "streaming": streaming,
-        "auth": MagicMock(name="auth_port"),
-        "portfolio": MagicMock(name="portfolio_port"),
-        "historical": MagicMock(name="historical_port"),
-    }
+@pytest.fixture
+def mock_adapter() -> MagicMock:
+    """Create a mock broker adapter."""
+    adapter = MagicMock()
+    adapter.broker_id = "mock"
+    adapter.is_connected = False
+    adapter.connect = MagicMock()
+    adapter.disconnect = MagicMock()
+    adapter.quote.return_value = {"symbol": "RELIANCE", "ltp": 2850.50}
+    adapter.ltp.return_value = Decimal("2850.50")
+    adapter.depth.return_value = {"bids": [], "asks": []}
+    adapter.place_order.return_value = {"order_id": "12345", "status": "PENDING"}
+    return adapter
 
 
-@pytest.fixture()
-def ports() -> dict:
-    return _make_ports()
+class TestBrokerSession:
+    """Tests for BrokerSession lifecycle and instrument access."""
 
+    def test_create_session(self, mock_adapter: MagicMock) -> None:
+        session = BrokerSession(mock_adapter)
+        assert session.adapter is mock_adapter
+        assert not session.is_connected
 
-@pytest.fixture()
-def session(ports: dict) -> BrokerSession:
-    return BrokerSession(broker_id="test_broker", **ports)
-
-
-# ---------------------------------------------------------------------------
-# 1. BrokerSession construction
-# ---------------------------------------------------------------------------
-
-
-class TestBrokerSessionConstruction:
-    def test_constructs_with_all_ports(self, ports: dict) -> None:
-        sess = BrokerSession(broker_id="dhan", **ports)
-        assert isinstance(sess, BrokerSession)
-
-    def test_broker_id_stored(self, session: BrokerSession) -> None:
-        assert session.broker_id == "test_broker"
-
-    def test_repr_contains_broker_id(self, session: BrokerSession) -> None:
-        assert "test_broker" in repr(session)
-        assert repr(session) == "BrokerSession(broker_id='test_broker')"
-
-
-# ---------------------------------------------------------------------------
-# 2. Property accessors
-# ---------------------------------------------------------------------------
-
-
-class TestBrokerSessionProperties:
-    def test_orders_property(self, session: BrokerSession, ports: dict) -> None:
-        assert session.orders is ports["orders"]
-
-    def test_market_property(self, session: BrokerSession, ports: dict) -> None:
-        assert session.market is ports["market"]
-
-    def test_streaming_property(self, session: BrokerSession, ports: dict) -> None:
-        assert session.streaming is ports["streaming"]
-
-    def test_auth_property(self, session: BrokerSession, ports: dict) -> None:
-        assert session.auth is ports["auth"]
-
-    def test_portfolio_property(self, session: BrokerSession, ports: dict) -> None:
-        assert session.portfolio is ports["portfolio"]
-
-    def test_historical_property(self, session: BrokerSession, ports: dict) -> None:
-        assert session.historical is ports["historical"]
-
-
-# ---------------------------------------------------------------------------
-# 3. close() behaviour
-# ---------------------------------------------------------------------------
-
-
-class TestBrokerSessionClose:
-    def test_close_calls_streaming_disconnect_sync(self) -> None:
-        """When disconnect is a plain callable (non-async), it is called."""
-        streaming = MagicMock()
-        streaming.disconnect = MagicMock(return_value=None)  # sync mock
-
-        ports = _make_ports()
-        ports["streaming"] = streaming
-
-        sess = BrokerSession(broker_id="paper", **ports)
-        sess.close()
-
-        streaming.disconnect.assert_called_once()
-
-    def test_close_with_async_disconnect_schedules_coroutine(self) -> None:
-        """When disconnect returns a coroutine, BrokerSession handles it gracefully."""
+    def test_connect_disconnect(self, mock_adapter: MagicMock) -> None:
         import asyncio
 
-        coroutine_started = []
+        session = BrokerSession(mock_adapter)
+        asyncio.run(session.connect())
+        mock_adapter.connect.assert_called_once()
+        asyncio.run(session.disconnect())
+        mock_adapter.disconnect.assert_called_once()
 
-        async def _fake_disconnect() -> None:
-            coroutine_started.append(True)
+    def test_connect_is_coroutine(self, mock_adapter: MagicMock) -> None:
+        """Session connect/disconnect should be awaitable."""
+        import inspect
 
-        streaming = MagicMock()
-        streaming.disconnect = _fake_disconnect  # async def, returns a coroutine
+        session = BrokerSession(mock_adapter)
+        assert inspect.iscoroutinefunction(session.connect)
+        assert inspect.iscoroutinefunction(session.disconnect)
 
-        ports = _make_ports()
-        ports["streaming"] = streaming
+    def test_equity_returns_instrument(self, mock_adapter: MagicMock) -> None:
+        session = BrokerSession(mock_adapter)
+        inst = session.equity("RELIANCE", "NSE")
+        assert inst.symbol == "RELIANCE"
+        assert inst.exchange == "NSE"
+        assert inst.is_equity()
 
-        sess = BrokerSession(broker_id="paper", **ports)
+    def test_equity_identity_guarantee(self, mock_adapter: MagicMock) -> None:
+        session = BrokerSession(mock_adapter)
+        inst1 = session.equity("RELIANCE", "NSE")
+        inst2 = session.equity("RELIANCE", "NSE")
+        assert inst1 is inst2  # Same object (identity guarantee)
 
-        # Run close() inside an event loop so create_task can work.
-        async def _runner() -> None:
-            sess.close()
-            await asyncio.sleep(0)  # yield to let created task run
+    def test_future_returns_instrument(self, mock_adapter: MagicMock) -> None:
+        session = BrokerSession(mock_adapter)
+        expiry = datetime(2025, 6, 26)
+        inst = session.future("NIFTY", expiry)
+        assert inst.symbol == "NIFTY"
+        assert inst.exchange == "NFO"
+        assert inst.expiry == expiry
+        assert inst.is_future()
 
-        asyncio.run(_runner())
-        assert coroutine_started, "async disconnect was never awaited"
+    def test_future_identity_guarantee(self, mock_adapter: MagicMock) -> None:
+        session = BrokerSession(mock_adapter)
+        expiry = datetime(2025, 6, 26)
+        inst1 = session.future("NIFTY", expiry)
+        inst2 = session.future("NIFTY", expiry)
+        assert inst1 is inst2
 
-    def test_close_handles_missing_disconnect(self) -> None:
-        """If streaming port has no disconnect attribute, close() doesn't raise."""
-        streaming = MagicMock(spec=[])  # spec with NO attributes
+    def test_option_returns_instrument(self, mock_adapter: MagicMock) -> None:
+        session = BrokerSession(mock_adapter)
+        expiry = datetime(2025, 6, 26)
+        inst = session.option("NIFTY", expiry, Decimal("25000"), "CE")
+        assert inst.symbol == "NIFTY"
+        assert inst.exchange == "NFO"
+        assert inst.strike == Decimal("25000")
+        assert inst.option_type == "CE"
+        assert inst.is_option()
 
-        ports = _make_ports()
-        ports["streaming"] = streaming
+    def test_option_identity_guarantee(self, mock_adapter: MagicMock) -> None:
+        session = BrokerSession(mock_adapter)
+        expiry = datetime(2025, 6, 26)
+        inst1 = session.option("NIFTY", expiry, Decimal("25000"), "CE")
+        inst2 = session.option("NIFTY", expiry, Decimal("25000"), "CE")
+        assert inst1 is inst2
 
-        sess = BrokerSession(broker_id="paper", **ports)
-        sess.close()  # must not raise
+    def test_different_options_different_identity(self, mock_adapter: MagicMock) -> None:
+        session = BrokerSession(mock_adapter)
+        expiry = datetime(2025, 6, 26)
+        ce = session.option("NIFTY", expiry, Decimal("25000"), "CE")
+        pe = session.option("NIFTY", expiry, Decimal("25000"), "PE")
+        assert ce is not pe  # Different option_type → different identity
 
-    def test_close_handles_none_streaming(self) -> None:
-        """If streaming is None (hypothetical), close() doesn't raise."""
-        ports = _make_ports()
-        sess = BrokerSession(broker_id="paper", **ports)
-        sess._streaming = None  # type: ignore[assignment]
-        sess.close()  # must not raise
+    def test_query_returns_market_data_query(self, mock_adapter: MagicMock) -> None:
+        session = BrokerSession(mock_adapter)
+        inst = session.equity("RELIANCE")
+        query = session.query(inst)
+        assert query.instrument is inst
 
+    def test_query_delegates_quote_to_adapter(self, mock_adapter: MagicMock) -> None:
+        session = BrokerSession(mock_adapter)
+        inst = session.equity("RELIANCE")
+        query = session.query(inst)
+        result = query.quote()
+        mock_adapter.quote.assert_called_once_with("RELIANCE", "NSE")
+        assert result == {"symbol": "RELIANCE", "ltp": 2850.50}
 
-# ---------------------------------------------------------------------------
-# 4. brokers.connect() public API
-# ---------------------------------------------------------------------------
+    def test_query_ltp(self, mock_adapter: MagicMock) -> None:
+        session = BrokerSession(mock_adapter)
+        inst = session.equity("RELIANCE")
+        query = session.query(inst)
+        result = query.ltp()
+        assert result == Decimal("2850.50")
 
+    def test_command_returns_order_command(self, mock_adapter: MagicMock) -> None:
+        session = BrokerSession(mock_adapter)
+        inst = session.equity("RELIANCE")
+        cmd = session.command(inst)
+        assert cmd.instrument is inst
 
-class TestBrokersConnect:
-    def test_connect_is_importable(self) -> None:
-        assert callable(brokers.connect)
+    def test_command_buy(self, mock_adapter: MagicMock) -> None:
+        session = BrokerSession(mock_adapter)
+        inst = session.equity("RELIANCE")
+        cmd = session.command(inst)
+        result = cmd.buy(quantity=10)
+        mock_adapter.place_order.assert_called_once()
+        assert result == {"order_id": "12345", "status": "PENDING"}
 
-    def test_connect_paper_returns_broker_session(self) -> None:
-        session = brokers.connect("paper")
-        assert isinstance(session, BrokerSession)
-        assert session.broker_id == "paper"
+    def test_command_sell(self, mock_adapter: MagicMock) -> None:
+        session = BrokerSession(mock_adapter)
+        inst = session.equity("RELIANCE")
+        cmd = session.command(inst)
+        result = cmd.sell(quantity=5)
+        mock_adapter.place_order.assert_called_once()
+        assert result == {"order_id": "12345", "status": "PENDING"}
 
-    def test_connect_paper_wires_all_ports(self) -> None:
-        session = brokers.connect("paper")
-        assert session.orders is not None
-        assert session.market is not None
-        assert session.streaming is not None
-        assert session.auth is not None
-        assert session.portfolio is not None
-        assert session.historical is not None
+    def test_search(self, mock_adapter: MagicMock) -> None:
+        session = BrokerSession(mock_adapter)
+        session.equity("RELIANCE", "NSE")
+        session.equity("NIFTY", "NSE")
+        results = session.search("REL")
+        assert len(results) == 1
+        assert results[0].symbol == "RELIANCE"
 
-    def test_connect_with_broker_id_enum(self) -> None:
-        from inc_trade.domain.enums import BrokerID
+    def test_instruments_snapshot(self, mock_adapter: MagicMock) -> None:
+        session = BrokerSession(mock_adapter)
+        session.equity("RELIANCE", "NSE")
+        session.equity("NIFTY", "NSE")
+        all_inst = session.instruments()
+        assert len(all_inst) == 2
+        assert "NSE:RELIANCE" in all_inst
+        assert "NSE:NIFTY" in all_inst
 
-        session = brokers.connect(BrokerID.PAPER)
-        assert isinstance(session, BrokerSession)
+    def test_event_bus_available(self, mock_adapter: MagicMock) -> None:
+        session = BrokerSession(mock_adapter)
+        assert session.event_bus is not None
+        # Event bus should have pub/sub
+        assert hasattr(session.event_bus, "publish")
+        assert hasattr(session.event_bus, "subscribe")
 
-    def test_connect_unknown_broker_raises(self) -> None:
-        with pytest.raises(ValueError, match="Unknown broker"):
-            brokers.connect("nonexistent_broker_xyz")
+    def test_repr(self, mock_adapter: MagicMock) -> None:
+        session = BrokerSession(mock_adapter)
+        session.equity("RELIANCE")
+        assert "BrokerSession" in repr(session)
+        assert "mock" in repr(session)
 
+    def test_clear_on_disconnect(self, mock_adapter: MagicMock) -> None:
+        import asyncio
 
-# ---------------------------------------------------------------------------
-# 5. DeprecationWarning on _underlying_gateway
-# ---------------------------------------------------------------------------
+        session = BrokerSession(mock_adapter)
+        session.equity("RELIANCE")
+        assert len(session.instruments()) == 1
+        asyncio.run(session.disconnect())
+        assert len(session.instruments()) == 0  # Registry cleared
 
+    def test_async_adapter(self) -> None:
+        """Test session with an async adapter."""
+        import asyncio
 
-class TestUnderlyingGatewayDeprecation:
-    def test_underlying_gateway_accessible(self) -> None:
-        from typing import cast
+        class AsyncAdapter:
+            """A proper async adapter with coroutine connect/disconnect."""
 
-        from inc_trade.ports.extension_registry import DictExtensionRegistry
-        from inc_trade.services.broker_facade import BrokerFacade
+            broker_id = "async_mock"
+            is_connected = False
 
-        from brokers.adapters.paper.gateway import PaperGateway
+            async def connect(self) -> None:
+                self.is_connected = True
 
-        gw = PaperGateway()
-        facade = BrokerFacade(cast("BrokerAdapter", gw), extension_registry=DictExtensionRegistry())
+            async def disconnect(self) -> None:
+                self.is_connected = False
 
-        # _underlying_gateway is kept for compatibility
-        _ = facade._underlying_gateway  # no warning expected
+            def quote(self, symbol: str, exchange: str) -> dict:
+                return {"ltp": 100.0, "symbol": symbol}
+
+            def ltp(self, symbol: str, exchange: str) -> Decimal:
+                return Decimal("100.0")
+
+        adapter = AsyncAdapter()
+        session = BrokerSession(adapter)
+
+        # Initially not connected
+        assert not session.is_connected
+
+        # Async connect should work
+        asyncio.run(session.connect())
+        assert adapter.is_connected
+
+        # Async disconnect should work
+        asyncio.run(session.disconnect())
+        assert not adapter.is_connected

@@ -19,7 +19,7 @@ from inc_trade.domain.entities import AggregatedExposure, Position
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Instrument:
     """Canonical domain entity — a single tradeable instrument.
 
@@ -54,6 +54,23 @@ class Instrument:
     strike: Decimal | None = None
     option_type: str | None = None
 
+    # ── Identity (Entity semantics: equality is composite_key) ──────────────
+
+    def __eq__(self, other: object) -> bool:
+        """Equality based on composite key identity.
+
+        For equities: ``NSE:RELIANCE`` is one identity.
+        For options: ``NFO:NIFTY:2025-01-30:25000:CE`` is a specific identity.
+        This ensures correct dictionary/set behavior across all instrument types.
+        """
+        if not isinstance(other, Instrument):
+            return NotImplemented
+        return self.composite_key == other.composite_key
+
+    def __hash__(self) -> int:
+        """Hash based on composite key identity."""
+        return hash(self.composite_key)
+
     # Canonical exchange codes for derivative exchanges (imply F&O).
     _DERIVATIVE_EXCHANGES: ClassVar[set[str]] = {"NFO", "BFO", "CDS", "BCD"}
     # Option type markers (CE = Call European, PE = Put European).
@@ -61,8 +78,21 @@ class Instrument:
 
     @property
     def composite_key(self) -> str:
-        """Unique identifier: ``{exchange}:{symbol}``."""
-        return f"{self.exchange}:{self.symbol}"
+        """Unique identity key across all instrument types.
+
+        For equities: ``{exchange}:{symbol}`` (e.g., ``NSE:RELIANCE``).
+        For futures: ``{exchange}:{symbol}:{expiry}`` (e.g., ``NFO:NIFTY:2025-01-30``).
+        For options: ``{exchange}:{symbol}:{expiry}:{strike}:{type}``
+        (e.g., ``NFO:NIFTY:2025-01-30:25000:CE``).
+        """
+        parts = [self.exchange, self.symbol]
+        if self.expiry is not None:
+            parts.append(str(self.expiry.date()))
+        if self.strike is not None:
+            parts.append(str(self.strike))
+        if self.option_type is not None:
+            parts.append(self.option_type)
+        return ":".join(parts)
 
     def display_name(self) -> str:
         """Human-readable name for display purposes."""
@@ -273,18 +303,22 @@ class Instrument:
     _quote_state_obj = None  # type: ignore  # QuoteState instance
     _observers: list | None = None  # type: ignore  # list[QuoteObserver]
     _capabilities = None  # type: ignore  # InstrumentCapabilities
+    _query = None  # type: ignore  # MarketDataQuery (CQS query delegate)
+    _command = None  # type: ignore  # OrderCommand (CQS command delegate)
 
     # ── Delegate accessors (Instrument-Centric) ─────────────────────────
 
     def quote(self) -> Any:
         """Get current quote for this instrument.
 
-        Checks ``_provider`` first (rich instrument path), falls back to
-        ``_context`` (legacy path).
+        Checks ``_query`` first (CQS delegate), then ``_provider``
+        (rich instrument path), then ``_context`` (legacy path).
 
         Raises:
-            RuntimeError: If neither provider nor context is available.
+            RuntimeError: If none of the delegate/provider/context is available.
         """
+        if self._query is not None:
+            return self._query.quote()
         if self._provider is not None:
             return self._provider.quote(self.symbol, self.exchange)
         ctx = self._context
@@ -297,6 +331,8 @@ class Instrument:
 
     def ltp(self) -> Decimal:
         """Get last traded price for this instrument."""
+        if self._query is not None:
+            return self._query.ltp()
         if self._provider is not None:
             return self._provider.ltp(self.symbol, self.exchange)
         ctx = self._context
@@ -310,12 +346,15 @@ class Instrument:
     def depth(self, levels: int = 5) -> Any:
         """Get market depth (order book) for this instrument.
 
-        Checks ``_depth_provider`` first (dedicated depth provider), then
-        ``_provider`` (general provider), then ``_context`` (legacy path).
+        Checks ``_query`` first (CQS delegate), then ``_depth_provider``
+        (dedicated depth provider), then ``_provider`` (general provider),
+        then ``_context`` (legacy path).
 
         Args:
             levels: Number of depth levels requested (default 5).
         """
+        if self._query is not None:
+            return self._query.depth(levels)
         dp = self._depth_provider
         if dp is not None:
             return dp.depth(self.symbol, self.exchange, levels)
@@ -402,12 +441,17 @@ class Instrument:
     def subscribe(self, callback: Callable[[Any], Any]) -> Any:
         """Subscribe to live market data for this instrument.
 
+        Checks ``_query`` first (CQS delegate), then ``_streaming_provider``,
+        then ``_context`` (legacy path).
+
         Args:
             callback: Callable invoked with each new Quote tick.
 
         Returns:
             StreamHandle for controlling the subscription.
         """
+        if self._query is not None:
+            return self._query.subscribe(callback)
         sp = self._streaming_provider
         if sp is not None:
             return sp.subscribe(self, callback)
@@ -421,6 +465,9 @@ class Instrument:
 
     def unsubscribe(self) -> None:
         """Unsubscribe from live market data for this instrument."""
+        if self._query is not None:
+            self._query.unsubscribe()
+            return
         sp = self._streaming_provider
         if sp is not None:
             sp.unsubscribe(self)
@@ -521,9 +568,9 @@ class Instrument:
     ) -> Any:
         """Place a buy order for this instrument.
 
-        Delegates to the injected order provider (``_order_provider``) or
-        falls back to the general provider (``_provider``) if the dedicated
-        order provider is not set.
+        Checks ``_command`` first (CQS delegate), then delegates to
+        the injected order provider (``_order_provider``) or falls back
+        to the general provider (``_provider``).
 
         Args:
             quantity: Number of units to buy.
@@ -538,6 +585,14 @@ class Instrument:
         Raises:
             RuntimeError: If no order provider is configured.
         """
+        if self._command is not None:
+            return self._command.buy(
+                quantity=quantity,
+                order_type=order_type,
+                price=price,
+                trigger_price=trigger_price,
+                **kwargs,
+            )
         from inc_trade.domain.enums import OrderType as OT
 
         provider = self._order_provider or self._provider
@@ -568,6 +623,10 @@ class Instrument:
     ) -> Any:
         """Place a sell order for this instrument.
 
+        Checks ``_command`` first (CQS delegate), then delegates to
+        the injected order provider (``_order_provider``) or falls back
+        to the general provider (``_provider``).
+
         Args:
             quantity: Number of units to sell.
             order_type: ``OrderType`` enum value (default: ``OrderType.MARKET``).
@@ -581,6 +640,14 @@ class Instrument:
         Raises:
             RuntimeError: If no order provider is configured.
         """
+        if self._command is not None:
+            return self._command.sell(
+                quantity=quantity,
+                order_type=order_type,
+                price=price,
+                trigger_price=trigger_price,
+                **kwargs,
+            )
         from inc_trade.domain.enums import OrderType as OT
 
         provider = self._order_provider or self._provider
@@ -649,6 +716,8 @@ class Instrument:
         historical_provider: Any = None,
         streaming_provider: Any = None,
         order_provider: Any = None,
+        query: Any = None,
+        command: Any = None,
         context: Any = None,
     ) -> Instrument:
         """Return a new Instrument with the given providers attached.
@@ -669,6 +738,8 @@ class Instrument:
             streaming_provider: ``StreamingDataProvider`` for live ticks.
             order_provider: ``OrderProvider`` for order placement.
                 Falls back to ``provider`` when resolving.
+            query: ``MarketDataQuery`` CQS delegate (replaces _provider).
+            command: ``OrderCommand`` CQS delegate (replaces _order_provider).
             context: ``MarketDataContext`` for legacy fallback path.
 
         Returns:
@@ -684,6 +755,10 @@ class Instrument:
             object.__setattr__(self, "_streaming_provider", streaming_provider)
         if order_provider is not None:
             object.__setattr__(self, "_order_provider", order_provider)
+        if query is not None:
+            object.__setattr__(self, "_query", query)
+        if command is not None:
+            object.__setattr__(self, "_command", command)
         if context is not None:
             object.__setattr__(self, "_context", context)
         return self
