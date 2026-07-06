@@ -183,16 +183,17 @@ class InstrumentFactory:
         # Attach non-dataclass attributes (context, extensions) so they
         # don't participate in __init__, __eq__, or __hash__.
         object.__setattr__(inst, "_context", context)
-        object.__setattr__(inst, "_delegate_context", context)  # backward compat
         object.__setattr__(inst, "_extensions", extensions or {})
-
-        # Provider injection
-        object.__setattr__(inst, "_provider", provider)
-        object.__setattr__(inst, "_historical_provider", historical_provider)
-        object.__setattr__(inst, "_streaming_provider", streaming_provider)
-        object.__setattr__(inst, "_depth_provider", depth_provider or provider)
-        object.__setattr__(inst, "_order_provider", order_provider or provider)
         object.__setattr__(inst, "_capabilities", capabilities)
+
+        # Provider injection via clean with_providers API
+        inst = inst.with_providers(
+            provider=provider,
+            depth_provider=depth_provider or provider,
+            historical_provider=historical_provider,
+            streaming_provider=streaming_provider,
+            order_provider=order_provider or provider,
+        )
 
         # Decorator pipeline: apply depth extension if requested
         if extension_registry is not None:

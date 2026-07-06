@@ -49,7 +49,7 @@ class Option(Instrument):
         Raises:
             RuntimeError: If the instrument has no market data context.
         """
-        ctx = getattr(self, "_context", None) or getattr(self, "_delegate_context", None)
+        ctx = getattr(self, "_context", None)
         if ctx:
             return ctx.option_chain(self.symbol, self.exchange, expiry)
         raise RuntimeError("Instrument has no market data context")

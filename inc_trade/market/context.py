@@ -30,7 +30,6 @@ from inc_trade.domain.entities import Candle, MarketDepth, OptionChain, Quote
 from inc_trade.domain.events import QuoteTickEvent
 from inc_trade.market.config import MarketDataConfig
 from inc_trade.market.factory import InstrumentFactory
-from inc_trade.market.instrument import Instrument
 from inc_trade.market.instrument_registry import InstrumentRegistry
 from inc_trade.market.quote_state import QuoteState
 from inc_trade.market.subscription_manager import SubscriptionManager
@@ -182,9 +181,8 @@ class MarketDataContext:
         # Ensure context is attached (cached instruments from registry
         # may not have it set if they were created before this method
         # was called, or if the MarketDataContext instance differs).
-        if inst._delegate_context is None and inst._context is None:
+        if inst._context is None:
             object.__setattr__(inst, "_context", self)
-            object.__setattr__(inst, "_delegate_context", self)
         return InstrumentHandle(instrument=inst, context=self)
 
     # ── Quotes ─────────────────────────────────────────────────────────

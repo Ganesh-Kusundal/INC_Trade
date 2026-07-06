@@ -245,11 +245,11 @@ class Instrument:
 
     # ── Market Data Context (Instrument-Centric Access) ─────────────────
     #
-    # ``_context`` (and its backward-compat alias ``_delegate_context``) is
-    # set by ``MarketDataContext.instrument()`` or ``InstrumentFactory``
-    # via ``object.__setattr__`` after construction.  This maintains the
-    # frozen dataclass contract while enabling ``instrument.quote()``,
-    # ``instrument.depth()``, etc. directly on the domain entity.
+    # ``_context`` is set by ``MarketDataContext.instrument()`` or
+    # ``InstrumentFactory`` via ``object.__setattr__`` after construction.
+    # This maintains the frozen dataclass contract while enabling
+    # ``instrument.quote()``, ``instrument.depth()``, etc. directly on the
+    # domain entity.
     #
     # ``_extensions`` is a dict of arbitrary extension data attached by
     # the factory or an adapter (e.g., fundamentals, broker metadata).
@@ -258,7 +258,6 @@ class Instrument:
     # ``field()``) so that they do not participate in ``__init__``,
     # ``__eq__``, or ``__hash__``.
 
-    _delegate_context = None  # type: ignore  # set externally (backward compat)
     _context = None  # type: ignore  # canonical name, set externally
     _extensions: dict | None = None  # type: ignore  # set externally
 
@@ -288,7 +287,7 @@ class Instrument:
         """
         if self._provider is not None:
             return self._provider.quote(self.symbol, self.exchange)
-        ctx = self._context or self._delegate_context
+        ctx = self._context
         if ctx is None:
             raise RuntimeError(
                 "Instrument has no market data context. "
@@ -300,7 +299,7 @@ class Instrument:
         """Get last traded price for this instrument."""
         if self._provider is not None:
             return self._provider.ltp(self.symbol, self.exchange)
-        ctx = self._context or self._delegate_context
+        ctx = self._context
         if ctx is None:
             raise RuntimeError(
                 "Instrument has no market data context. "
@@ -322,7 +321,7 @@ class Instrument:
             return dp.depth(self.symbol, self.exchange, levels)
         if self._provider is not None:
             return self._provider.depth(self.symbol, self.exchange, levels)
-        ctx = self._context or self._delegate_context
+        ctx = self._context
         if ctx is None:
             raise RuntimeError(
                 "Instrument has no market data context. "
@@ -355,7 +354,7 @@ class Instrument:
                 end_time=end_time,
                 resolution=resolution,
             )
-        ctx = self._context or self._delegate_context
+        ctx = self._context
         if ctx is None:
             raise RuntimeError(
                 "Instrument has no market data context. "
@@ -388,7 +387,7 @@ class Instrument:
         Returns:
             OptionChain domain entity.
         """
-        ctx = self._context or self._delegate_context
+        ctx = self._context
         if ctx is None:
             raise RuntimeError(
                 "Instrument has no market data context. "
@@ -412,7 +411,7 @@ class Instrument:
         sp = self._streaming_provider
         if sp is not None:
             return sp.subscribe(self, callback)
-        ctx = self._context or self._delegate_context
+        ctx = self._context
         if ctx is None:
             raise RuntimeError(
                 "Instrument has no market data context. "
@@ -426,7 +425,7 @@ class Instrument:
         if sp is not None:
             sp.unsubscribe(self)
             return
-        ctx = self._context or self._delegate_context
+        ctx = self._context
         if ctx is None:
             raise RuntimeError(
                 "Instrument has no market data context. "
@@ -444,7 +443,7 @@ class Instrument:
         """
         if self._quote_state_obj is not None:
             return self._quote_state_obj
-        ctx = self._context or self._delegate_context
+        ctx = self._context
         if ctx is None:
             raise RuntimeError(
                 "Instrument has no market data context. "
@@ -640,6 +639,54 @@ class Instrument:
         if self._extensions is None:
             return None
         return self._extensions.get(name)
+
+    # ── Provider Injection (Replaces object.__setattr__ hacks) ───────────
+
+    def with_providers(
+        self,
+        provider: Any = None,
+        depth_provider: Any = None,
+        historical_provider: Any = None,
+        streaming_provider: Any = None,
+        order_provider: Any = None,
+        context: Any = None,
+    ) -> Instrument:
+        """Return a new Instrument with the given providers attached.
+
+        This is the clean alternative to ``object.__setattr__`` hacks on
+        the frozen dataclass. Internally it still uses ``__setattr__``,
+        but provides a single, documented, and tested method to do so.
+
+        All providers are optional. ``None`` means "don't change".
+        To explicitly clear a provider, set it to a sentinel like
+        ``object()``.
+
+        Args:
+            provider: ``InstrumentDataProvider`` for quote/LTP/depth.
+            depth_provider: ``DepthProvider`` for extended depth.
+                Falls back to ``provider`` when resolving.
+            historical_provider: ``HistoricalDataProvider`` for candles.
+            streaming_provider: ``StreamingDataProvider`` for live ticks.
+            order_provider: ``OrderProvider`` for order placement.
+                Falls back to ``provider`` when resolving.
+            context: ``MarketDataContext`` for legacy fallback path.
+
+        Returns:
+            Self, for chaining: ``inst.with_providers(provider=...).quote()``
+        """
+        if provider is not None:
+            object.__setattr__(self, "_provider", provider)
+        if depth_provider is not None:
+            object.__setattr__(self, "_depth_provider", depth_provider)
+        if historical_provider is not None:
+            object.__setattr__(self, "_historical_provider", historical_provider)
+        if streaming_provider is not None:
+            object.__setattr__(self, "_streaming_provider", streaming_provider)
+        if order_provider is not None:
+            object.__setattr__(self, "_order_provider", order_provider)
+        if context is not None:
+            object.__setattr__(self, "_context", context)
+        return self
 
     # ── Lightweight convenience accessors (Instrument-Centric) ──────────
 

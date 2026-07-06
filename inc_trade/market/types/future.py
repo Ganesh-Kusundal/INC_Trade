@@ -28,7 +28,7 @@ class Future(Instrument):
         """
         if not self.underlying:
             return Decimal("0")
-        ctx = getattr(self, "_context", None) or getattr(self, "_delegate_context", None)
+        ctx = getattr(self, "_context", None)
         if ctx:
             try:
                 spot = ctx.ltp(self.underlying, self.exchange)
