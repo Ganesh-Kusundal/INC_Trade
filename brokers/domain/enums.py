@@ -14,8 +14,10 @@ class Exchange(str, Enum):
     NSE = "NSE"
     BSE = "BSE"
     NFO = "NFO"
+    BSE_FNO = "BSE_FNO"
     MCX = "MCX"
     INDEX = "INDEX"
+    CURRENCY = "CURRENCY"
 
 
 class AssetClass(str, Enum):
@@ -92,7 +94,13 @@ class Validity(str, Enum):
 
 
 class InstrumentType(str, Enum):
-    """Legacy instrument type classification (used by instrument resolvers)."""
+    """Legacy instrument type classification (used by instrument resolvers).
+
+    .. deprecated::
+        Use :class:`AssetClass` instead.  This enum will be removed once
+        both ``dhan/resolver.py`` and ``upstox/resolver.py`` are migrated.
+        Note the value mapping: ``FUTURES`` -> ``FUTURE``, ``OPTIONS`` -> ``OPTION``.
+    """
 
     EQUITY = "EQUITY"
     FUTURES = "FUTURES"

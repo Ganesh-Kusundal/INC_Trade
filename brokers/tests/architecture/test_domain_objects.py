@@ -16,6 +16,7 @@ from brokers.domain.instrument import InstrumentIdentity
 from brokers.domain.order import InvalidOrderTransitionError, Order
 from brokers.domain.requests import OrderRequest
 from brokers.domain.values import OrderResponse
+from brokers.infrastructure.event_bus import EventBus
 
 
 # ── Test fixtures ──────────────────────────────────────────────────────────
@@ -263,7 +264,7 @@ class TestOrderLifecycle:
         )
         response = OrderResponse.ok(order_id="test_2", status=OrderStatus.OPEN)
         order = Order(request, response)
-        order.update_status(OrderStatus.FILLED, filled_quantity=10)
+        order.update_status(OrderStatus.FILLED, filled_quantity=10, event_bus=EventBus())
         assert order.status == OrderStatus.FILLED
         assert order.is_terminal
 
@@ -278,7 +279,7 @@ class TestOrderLifecycle:
         order = Order(request, response)
         # FILLED → OPEN is invalid
         with pytest.raises(InvalidOrderTransitionError):
-            order.update_status(OrderStatus.OPEN)
+            order.update_status(OrderStatus.OPEN, event_bus=EventBus())
 
     def test_remaining_quantity(self) -> None:
         request = OrderRequest(
@@ -289,7 +290,7 @@ class TestOrderLifecycle:
         )
         response = OrderResponse.ok(order_id="test_4", status=OrderStatus.PARTIALLY_FILLED)
         order = Order(request, response)
-        order.update_status(OrderStatus.PARTIALLY_FILLED, filled_quantity=30)
+        order.update_status(OrderStatus.PARTIALLY_FILLED, filled_quantity=30, event_bus=EventBus())
         assert order.remaining_quantity == 70
 
 

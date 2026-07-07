@@ -1,5 +1,10 @@
 """GatewayResult — a monadic result type for wrapping operation outcomes.
 
+.. deprecated::
+    GatewayResult is unused in production code and retained only for
+    backward compatibility with existing tests.  New code should use
+    native exceptions + OrderResponse instead.
+
 Wraps operation outcomes with metadata (source, latency, cache info) and
 provides functional combinators: ``map``, ``flat_map``, ``recover``.
 

@@ -11,9 +11,21 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 EVENT_ID_HEX_LENGTH = 16
+
+
+@runtime_checkable
+class EventBusProtocol(Protocol):
+    """Domain protocol for the event bus.
+
+    Any in-process event bus must implement ``publish()``.
+    The domain layer depends on this protocol, not on the
+    infrastructure implementation.
+    """
+
+    def publish(self, event: DomainEvent) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -52,11 +64,12 @@ class DomainEvent:
         correlation_id: str | None = None,
         sequence_number: int = 0,
     ) -> DomainEvent:
-        """Factory using UTC now."""
+        """Factory using UTC now. Validates payload against the contract."""
+        validated = make_payload(event_type, payload, validate=True)
         return cls(
             event_type=event_type,
             timestamp=datetime.now(timezone.utc),
-            payload=dict(payload),
+            payload=dict(validated),
             symbol=symbol,
             source=source,
             correlation_id=correlation_id,
@@ -363,25 +376,32 @@ def canonical_event_types() -> frozenset[str]:
 
 
 def make_payload(
-    event_type: EventType,
+    event_type: EventType | str,
     payload: dict[str, Any],
-    validate: bool = False,
+    validate: bool = True,
 ) -> dict[str, Any]:
-    """Optionally validate ``payload`` against the contract for ``event_type``.
+    """Validate ``payload`` against the contract for ``event_type``.
 
-    If ``validate=False`` (default), this is a pass-through.
-    If ``validate=True``, :class:`KeyError` is raised if any
-    required key is missing.
+    If ``validate=True`` (default), :class:`KeyError` is raised if any
+    required key is missing.  If ``validate=False``, this is a pass-through.
     """
     if not validate:
         return payload
-    contract = EVENT_PAYLOADS.get(event_type)
+    # Normalise: EVENT_PAYLOADS keys are EventType enums, but callers may pass str
+    if isinstance(event_type, str):
+        try:
+            lookup = EventType(event_type)
+        except ValueError:
+            return payload  # Unknown event type — skip validation
+    else:
+        lookup = event_type
+    contract = EVENT_PAYLOADS.get(lookup)
     if contract is None:
         return payload
     missing = [k for k in contract.required_keys if k not in payload]
     if missing:
         raise KeyError(
-            f"{event_type.value} payload missing required keys: {missing}; "
+            f"{lookup.value} payload missing required keys: {missing}; "
             f"contract: {contract.notes}"
         )
     return payload

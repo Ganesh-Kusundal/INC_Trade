@@ -48,5 +48,13 @@ class DhanEdis:
         logger.info("dhan_edis_authorize", isin=isin, qty=quantity)
         return self._client.post("/edis/authorize", json=payload)
 
+    def inquiry(self) -> dict[str, Any]:
+        """Inquire about eDIS authorization status.
+
+        Returns the current status of TPIN-based stock authorizations.
+        """
+        logger.info("dhan_edis_inquiry")
+        return self._client.get("/edis/inquiry")
+
 
 __all__ = ["DhanEdis"]

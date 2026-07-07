@@ -159,7 +159,7 @@ class TestConnectDhanCachedToken:
         ) as mock_totp_cls, patch(
             "brokers.dhan.dhan_provider.DhanProvider"
         ), patch(
-            "brokers.dhan.token_scheduler.DhanTokenScheduler"
+            "brokers.common.auth.token_scheduler.BackgroundTokenScheduler"
         ) as mock_sched_cls:
 
             mock_store = mock_store_cls.return_value
@@ -197,7 +197,7 @@ class TestConnectDhanExpiredToken:
         ) as mock_totp_cls, patch(
             "brokers.dhan.dhan_provider.DhanProvider"
         ), patch(
-            "brokers.dhan.token_scheduler.DhanTokenScheduler"
+            "brokers.common.auth.token_scheduler.BackgroundTokenScheduler"
         ) as mock_sched_cls:
 
             mock_store = mock_store_cls.return_value
@@ -235,7 +235,7 @@ class TestConnectDhanNoToken:
         ) as mock_totp_cls, patch(
             "brokers.dhan.dhan_provider.DhanProvider"
         ), patch(
-            "brokers.dhan.token_scheduler.DhanTokenScheduler"
+            "brokers.common.auth.token_scheduler.BackgroundTokenScheduler"
         ) as mock_sched_cls:
 
             mock_store = mock_store_cls.return_value
@@ -256,7 +256,7 @@ class TestConnectDhanCooldownActive:
 
     @pytest.mark.asyncio
     async def test_cooldown_active_propagates_error(self) -> None:
-        """login() raises TotpRateLimitError → wrapped in ValueError."""
+        """login() raises TotpRateLimitError → propagated directly."""
         creds = DhanCredentials(
             client_id="D123", access_token="", totp_secret="SECRET", pin="1234"
         )
@@ -277,7 +277,7 @@ class TestConnectDhanCooldownActive:
                 "Wait 87s before retrying"
             )
 
-            with pytest.raises(ValueError, match="Dhan auto-login failed"):
+            with pytest.raises(TotpRateLimitError):
                 await Platform._connect_dhan()
 
 
@@ -286,7 +286,7 @@ class TestConnectDhanNetworkError:
 
     @pytest.mark.asyncio
     async def test_network_error_propagates(self) -> None:
-        """login() raises DhanTotpError → wrapped in ValueError."""
+        """login() raises DhanTotpError → propagated directly."""
         creds = DhanCredentials(
             client_id="D123", access_token="", totp_secret="SECRET", pin="1234"
         )
@@ -307,12 +307,12 @@ class TestConnectDhanNetworkError:
                 "Dhan token request failed: ConnectionError"
             )
 
-            with pytest.raises(ValueError, match="Dhan auto-login failed"):
+            with pytest.raises(DhanTotpError):
                 await Platform._connect_dhan()
 
     @pytest.mark.asyncio
     async def test_login_failure_http_error(self) -> None:
-        """login() raises DhanTotpError with HTTP status → wrapped in ValueError."""
+        """login() raises DhanTotpError with HTTP status → propagated directly."""
         creds = DhanCredentials(
             client_id="D123", access_token="", totp_secret="SECRET", pin="1234"
         )
@@ -333,7 +333,7 @@ class TestConnectDhanNetworkError:
                 "Dhan login failed (HTTP 500): internal error"
             )
 
-            with pytest.raises(ValueError, match="Dhan auto-login failed"):
+            with pytest.raises(DhanTotpError):
                 await Platform._connect_dhan()
 
 
@@ -361,7 +361,7 @@ class TestConnectDhanTokenReceiver:
         ) as mock_auth_cls, patch(
             "brokers.dhan.dhan_provider.DhanProvider"
         ) as mock_provider_cls, patch(
-            "brokers.dhan.token_scheduler.DhanTokenScheduler"
+            "brokers.common.auth.token_scheduler.BackgroundTokenScheduler"
         ) as mock_sched_cls:
 
             mock_auth = mock_auth_cls.return_value
@@ -546,8 +546,8 @@ class TestConnectUpstox:
             assert isinstance(platform, Platform)
 
     @pytest.mark.asyncio
-    async def test_totp_not_implemented(self) -> None:
-        """connect(\"upstox\") with TOTP creds but no access token → NotImplementedError."""
+    async def test_totp_login_attempted(self) -> None:
+        """connect("upstox") with TOTP creds → attempts TOTP login (fails with invalid base32)."""
         creds = UpstoxCredentials(
             client_id="U123",
             access_token="",
@@ -560,7 +560,8 @@ class TestConnectUpstox:
             "brokers.common.auth.credential_resolver.CredentialResolver.for_upstox",
             return_value=creds,
         ):
-            with pytest.raises(NotImplementedError, match="Upstox TOTP"):
+            # TOTP is now implemented (A2) — fails because "SECRET" is not valid base32
+            with pytest.raises(ValueError, match="auto-login failed"):
                 await Platform.connect("upstox")
 
     @pytest.mark.asyncio
@@ -925,7 +926,15 @@ class _NoStreamingProvider:
     @property
     def capabilities(self):
         from brokers.domain.capabilities import Capability, ProviderCapabilities
-        return ProviderCapabilities.full(self.broker_id)
+        return ProviderCapabilities(
+            broker_id=self.broker_id,
+            supported=frozenset({
+                Capability.ORDER_PLACEMENT, Capability.ORDER_MODIFICATION,
+                Capability.MARKET_DATA, Capability.HISTORICAL_DATA,
+                Capability.INSTRUMENT_SEARCH, Capability.PORTFOLIO,
+                Capability.OPTION_CHAIN, Capability.FUTURE_CHAIN, Capability.DEPTH,
+            }),
+        )
 
     @property
     def extensions(self):
@@ -935,7 +944,8 @@ class _NoStreamingProvider:
     @property
     def default_account(self):
         from brokers.domain.account import Account
-        return Account("no-stream-default", self)
+        from brokers.infrastructure.event_bus import EventBus
+        return Account("no-stream-default", self, event_bus=EventBus())
 
     # ── LifecycleProvider ──────────────────────────────────────────────
     async def connect(self) -> None: pass
@@ -1043,7 +1053,8 @@ class TestIsinstanceGuards:
         from brokers.domain.account import Account
 
         provider = _NoStreamingProvider()
-        acct = Account("test", provider)
+        from brokers.infrastructure.event_bus import EventBus
+        acct = Account("test", provider, event_bus=EventBus())
 
         with pytest.raises(TypeError, match="does not support streaming"):
             await acct.subscribe_orders()
@@ -1060,3 +1071,5 @@ class TestIsinstanceGuards:
 
         # Should not raise — the isinstance guard is a positive check
         await inst.unsubscribe_all()
+
+

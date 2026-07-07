@@ -21,7 +21,7 @@ import pytest
 
 # ── Constants ──────────────────────────────────────────────────────────────
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _DOMAIN_DIR = _PROJECT_ROOT / "brokers" / "domain"
 _PROVIDER_DIR = _PROJECT_ROOT / "brokers" / "provider"
 
@@ -156,7 +156,7 @@ class TestDomainPurity:
         _STDLIB_PREFIXES = (
             "datetime", "decimal", "enum", "dataclasses", "typing",
             "collections", "threading", "uuid", "__future__", "abc",
-            "functools",
+            "functools", "asyncio",
         )
 
         violations: list[str] = []

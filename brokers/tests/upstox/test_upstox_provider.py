@@ -473,6 +473,57 @@ class TestUpstoxProviderExecution:
         assert response.success is False
         assert "Cannot modify filled order" in response.message
 
+    @pytest.mark.asyncio
+    async def test_place_order_uses_resolver_when_instruments_dict_empty(
+        self, mock_client: MagicMock
+    ) -> None:
+        """Verify place_order resolves instrument_key via resolver, not just dict."""
+        from brokers.common.instrument_resolver import ResolvedInstrument
+        from brokers.domain.instrument import Instrument
+
+        mock_resolver = MagicMock()
+        mock_resolver.resolve.return_value = ResolvedInstrument(
+            symbol="TCS",
+            exchange=Exchange.NSE,
+            broker_id="NSE_EQ|INE015A01028",
+            segment="NSE_EQ",
+        )
+
+        mock_client.place_order.return_value = {
+            "data": {"order_id": "upstox_order_002"},
+            "status": "success",
+        }
+
+        # Provider with NO _instruments dict — only resolver
+        p = UpstoxProvider(
+            access_token="test_token",
+            resolver=mock_resolver,
+        )
+        p._client = mock_client
+
+        # Instrument without security_id (normal user flow)
+        inst = Instrument(
+            symbol="TCS",
+            exchange=Exchange.NSE,
+            provider=p,
+        )
+        request = OrderRequest(
+            symbol="TCS",
+            exchange=Exchange.NSE,
+            side=Side.BUY,
+            quantity=5,
+            instrument=inst,
+        )
+        response = await p.place_order(request)
+
+        assert response.success is True
+        # Verify the resolver was consulted
+        mock_resolver.resolve.assert_called_once_with("TCS", Exchange.NSE)
+        # Verify the payload was built with the resolved instrument_key
+        call_args = mock_client.place_order.call_args
+        payload = call_args[1]["json"] if "json" in call_args[1] else call_args[0][0]
+        assert payload["instrument_token"] == "NSE_EQ|INE015A01028"
+
 
 # ── Portfolio tests ────────────────────────────────────────────────────────
 

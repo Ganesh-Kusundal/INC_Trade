@@ -28,20 +28,12 @@ logger = get_logger(__name__)
 _DHAN_ORDER_WS_URL = "wss://api.dhan.co/orders/v3/"
 
 
-# ── Status normalization (broker-specific) ───────────────────────────────────
+# ── Status normalization (shared module) ───────────────────────────────────
 
-
-_DHAN_STATUS_MAPPING: dict[str, str] = {
-    "TRANSIT": "OPEN",
-    "PENDING": "OPEN",
-    "OPEN": "OPEN",
-    "TRADED": "FILLED",
-    "PART_TRADED": "PARTIALLY_FILLED",
-    "EXPIRED": "EXPIRED",
-    "REJECTED": "REJECTED",
-    "CANCELLED": "CANCELLED",
-    "MODIFIED": "OPEN",
-}
+from brokers.dhan.status_mapping import (
+    DHAN_STATUS_TO_STRING as _DHAN_STATUS_MAPPING,
+    normalize_status as _normalize_status,
+)
 
 
 # ── Decoder helpers (module-level for testability) ────────────────────────────
@@ -103,10 +95,6 @@ def _parse_order(data: dict[str, Any]) -> OrderUpdateEvent | None:
         return None
 
 
-def _normalize_status(status: str) -> str:
-    return _DHAN_STATUS_MAPPING.get(status.upper(), "UNKNOWN")
-
-
 # ── Class ─────────────────────────────────────────────────────────────────────
 
 
@@ -123,9 +111,16 @@ class DhanOrderFeed(BaseOrderStream):
         on_order: Callable[[OrderUpdateEvent], None] | None = None,
         on_health_change: Callable | None = None,
     ) -> None:
-        super().__init__(on_order=on_order, on_health_change=on_health_change)
+        super().__init__(on_order=self._dispatch_order, on_health_change=on_health_change)
         self._client_id = client_id
         self._access_token = access_token
+        # List of order callbacks so concurrent subscribers don't clobber.
+        self._order_callbacks: list[Callable[[OrderUpdateEvent], None]] = []
+        if on_order is not None:
+            self._order_callbacks.append(on_order)
+        # Ref-count concurrent order subscribers so the shared order feed is
+        # only stopped when the last consumer unsubscribes.
+        self._subscriber_count = 0
 
     async def _resolve_url_and_headers(self) -> tuple[str, dict[str, str] | None]:
         return (
@@ -149,6 +144,36 @@ class DhanOrderFeed(BaseOrderStream):
 
     async def _subscribe(self, transport: Any, plan: Any) -> None:
         await self._no_op_subscribe(transport, plan)
+
+    def _dispatch_order(self, event: OrderUpdateEvent) -> None:
+        """Fan an order update out to all registered order callbacks."""
+        for cb in self._order_callbacks:
+            try:
+                cb(event)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("dhan_order_callback_error", error=str(exc)[:200])
+
+    def set_order_callback(self, callback: Callable[[OrderUpdateEvent], None] | None) -> None:
+        """Register an order callback. Appends rather than overwriting so
+        multiple concurrent subscribers each receive order updates.
+        """
+        if callback is not None and callback not in self._order_callbacks:
+            self._order_callbacks.append(callback)
+        if self._orchestrator is not None:
+            self._orchestrator.set_callbacks(on_order=self._dispatch_order)
+
+    def add_subscriber(self) -> None:
+        """Register a concurrent order subscriber (ref-counted)."""
+        self._subscriber_count += 1
+
+    async def remove_subscriber(self) -> None:
+        """Unregister an order subscriber. Only stops the shared feed when
+        the last consumer leaves (so a single unsubscribe never kills it
+        for everyone else).
+        """
+        self._subscriber_count = max(0, self._subscriber_count - 1)
+        if self._subscriber_count == 0:
+            await self.stop()
 
     def update_token(self, access_token: str) -> None:
         """Hot-swap the access token (used after refresh)."""

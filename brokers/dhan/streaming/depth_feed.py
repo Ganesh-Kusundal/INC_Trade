@@ -92,12 +92,17 @@ class _BaseDepthFeed:
         self._bytes_per_level = bytes_per_level
         self._num_levels = num_levels
         self._on_depth = on_depth
+        # List of depth callbacks so concurrent subscribers don't clobber.
+        self._depth_callbacks: list[Callable[[MarketTickEvent], None]] = []
+        if on_depth is not None:
+            self._depth_callbacks.append(on_depth)
 
         self._ws: Any = None
         self._task: asyncio.Task | None = None
         self._stop_event = asyncio.Event()
         self._instruments: dict[str, InstrumentKey] = {}
         self._queues: list[asyncio.Queue] = []
+        self._depth_cache: dict[str, MarketTickEvent] = {}
 
     @property
     def is_running(self) -> bool:
@@ -106,6 +111,18 @@ class _BaseDepthFeed:
     @property
     def instrument_count(self) -> int:
         return len(self._instruments)
+
+    def set_on_depth(self, callback: Callable[[MarketTickEvent], None] | None) -> None:
+        """Register a depth callback. Appends rather than overwriting so
+        multiple concurrent subscribers each receive depth updates.
+        """
+        if callback is not None and callback not in self._depth_callbacks:
+            self._depth_callbacks.append(callback)
+        self._on_depth = callback
+
+    def update_token(self, access_token: str) -> None:
+        """Hot-swap the access token used for (re)connection."""
+        self._access_token = access_token
 
     async def start(self) -> None:
         """Start the depth feed connection."""
@@ -127,7 +144,11 @@ class _BaseDepthFeed:
         logger.info("dhan_depth_feed_stopped", depth_type=self._depth_type)
 
     async def subscribe(self, key: InstrumentKey) -> asyncio.Queue:
-        """Subscribe to depth data for an instrument."""
+        """Subscribe to depth data for an instrument.
+
+        Returns an asyncio.Queue. The queue is automatically unregistered
+        when it is closed or garbage-collected.
+        """
         if len(self._instruments) >= self._max_instruments:
             raise ValueError(
                 f"Max {self._max_instruments} instruments for {self._depth_type}"
@@ -149,6 +170,9 @@ class _BaseDepthFeed:
         self._instruments.pop(key.security_id, None)
         if self._ws is not None:
             await self._send_unsubscribe([key])
+        # Clean up orphaned consumer queues when no instruments remain
+        if not self._instruments:
+            self._queues.clear()
 
     def add_consumer(self) -> asyncio.Queue:
         """Register a consumer queue."""
@@ -297,22 +321,30 @@ class _BaseDepthFeed:
                 timestamp=datetime.now(timezone.utc),
             )
 
+            self._depth_cache[security_id] = event
             self._fan_out(event)
 
         except (struct.error, IndexError) as exc:
             logger.debug("dhan_depth_parse_error", error=str(exc)[:100])
 
     def _fan_out(self, event: MarketTickEvent) -> None:
-        """Deliver depth event to all consumer queues."""
-        if self._on_depth is not None:
+        """Deliver depth event to all registered depth callbacks and queues."""
+        for cb in self._depth_callbacks:
             try:
-                self._on_depth(event)
-            except Exception:
-                pass
+                cb(event)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "dhan_depth_callback_error",
+                    depth_type=self._depth_type,
+                    error=str(exc)[:200],
+                )
 
+        # Prune dead queues (queues that are full and have no active consumers)
+        live_queues: list[asyncio.Queue] = []
         for q in self._queues:
             try:
                 q.put_nowait(event)
+                live_queues.append(q)
             except asyncio.QueueFull:
                 try:
                     q.get_nowait()
@@ -320,8 +352,10 @@ class _BaseDepthFeed:
                     pass
                 try:
                     q.put_nowait(event)
+                    live_queues.append(q)
                 except asyncio.QueueFull:
                     pass
+        self._queues = live_queues
 
 
 # ── 20-level depth feed ────────────────────────────────────────────────────

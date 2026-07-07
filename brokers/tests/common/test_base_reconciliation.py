@@ -182,7 +182,10 @@ class TestSafeFetch:
     def test_exception_logs_warning_with_source_label(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
+        import brokers.common.reconciliation as recon_module
         recon = self._build()
+        # StructuredLogger wraps the standard logger — enable propagation for this test
+        recon_module.logger._logger.propagate = True
         with caplog.at_level(logging.WARNING, logger="brokers.common.reconciliation"):
             recon._safe_fetch(
                 lambda: (_ for _ in ()).throw(TimeoutError("timeout"))
@@ -192,6 +195,7 @@ class TestSafeFetch:
             "dummy_reconciliation_fetch_failed" in record.message
             for record in caplog.records
         )
+        recon_module.logger._logger.propagate = False
 
     def test_non_dict_response_returns_empty(self) -> None:
         recon = self._build()

@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 
+from brokers.common.parsing import dec as _dec, int_val as _int, parse_ts as _parse_ts
 from brokers.domain.enums import (
     Exchange,
     OrderStatus,
@@ -39,48 +40,40 @@ from brokers.domain.values import (
 
 # ── Segment to exchange mapping ─────────────────────────────────────────────
 
-_WIRE_TO_EXCHANGE: dict[str, Exchange] = {
-    "NSE_EQ": Exchange.NSE,
-    "BSE_EQ": Exchange.BSE,
-    "NSE_FO": Exchange.NFO,
-    "BSE_FO": Exchange.NFO,
-    "MCX_FO": Exchange.MCX,
-    "NSE_INDEX": Exchange.INDEX,
-    "BSE_INDEX": Exchange.INDEX,
-}
+from brokers.common import segments as _segments
 
 
 def _exchange_from_segment(segment: str) -> Exchange:
-    return _WIRE_TO_EXCHANGE.get(segment, Exchange.NSE)
+    return _segments.segment_to_exchange(segment)
 
 
-def _dec(val: Any) -> Decimal:
-    if val is None or val == "":
-        return Decimal("0")
-    try:
-        return Decimal(str(val))
-    except (ValueError, TypeError):
-        return Decimal("0")
+# ── Product-type validation ────────────────────────────────────────────────────
+
+_ALLOWED_PRODUCTS: dict[str, frozenset[str]] = {
+    "NSE_EQ": frozenset({"I", "D", "MTF"}),
+    "BSE_EQ": frozenset({"I", "D", "MTF"}),
+    "NSE_FO": frozenset({"I"}),
+    "BSE_FO": frozenset({"I"}),
+    "MCX_FO": frozenset({"I"}),
+    "NSE_CD": frozenset({"I"}),
+    "BSE_CD": frozenset({"I"}),
+}
 
 
-def _int(val: Any) -> int:
-    if val is None or val == "":
-        return 0
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return 0
+def validate_product_type(segment: str, product_code: str) -> None:
+    """Validate that product_code is allowed for the given Upstox segment.
 
-
-def _parse_ts(val: Any) -> datetime | None:
-    if val is None or val == "":
-        return None
-    if isinstance(val, datetime):
-        return val
-    try:
-        return datetime.fromisoformat(str(val))
-    except (ValueError, TypeError):
-        return None
+    Raises:
+        ValueError: If the combination is invalid per Upstox API rules.
+    """
+    allowed = _ALLOWED_PRODUCTS.get(segment)
+    if allowed is None:
+        return  # Unknown segment — skip validation
+    if product_code not in allowed:
+        raise ValueError(
+            f"Product type {product_code!r} is not allowed for segment "
+            f"{segment!r}. Allowed: {sorted(allowed)}"
+        )
 
 
 class UpstoxMapper:
@@ -116,6 +109,10 @@ class UpstoxMapper:
             "OPEN": OrderStatus.OPEN,
             "PENDING": OrderStatus.OPEN,
             "QUEUED": OrderStatus.OPEN,
+            "OPEN_PENDING": OrderStatus.OPEN,
+            "MODIFY_PENDING": OrderStatus.OPEN,
+            "CANCEL_PENDING": OrderStatus.OPEN,
+            "TRIGGER_PENDING": OrderStatus.OPEN,
             "COMPLETE": OrderStatus.FILLED,
             "FILLED": OrderStatus.FILLED,
             "PARTIALLY_FILLED": OrderStatus.PARTIALLY_FILLED,
@@ -142,21 +139,28 @@ class UpstoxMapper:
 
     @staticmethod
     def build_order_payload(request: OrderRequest, instrument_key: str) -> dict[str, Any]:
-        """Build the Upstox order placement payload from OrderRequest."""
-        # Upstox product codes: I=Intraday, D=CNC, M=Margin
+        """Build the Upstox V3 order placement payload from OrderRequest."""
+        # Extract segment from instrument_key (format: "SEGMENT|security_id")
+        segment = instrument_key.split("|")[0] if "|" in instrument_key else "NSE_EQ"
+        # Upstox product codes: I=Intraday, D=CNC, MTF=MTF
         product_map = {
             ProductType.INTRADAY: "I",
             ProductType.CNC: "D",
-            ProductType.MARGIN: "M",
             ProductType.MTF: "MTF",
         }
+        product_code = product_map.get(request.product_type, "I")
+        # Validate product type for segment
+        validate_product_type(segment, product_code)
         payload: dict[str, Any] = {
             "instrument_token": instrument_key,
             "quantity": request.quantity,
             "transaction_type": request.side.value,
             "order_type": request.order_type.value,
-            "product": product_map.get(request.product_type, "I"),
+            "product": product_code,
             "validity": request.validity.value,
+            "disclosed_quantity": 0,
+            "is_amo": False,
+            "slice": False,
         }
         if request.price and request.price > 0:
             payload["price"] = float(request.price)

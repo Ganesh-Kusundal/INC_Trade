@@ -17,6 +17,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from brokers.constants import DEFAULT_HTTP_MAX_RETRIES, DEFAULT_HTTP_TIMEOUT
 from brokers.infrastructure.http_client import BaseHttpClient
 from brokers.infrastructure.rate_config import dhan_rate_config
 
@@ -32,9 +33,9 @@ class DhanHttpClient(BaseHttpClient):
         client_id: str,
         access_token: str,
         base_url: str = DHAN_BASE_URL,
-        timeout: float = 15.0,
+        timeout: float = DEFAULT_HTTP_TIMEOUT,
         token_refresh_fn: Callable[[], str | None] | None = None,
-        max_retries: int = 3,
+        max_retries: int = DEFAULT_HTTP_MAX_RETRIES,
     ) -> None:
         super().__init__(
             base_url=base_url,
@@ -77,6 +78,20 @@ class DhanHttpClient(BaseHttpClient):
     def get_trades(self) -> dict[str, Any]:
         """GET /trades — fetch today's trade book."""
         return self.get("/trades")
+
+    def get_trade_history(
+        self, from_date: str, to_date: str
+    ) -> dict[str, Any]:
+        """POST /trades — fetch trade history for a date range.
+
+        Args:
+            from_date: Start date in ``YYYY-MM-DD`` format.
+            to_date: End date in ``YYYY-MM-DD`` format.
+        """
+        return self.post(
+            "/trades",
+            json={"fromDate": from_date, "toDate": to_date},
+        )
 
     # ── Market data endpoints ───────────────────────────────────────────────
 

@@ -29,31 +29,13 @@ from brokers.common.instrument_resolver import (
 from brokers.domain.enums import Exchange, InstrumentType
 from decimal import Decimal
 
+from brokers.constants import DEFAULT_TICK_SIZE
+
 logger = logging.getLogger(__name__)
 
-# ── Upstox segment mapping ─────────────────────────────────────────────────
+# ── Upstox segment mapping (delegated to the shared canonical module) ──────
 
-_UPSTOX_SEGMENT_TO_EXCHANGE: dict[str, Exchange] = {
-    "NSE_EQ": Exchange.NSE,
-    "BSE_EQ": Exchange.BSE,
-    "NSE_FO": Exchange.NFO,
-    "BSE_FO": Exchange.NFO,
-    "MCX_FO": Exchange.MCX,
-    "NSE_INDEX": Exchange.INDEX,
-    "BSE_INDEX": Exchange.INDEX,
-    "NSE_COM": Exchange.MCX,
-    "BSE_COM": Exchange.MCX,
-    "NSE_CURRENCY": Exchange.MCX,
-    "BSE_CURRENCY": Exchange.MCX,
-}
-
-_EXCHANGE_TO_SEGMENT: dict[str, str] = {
-    "NSE": "NSE_EQ",
-    "BSE": "BSE_EQ",
-    "NFO": "NSE_FO",
-    "MCX": "MCX_FO",
-    "INDEX": "NSE_INDEX",
-}
+from brokers.common import segments as _segments
 
 
 # ── Upstox instrument resolver ─────────────────────────────────────────────
@@ -207,7 +189,7 @@ class UpstoxInstrumentResolver(InMemoryInstrumentResolver):
         parts[1] if len(parts) > 0 else ""
 
         # Map segment to Exchange
-        exchange = _UPSTOX_SEGMENT_TO_EXCHANGE.get(segment, Exchange.NSE)
+        exchange = _segments.segment_to_exchange(segment)
 
         # Trading symbol and canonical symbol
         trading_symbol = str(row.get("trading_symbol", row.get("tradingSymbol", ""))).strip()
@@ -245,7 +227,7 @@ class UpstoxInstrumentResolver(InMemoryInstrumentResolver):
 
         # Parse lot size, tick size, expiry, strike
         lot_size = _safe_int(row.get("lot_size", row.get("lotSize")), 1)
-        tick_size = _safe_decimal(row.get("tick_size", row.get("tickSize")), Decimal("0.05")) or Decimal("0.05")
+        tick_size = _safe_decimal(row.get("tick_size", row.get("tickSize")), DEFAULT_TICK_SIZE) or DEFAULT_TICK_SIZE
         expiry = str(row.get("expiry", row.get("expiryDate", ""))).strip() or None
         strike = _safe_decimal(row.get("strike_price", row.get("strikePrice", row.get("strike"))), None)
         isin = str(row.get("isin", "")).strip()

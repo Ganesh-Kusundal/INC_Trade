@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 
 class Capability(str, Enum):
@@ -81,7 +82,7 @@ class ProviderCapabilities:
         return any(c in self.supported for c in capabilities)
 
     @staticmethod
-    def full(broker_id: str, **kwargs: object) -> ProviderCapabilities:
+    def full(broker_id: str, **kwargs: Any) -> ProviderCapabilities:
         """All core capabilities supported (for real brokers)."""
         core = frozenset(
             {
@@ -100,22 +101,22 @@ class ProviderCapabilities:
         return ProviderCapabilities(
             broker_id=broker_id,
             supported=core,
-            **kwargs,  # type: ignore[arg-type]
+            **kwargs,
         )
 
     @staticmethod
-    def data_only(broker_id: str, **kwargs: object) -> ProviderCapabilities:
+    def data_only(broker_id: str, **kwargs: Any) -> ProviderCapabilities:
         """Only market data, no execution (for CSV/Yahoo providers)."""
         return ProviderCapabilities(
             broker_id=broker_id,
             supported=frozenset(
                 {Capability.MARKET_DATA, Capability.HISTORICAL_DATA}
             ),
-            **kwargs,  # type: ignore[arg-type]
+            **kwargs,
         )
 
     @staticmethod
-    def paper(broker_id: str = "paper", **kwargs: object) -> ProviderCapabilities:
+    def paper(broker_id: str = "paper", **kwargs: Any) -> ProviderCapabilities:
         """All core capabilities (paper trading simulates everything)."""
         return ProviderCapabilities.full(broker_id, **kwargs)
 

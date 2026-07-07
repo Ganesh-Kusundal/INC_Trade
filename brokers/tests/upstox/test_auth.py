@@ -22,7 +22,6 @@ from brokers.upstox.totp_client import (
     UpstoxTotpError,
     UpstoxTotpRateLimitError,
 )
-from brokers.upstox.token_manager import UpstoxTokenManager
 
 
 # ── UpstoxTotpClient tests ─────────────────────────────────────────────────
@@ -100,90 +99,8 @@ class TestUpstoxTotpClient:
 
 
 # ── UpstoxTokenManager tests ───────────────────────────────────────────────
-
-
-class TestUpstoxTokenManager:
-    @patch("brokers.upstox.totp_client.requests.post")
-    def test_bootstrap_with_totp(self, mock_post, tmp_path):
-        mock_post.return_value = MagicMock(
-            status_code=200,
-            json=lambda: {"access_token": "boot_tok", "expires_in": 86400},
-            text='{"access_token": "boot_tok"}',
-        )
-        creds = UpstoxCredentials(
-            client_id="up123",
-            mobile="+919876543210",
-            pin="1234",
-            totp_secret="JBSWY3DPEHPK3PXP",
-            api_key="test_key",
-        )
-        manager = UpstoxTokenManager(
-            creds,
-            token_store_path=str(tmp_path / "token.json"),
-        )
-        state = manager.bootstrap()
-        assert state.access_token == "boot_tok"
-        assert manager.is_valid is True
-
-    def test_bootstrap_with_static_token(self, tmp_path):
-        creds = UpstoxCredentials(
-            client_id="up123",
-            access_token="static_tok",
-        )
-        manager = UpstoxTokenManager(
-            creds,
-            token_store_path=str(tmp_path / "token.json"),
-        )
-        state = manager.bootstrap()
-        assert state.access_token == "static_tok"
-
-    def test_bearer_token_format(self, tmp_path):
-        creds = UpstoxCredentials(
-            client_id="up123",
-            access_token="my_token",
-        )
-        manager = UpstoxTokenManager(
-            creds,
-            token_store_path=str(tmp_path / "token.json"),
-        )
-        manager.bootstrap()
-        assert manager.bearer_token == "Bearer my_token"
-
-    def test_access_token_property(self, tmp_path):
-        creds = UpstoxCredentials(
-            client_id="up123",
-            access_token="tok_abc",
-        )
-        manager = UpstoxTokenManager(
-            creds,
-            token_store_path=str(tmp_path / "token.json"),
-        )
-        manager.bootstrap()
-        assert manager.access_token == "tok_abc"
-
-    def test_state_property(self, tmp_path):
-        creds = UpstoxCredentials(
-            client_id="up123",
-            access_token="tok_abc",
-        )
-        manager = UpstoxTokenManager(
-            creds,
-            token_store_path=str(tmp_path / "token.json"),
-        )
-        manager.bootstrap()
-        assert manager.state is not None
-        assert manager.state.access_token == "tok_abc"
-
-    def test_revoke(self, tmp_path):
-        creds = UpstoxCredentials(
-            client_id="up123",
-            access_token="tok_abc",
-        )
-        manager = UpstoxTokenManager(
-            creds,
-            token_store_path=str(tmp_path / "token.json"),
-        )
-        manager.bootstrap()
-        assert manager.is_valid is True
-        manager.revoke()
-        assert manager.is_valid is False
+#
+# NOTE: UpstoxTokenManager was removed (brokers/upstox/token_manager.py) in
+# favor of the shared brokers/common/auth AuthManager + scheduler wired in
+# Platform. Token lifecycle is now owned by the common AuthManager; the
+# UpstoxProvider.update_token method is the receiver the scheduler calls.

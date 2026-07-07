@@ -15,7 +15,11 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Protocol, runtime_checkable
 
+from brokers.constants import DEFAULT_TICK_SIZE
 from brokers.domain.enums import Exchange, InstrumentType
+
+# Single source of truth: re-export from domain layer
+from brokers.domain.exceptions import InstrumentNotFoundError  # noqa: F401
 
 
 # ── Resolver result ────────────────────────────────────────────────────────
@@ -40,25 +44,12 @@ class ResolvedInstrument:
     segment: str
     instrument_type: InstrumentType = InstrumentType.EQUITY
     lot_size: int = 1
-    tick_size: Decimal = Decimal("0.05")
+    tick_size: Decimal = DEFAULT_TICK_SIZE
     trading_symbol: str = ""
     expiry: str | None = None
     strike: Decimal | None = None
     isin: str = ""
     underlying: str = ""
-
-
-class InstrumentNotFoundError(Exception):
-    """Raised when a symbol cannot be resolved to a broker instrument."""
-
-    def __init__(self, symbol: str, exchange: str, broker: str = "") -> None:
-        self.symbol = symbol
-        self.exchange = exchange
-        self.broker = broker
-        super().__init__(
-            f"Instrument not found: {symbol} on {exchange}"
-            + (f" ({broker})" if broker else "")
-        )
 
 
 # ── Resolver protocol ──────────────────────────────────────────────────────

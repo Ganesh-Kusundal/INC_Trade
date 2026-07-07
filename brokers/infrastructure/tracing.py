@@ -18,11 +18,20 @@ from __future__ import annotations
 import threading
 import time
 import uuid
+from collections import deque
 from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any
 
-_CONTEXT = threading.local()
+# Span stack is per-async-context (not per-thread) so nesting/parenting is
+# correct under asyncio, where many coroutines share one thread.  A
+# ContextVar provides the right isolation: each task gets its own stack,
+# and parent/child spans nest correctly across awaits.
+_SPAN_STACK: ContextVar[list[Span]] = ContextVar("tracing_span_stack")
+
+# Bound buffer of finished spans to prevent unbounded memory growth.
+_MAX_FINISHED_SPANS = 10_000
 
 
 @dataclass
@@ -80,7 +89,7 @@ class Tracer:
     """
 
     def __init__(self) -> None:
-        self._finished_spans: list[Span] = []
+        self._finished_spans: deque[Span] = deque(maxlen=_MAX_FINISHED_SPANS)
         self._lock = threading.Lock()
 
     @contextmanager
@@ -115,17 +124,19 @@ class Tracer:
                 self._finished_spans.append(span)
 
     def _current_span(self) -> Span | None:
-        """Get the current active span from the thread-local stack."""
-        stack: list[Span] = getattr(_CONTEXT, "stack", [])
+        """Get the current active span from the context-local stack."""
+        stack = _SPAN_STACK.get(None)
         return stack[-1] if stack else None
 
     def _push_span(self, span: Span) -> None:
-        stack: list[Span] = getattr(_CONTEXT, "stack", [])
+        stack = _SPAN_STACK.get(None)
+        if stack is None:
+            stack = []
+            _SPAN_STACK.set(stack)
         stack.append(span)
-        _CONTEXT.stack = stack
 
     def _pop_span(self) -> Span | None:
-        stack: list[Span] = getattr(_CONTEXT, "stack", [])
+        stack = _SPAN_STACK.get(None)
         if stack:
             return stack.pop()
         return None

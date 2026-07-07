@@ -15,10 +15,14 @@ class DomainError(Exception):
 class InstrumentNotFoundError(DomainError):
     """Instrument not found in the broker's instrument master."""
 
-    def __init__(self, symbol: str, exchange: str = "") -> None:
+    def __init__(self, symbol: str, exchange: str = "", broker: str = "") -> None:
         self.symbol = symbol
         self.exchange = exchange
-        super().__init__(f"Instrument not found: {symbol}:{exchange}" if exchange else symbol)
+        self.broker = broker
+        super().__init__(
+            f"Instrument not found: {symbol} on {exchange}"
+            + (f" ({broker})" if broker else "")
+        )
 
 
 class NotSupportedError(DomainError):

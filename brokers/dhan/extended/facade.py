@@ -19,12 +19,17 @@ from brokers.dhan.client import DhanHttpClient
 
 from .alerts import DhanAlerts
 from .conditional_triggers import DhanConditionalTriggers
+from .convert_position import DhanConvertPosition
 from .edis import DhanEdis
 from .exit_all import DhanExitAll
+from .expired_options import DhanExpiredOptions
 from .forever_orders import DhanForeverOrders
 from .ip_management import DhanIpManagement
+from .kill_switch import DhanKillSwitch
 from .ledger import DhanLedger
 from .margin import DhanMargin
+from .order_lookup import DhanOrderLookup
+from .slice_order import DhanSliceOrder
 from .super_orders import DhanSuperOrders
 from .user_profile import DhanUserProfile
 
@@ -55,6 +60,11 @@ class DhanExtended:
         self._exit_all: DhanExitAll | None = None
         self._margin: DhanMargin | None = None
         self._alerts: DhanAlerts | None = None
+        self._convert_position: DhanConvertPosition | None = None
+        self._kill_switch: DhanKillSwitch | None = None
+        self._expired_options: DhanExpiredOptions | None = None
+        self._slice_order: DhanSliceOrder | None = None
+        self._order_lookup: DhanOrderLookup | None = None
 
     @property
     def super_orders(self) -> DhanSuperOrders:
@@ -115,6 +125,36 @@ class DhanExtended:
         if self._alerts is None:
             self._alerts = DhanAlerts(client=self._client)
         return self._alerts
+
+    @property
+    def convert_position(self) -> DhanConvertPosition:
+        if self._convert_position is None:
+            self._convert_position = DhanConvertPosition(client=self._client)
+        return self._convert_position
+
+    @property
+    def kill_switch(self) -> DhanKillSwitch:
+        if self._kill_switch is None:
+            self._kill_switch = DhanKillSwitch(client=self._client)
+        return self._kill_switch
+
+    @property
+    def expired_options(self) -> DhanExpiredOptions:
+        if self._expired_options is None:
+            self._expired_options = DhanExpiredOptions(client=self._client)
+        return self._expired_options
+
+    @property
+    def slice_order(self) -> DhanSliceOrder:
+        if self._slice_order is None:
+            self._slice_order = DhanSliceOrder(client=self._client)
+        return self._slice_order
+
+    @property
+    def order_lookup(self) -> DhanOrderLookup:
+        if self._order_lookup is None:
+            self._order_lookup = DhanOrderLookup(client=self._client)
+        return self._order_lookup
 
 
 __all__ = ["DhanExtended"]

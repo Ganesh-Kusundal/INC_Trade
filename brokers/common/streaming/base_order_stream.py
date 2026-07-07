@@ -128,6 +128,12 @@ class BaseOrderStream(ABC):
         )
         await self._orchestrator.start()
 
+    def set_order_callback(self, callback: Callable[[OrderUpdateEvent], None] | None) -> None:
+        """Set or update the order callback. Updates orchestrator if running."""
+        self._on_order = callback
+        if self._orchestrator is not None:
+            self._orchestrator.set_callbacks(on_order=callback)
+
     async def stop(self) -> None:
         """Stop the stream and tear down the orchestrator."""
         if self._orchestrator is not None:

@@ -107,6 +107,12 @@ class BaseMarketFeed(ABC):
     def mode(self) -> StreamMode:
         return self._mode
 
+    def set_tick_callback(self, callback: Callable[[MarketTickEvent], None] | None) -> None:
+        """Set or update the tick callback. Updates orchestrator if running."""
+        self._on_tick = callback
+        if self._orchestrator is not None:
+            self._orchestrator.set_callbacks(on_tick=callback)
+
     # ── Subclass hooks ───────────────────────────────────────────────────────
 
     @abstractmethod

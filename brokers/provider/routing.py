@@ -55,13 +55,20 @@ class RoutingStrategy:
 
     @staticmethod
     def failover() -> RoutingStrategy:
-        """Try primary first, failover to secondary.
+        """Read from the secondary, execute on the primary; failover on error.
 
-        Uses a mutable counter for round-robin on failure.
-        The CompositeProvider handles failover logic internally;
-        this strategy just says "start with primary".
+        Market data, historical, and streaming operations prefer the
+        secondary provider (index 1) so reads are served from a replica,
+        while execution prefers the primary (index 0).  The
+        ``CompositeProvider`` still fails over to the other provider when a
+        call errors, so this is genuinely different from ``primary_only()``.
         """
-        return RoutingStrategy()
+        return RoutingStrategy(
+            execution=lambda *a, **kw: 0,
+            market_data=lambda *a, **kw: 1,
+            historical=lambda *a, **kw: 1,
+            streaming=lambda *a, **kw: 1,
+        )
 
     @staticmethod
     def custom(

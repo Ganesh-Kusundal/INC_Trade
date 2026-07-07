@@ -21,21 +21,9 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from brokers.common.logging_helpers import log_debug as _log_debug, log_warning as _log_warning
+
 logger = logging.getLogger(__name__)
-
-
-def _log_warning(msg: str, **extra: object) -> None:
-    try:
-        logger.warning(msg, extra=extra)
-    except TypeError:
-        logger.warning(f"{msg} {extra}")
-
-
-def _log_debug(msg: str, **extra: object) -> None:
-    try:
-        logger.debug(msg, extra=extra)
-    except TypeError:
-        logger.debug(f"{msg} {extra}")
 
 
 # ── Credential data classes ────────────────────────────────────────────────

@@ -100,7 +100,7 @@ class _StructuredFormatter(logging.Formatter):
         if structured:
             parts = []
             for k, v in structured.items():
-                parts.append(f"{k}={_format_value(v)}")
+                parts.append(f"{k}={_format_value(v, key=k)}")
             if parts:
                 base += " " + " ".join(parts)
 
@@ -110,8 +110,25 @@ class _StructuredFormatter(logging.Formatter):
         return base
 
 
-def _format_value(value: Any) -> str:
-    """Format a value for structured logging output."""
+# Keys considered secret — matched case-insensitively as substrings. Their
+# values are replaced with a redaction marker in structured logs.
+_REDACT_KEYS = ("access_token", "token", "password", "pin", "totp", "secret")
+
+
+def _is_secret_key(key: str) -> bool:
+    k = key.lower()
+    return any(rk in k for rk in _REDACT_KEYS)
+
+
+def _format_value(value: Any, key: str = "") -> str:
+    """Format a value for structured logging output.
+
+    Secret keys (access_token, token, password, pin, totp, secret, and any
+    key containing those substrings) are redacted to avoid leaking
+    credentials into logs.
+    """
+    if _is_secret_key(key):
+        return "***REDACTED***"
     if value is None:
         return "null"
     if isinstance(value, str):

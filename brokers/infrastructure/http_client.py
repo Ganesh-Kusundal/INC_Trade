@@ -38,12 +38,17 @@ from brokers.infrastructure.rate_config import RateLimitConfig
 
 logger = get_logger(__name__)
 
-# ── Defaults ───────────────────────────────────────────────────────────────
+# ── Defaults (centralised in ``brokers.constants``) ────────────────────────
 
-_DEFAULT_TIMEOUT = 15.0
-_DEFAULT_MAX_RETRIES = 3
-_DEFAULT_BASE_DELAY_MS = 500
-_DEFAULT_MAX_DELAY_MS = 5000
+from brokers.constants import (
+    CIRCUIT_BREAKER_FAILURE_THRESHOLD as _CB_FAILURE_THRESHOLD,
+    CIRCUIT_BREAKER_RESET_TIMEOUT as _CB_RESET_TIMEOUT,
+    DEFAULT_BASE_DELAY_MS as _DEFAULT_BASE_DELAY_MS,
+    DEFAULT_HTTP_MAX_RETRIES as _DEFAULT_MAX_RETRIES,
+    DEFAULT_HTTP_TIMEOUT as _DEFAULT_TIMEOUT,
+    DEFAULT_MAX_DELAY_MS as _DEFAULT_MAX_DELAY_MS,
+    REFRESH_COOLDOWN_SECONDS as _REFRESH_COOLDOWN,
+)
 
 
 class HttpError(RuntimeError):
@@ -90,11 +95,12 @@ class BaseHttpClient:
         self._session = session or requests.Session()
         self._session.headers.update(headers)
 
+        self._session_lock = threading.Lock()  # Protects session.headers mutations
         self._last_request_time: dict[str, float] = {}
         self._adaptive_intervals: dict[str, float] = {}
         self._rate_lock = threading.Lock()
         self._last_refresh_time: float = 0.0
-        self._refresh_cooldown: float = 60.0  # min seconds between refresh attempts
+        self._refresh_cooldown: float = _REFRESH_COOLDOWN
 
         # Circuit breaker state per category
         self._cb_failures: dict[str, int] = {"read": 0, "write": 0, "admin": 0}
@@ -108,8 +114,14 @@ class BaseHttpClient:
     # ── Public API ──────────────────────────────────────────────────────────
 
     def update_token(self, token: str) -> None:
-        """Update the auth token in session headers."""
-        self._session.headers[self._token_header_key] = token
+        """Update the auth token in session headers (thread-safe)."""
+        with self._session_lock:
+            self._session.headers[self._token_header_key] = token
+
+    def get_access_token(self) -> str:
+        """Return the current auth token from session headers."""
+        with self._session_lock:
+            return self._session.headers.get(self._token_header_key, "")
 
     def get(self, endpoint: str) -> dict[str, Any]:
         return self._request("GET", endpoint)
@@ -131,7 +143,7 @@ class BaseHttpClient:
     def _cb_category(self, endpoint: str) -> str:
         return self._rate_config.categorize(endpoint)
 
-    def _cb_check(self, category: str, reset_timeout: float = 30.0) -> bool:
+    def _cb_check(self, category: str, reset_timeout: float = _CB_RESET_TIMEOUT) -> bool:
         """Return True if request is allowed (circuit closed or half-open probe)."""
         with self._cb_lock:
             state = self._cb_state[category]
@@ -151,7 +163,7 @@ class BaseHttpClient:
             self._cb_state[category] = "closed"
             self._cb_failures[category] = 0
 
-    def _cb_record_failure(self, category: str, threshold: int = 5) -> None:
+    def _cb_record_failure(self, category: str, threshold: int = _CB_FAILURE_THRESHOLD) -> None:
         with self._cb_lock:
             self._cb_failures[category] += 1
             self._cb_last_failure[category] = time.monotonic()
@@ -167,18 +179,28 @@ class BaseHttpClient:
     # ── Rate limiting ───────────────────────────────────────────────────────
 
     def _throttle(self, endpoint: str) -> None:
-        """Sleep if needed to respect per-endpoint rate limits."""
+        """Sleep if needed to respect per-endpoint rate limits.
+
+        The timestamp is stamped immediately before the request under a
+        single atomic lock section that also covers the sleep.  This
+        eliminates the TOCTOU race where two threads could read the same
+        ``last_request_time``, both pass the check, and fire a burst.
+        """
         static_interval = self._rate_config.get_interval(endpoint)
         prefix = self._match_prefix(endpoint)
         adaptive_interval = self._adaptive_intervals.get(prefix, 0) if prefix else 0
         min_interval = max(static_interval, adaptive_interval)
         if min_interval <= 0:
             return
+
+        # Hold the lock across the read → sleep → stamp so concurrent
+        # requests are strictly serialised per endpoint.
         with self._rate_lock:
             last = self._last_request_time.get(endpoint, 0.0)
             elapsed = time.monotonic() - last
-            if elapsed < min_interval:
-                time.sleep(min_interval - elapsed)
+            sleep_time = max(0.0, min_interval - elapsed)
+            if sleep_time > 0:
+                time.sleep(sleep_time)
             self._last_request_time[endpoint] = time.monotonic()
 
     def _match_prefix(self, endpoint: str) -> str | None:
@@ -232,9 +254,10 @@ class BaseHttpClient:
 
         for attempt in range(1, max_attempts + 1):
             try:
-                resp = self._session.request(
-                    method, url, json=json, timeout=self._timeout
-                )
+                with self._session_lock:
+                    resp = self._session.request(
+                        method, url, json=json, timeout=self._timeout
+                    )
             except requests.RequestException as exc:
                 self._cb_record_failure(category)
                 if attempt < max_attempts:
@@ -322,11 +345,25 @@ class BaseHttpClient:
                 raise HttpError(f"Invalid JSON from {method} {url}") from exc
 
             self._cb_record_success(category)
+            self._decay_adaptive_interval(endpoint)
             return data  # type: ignore[no-any-return]
 
         raise HttpError(f"Request failed after {max_attempts} attempts: {method} {url}")
 
     # ── Helpers ─────────────────────────────────────────────────────────────
+
+    def _decay_adaptive_interval(self, endpoint: str) -> None:
+        """Halve the adaptive interval on success to restore throughput."""
+        prefix = self._match_prefix(endpoint)
+        if prefix and prefix in self._adaptive_intervals:
+            with self._rate_lock:
+                current = self._adaptive_intervals.get(prefix, 0)
+                if current > 0:
+                    halved = current / 2
+                    if halved < 0.01:
+                        self._adaptive_intervals.pop(prefix, None)
+                    else:
+                        self._adaptive_intervals[prefix] = halved
 
     def _backoff_delay(self, attempt: int) -> float:
         """Exponential backoff: 500ms, 1s, 2s, 4s... capped at 5s."""

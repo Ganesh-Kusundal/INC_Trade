@@ -8,20 +8,10 @@ import threading
 import time
 from dataclasses import dataclass
 from typing import Any, Generic, Optional, Protocol, TypeVar, runtime_checkable
+from brokers.common.logging_helpers import log_warning as _log_warning
+
 
 logger = logging.getLogger(__name__)
-
-def _log_info(msg: str, **extra: object) -> None:
-    try: logger.info(msg, extra=extra)
-    except (TypeError, KeyError): logger.info(f"{msg} {extra}")
-
-def _log_warning(msg: str, **extra: object) -> None:
-    try: logger.warning(msg, extra=extra)
-    except (TypeError, KeyError): logger.warning(f"{msg} {extra}")
-
-def _log_debug(msg: str, **extra: object) -> None:
-    try: logger.debug(msg, extra=extra)
-    except (TypeError, KeyError): logger.debug(f"{msg} {extra}")
 
 T = TypeVar("T")
 

@@ -18,10 +18,10 @@ Usage::
 from __future__ import annotations
 
 import functools
-import json
 import threading
 import time
 from abc import ABC, abstractmethod
+from collections import OrderedDict
 from collections.abc import Callable
 from typing import Any, TypeVar
 
@@ -50,16 +50,13 @@ class Cache(ABC):
 class MemoryCache(Cache):
     """Thread-safe in-memory cache with TTL and maxsize eviction.
 
-    When the cache exceeds *maxsize* entries, expired entries are evicted
-    first, then oldest entries are removed.
+    Uses ``OrderedDict`` for O(1) oldest-entry eviction.
     """
 
     def __init__(self, default_ttl: int = 300, maxsize: int = 10_000) -> None:
         self._default_ttl = default_ttl
         self._maxsize = maxsize
-        self._store: dict[str, tuple[Any, float]] = {}
-        self._insertion_order: dict[str, int] = {}
-        self._counter: int = 0
+        self._store: OrderedDict[str, tuple[Any, float]] = OrderedDict()
         self._lock = threading.RLock()
 
     def get(self, key: str) -> Any | None:
@@ -76,9 +73,10 @@ class MemoryCache(Cache):
         with self._lock:
             ttl_seconds = ttl if ttl is not None else self._default_ttl
             expires_at = time.monotonic() + ttl_seconds if ttl_seconds > 0 else 0
+            # Move to end if key already exists
+            if key in self._store:
+                self._store.move_to_end(key)
             self._store[key] = (value, expires_at)
-            self._insertion_order[key] = self._counter
-            self._counter += 1
             if len(self._store) > self._maxsize:
                 self._evict_expired()
             if len(self._store) > self._maxsize:
@@ -91,10 +89,22 @@ class MemoryCache(Cache):
     def clear(self) -> None:
         with self._lock:
             self._store.clear()
-            self._insertion_order.clear()
 
     def has(self, key: str) -> bool:
-        return self.get(key) is not None
+        """Return True if a non-expired entry exists for *key*.
+
+        Unlike ``get()``, this does NOT treat a stored ``None`` as absent —
+        a live entry whose value happens to be ``None`` still counts as
+        present.
+        """
+        with self._lock:
+            if key not in self._store:
+                return False
+            _, expires_at = self._store[key]
+            if expires_at and time.monotonic() > expires_at:
+                self._remove(key)
+                return False
+            return True
 
     @property
     def size(self) -> int:
@@ -113,7 +123,6 @@ class MemoryCache(Cache):
 
     def _remove(self, key: str) -> None:
         self._store.pop(key, None)
-        self._insertion_order.pop(key, None)
 
     def _evict_expired(self) -> None:
         now = time.monotonic()
@@ -122,12 +131,21 @@ class MemoryCache(Cache):
             self._remove(k)
 
     def _evict_oldest(self) -> None:
-        sorted_keys = sorted(
-            self._store.keys(), key=lambda k: self._insertion_order.get(k, 0)
-        )
+        """Evict oldest entries using OrderedDict.popitem(last=False) — O(1)."""
         to_remove = len(self._store) - self._maxsize
-        for k in sorted_keys[:to_remove]:
-            self._remove(k)
+        for _ in range(to_remove):
+            if self._store:
+                self._store.popitem(last=False)
+
+
+def _build_cache_key(func_name: str, args: tuple, kwargs: dict) -> str:
+    """Build a cache key using repr() — faster than json.dumps."""
+    parts = [func_name]
+    if args:
+        parts.append(repr(args))
+    if kwargs:
+        parts.append(repr(tuple(sorted(kwargs.items()))))
+    return ":".join(parts)
 
 
 def cached(cache: Cache | None = None, ttl: int = 300) -> Callable[[F], F]:
@@ -138,7 +156,7 @@ def cached(cache: Cache | None = None, ttl: int = 300) -> Callable[[F], F]:
 
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            key = f"{func.__name__}:{json.dumps(args, default=str)}:{json.dumps(kwargs, default=str)}"
+            key = _build_cache_key(func.__name__, args, kwargs)
             result = cache_instance.get(key)
             if result is not None:
                 return result
@@ -159,7 +177,7 @@ def async_cached(cache: Cache | None = None, ttl: int = 300) -> Callable[[F], F]
 
         @functools.wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
-            key = f"{func.__name__}:{json.dumps(args, default=str)}:{json.dumps(kwargs, default=str)}"
+            key = _build_cache_key(func.__name__, args, kwargs)
             result = cache_instance.get(key)
             if result is not None:
                 return result

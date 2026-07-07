@@ -15,17 +15,10 @@ import json
 from typing import Any
 
 from brokers.domain.enums import Exchange
+from brokers.common import segments as _segments
 
 
 # ── Exchange segment mapping ───────────────────────────────────────────────
-
-_EXCHANGE_SEGMENT_MAP: dict[Exchange, str] = {
-    Exchange.NSE: "NSE_EQ",
-    Exchange.BSE: "BSE_EQ",
-    Exchange.NFO: "NSE_FNO",
-    Exchange.MCX: "MCX_COMM",
-    Exchange.INDEX: "IDX_I",
-}
 
 
 def format_instrument_key(exchange: Exchange, security_id: str) -> str:
@@ -33,7 +26,7 @@ def format_instrument_key(exchange: Exchange, security_id: str) -> str:
 
     Returns ``"exchange_segment|security_id"`` (e.g., ``"NSE_EQ|1333"``).
     """
-    segment = _EXCHANGE_SEGMENT_MAP.get(exchange, "NSE_EQ")
+    segment = _segments.dhan_segment_for(exchange)
     return f"{segment}|{security_id}"
 
 

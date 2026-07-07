@@ -49,11 +49,19 @@ from brokers.infrastructure.streaming.stream_health import (
 logger = get_logger(__name__)
 
 
-def decode_market_message(raw: str | bytes) -> list[MarketTickEvent | OrderUpdateEvent]:
+def decode_market_message(
+    raw: str | bytes,
+    symbol_lookup: Callable[[str], str] | None = None,
+) -> list[MarketTickEvent | OrderUpdateEvent]:
     """Decode a raw Dhan WS message into domain events.
 
     Handles both market data ticks and order updates in a single
     decoder function for the orchestrator's ``decode_fn`` callback.
+
+    ``symbol_lookup`` optionally maps a Dhan ``security_id`` (numeric id or
+    ``segment|id`` instrument_key) to the user-facing symbol.  Dhan's market
+    feed carries no ``trading_symbol``, so without it emitted ticks would be
+    keyed by the numeric id.
     """
     try:
         data = json.loads(raw)
@@ -63,26 +71,30 @@ def decode_market_message(raw: str | bytes) -> list[MarketTickEvent | OrderUpdat
 
     # Batch format (list of ticks) — check BEFORE dict to avoid .get() on list
     if isinstance(data, list):
-        return _parse_batch(data)
+        return _parse_batch(data, symbol_lookup)
 
     # Single dict message
     if isinstance(data, dict):
-        return _parse_single(data)
+        return _parse_single(data, symbol_lookup)
 
     return []
 
 
-def _parse_batch(items: list) -> list[MarketTickEvent | OrderUpdateEvent]:
+def _parse_batch(
+    items: list, symbol_lookup: Callable[[str], str] | None = None
+) -> list[MarketTickEvent | OrderUpdateEvent]:
     """Parse a batch (list) of messages."""
     events: list[MarketTickEvent | OrderUpdateEvent] = []
     for item in items:
         if isinstance(item, dict):
-            for event in _parse_single(item):
+            for event in _parse_single(item, symbol_lookup):
                 events.append(event)
     return events
 
 
-def _parse_single(data: dict[str, Any]) -> list[MarketTickEvent | OrderUpdateEvent]:
+def _parse_single(
+    data: dict[str, Any], symbol_lookup: Callable[[str], str] | None = None
+) -> list[MarketTickEvent | OrderUpdateEvent]:
     """Parse a single dict message — order update or market tick."""
     # Order update
     if data.get("Type") == "order_alert":
@@ -91,22 +103,32 @@ def _parse_single(data: dict[str, Any]) -> list[MarketTickEvent | OrderUpdateEve
 
     # Market data tick
     if "instrument_key" in data or "ltp" in data:
-        tick = _parse_market_tick(data)
+        tick = _parse_market_tick(data, symbol_lookup)
         return [tick] if tick else []
 
     return []
 
 
-def _parse_market_tick(data: dict[str, Any]) -> MarketTickEvent | None:
+def _parse_market_tick(
+    data: dict[str, Any],
+    symbol_lookup: Callable[[str], str] | None = None,
+) -> MarketTickEvent | None:
     """Parse a single market tick JSON into a MarketTickEvent."""
     try:
         ltp = float(data.get("ltp", 0))
         if ltp <= 0:
             return None
 
-        # Extract symbol from instrument_key or trading_symbol
+        # Dhan's market feed has no trading_symbol field.  Map the numeric
+        # security_id / instrument_key back to the user-facing symbol via the
+        # feed's subscription map when available, so emitted Quote.symbol
+        # matches what the user subscribed with (consistent with depth_feed).
         instrument_key = data.get("instrument_key", "")
-        symbol = data.get("trading_symbol", instrument_key.split("|")[-1] if instrument_key else "")
+        security_id = instrument_key.split("|")[-1] if instrument_key else ""
+        if symbol_lookup is not None and security_id:
+            symbol = symbol_lookup(security_id) or security_id
+        else:
+            symbol = data.get("trading_symbol", security_id)
 
         # Parse depth if available
         depth_bids: list[tuple[float, int]] = []
@@ -174,20 +196,7 @@ def _parse_order_update(data: dict[str, Any]) -> OrderUpdateEvent | None:
         return None
 
 
-def _normalize_status(status: str) -> str:
-    """Normalize Dhan order status to canonical form."""
-    mapping = {
-        "TRANSIT": "OPEN",
-        "PENDING": "OPEN",
-        "OPEN": "OPEN",
-        "TRADED": "FILLED",
-        "PART_TRADED": "PARTIALLY_FILLED",
-        "EXPIRED": "EXPIRED",
-        "REJECTED": "REJECTED",
-        "CANCELLED": "CANCELLED",
-        "MODIFIED": "OPEN",
-    }
-    return mapping.get(status.upper(), "UNKNOWN")
+from brokers.dhan.status_mapping import normalize_status as _normalize_status
 
 
 __all__ = ["decode_market_message"]

@@ -31,6 +31,8 @@ from brokers.common.instrument_resolver import (
 from brokers.domain.enums import Exchange, InstrumentType
 from decimal import Decimal
 
+from brokers.constants import DEFAULT_TICK_SIZE
+
 logger = logging.getLogger(__name__)
 
 # ── Dhan CSV column names (verified from archive) ──────────────────────────
@@ -47,18 +49,12 @@ _COL_OPTION_TYPE = "SEM_OPTION_TYPE"
 _COL_CUSTOM_SYMBOL = "SEM_CUSTOM_SYMBOL"
 _COL_UNDERLYING = "SM_SYMBOL_NAME"
 
-# ── Segment to Exchange mapping (verified from archive) ────────────────────
+# ── Segment to Exchange mapping (delegated to the shared canonical module) ──
 
-_SEGMENT_TO_EXCHANGE: dict[str, Exchange] = {
-    "NSE_EQ": Exchange.NSE,
-    "BSE_EQ": Exchange.BSE,
-    "NSE_FNO": Exchange.NFO,
-    "BSE_FNO": Exchange.NFO,
-    "MCX_COMM": Exchange.MCX,
-    "NSE_COMM": Exchange.MCX,
-    "NSE_CURRENCY": Exchange.MCX,  # Approximate
-    "IDX_I": Exchange.INDEX,
-}
+from brokers.common import segments as _segments
+
+# Alias kept for backward-compatible test references; delegates to the shared map.
+_SEGMENT_TO_EXCHANGE = _segments.SEGMENT_TO_EXCHANGE
 
 # Compact CSV segment map (Dhan's compact CSV uses shortened segment codes)
 _COMPACT_SEGMENT_MAP: dict[str, str] = {
@@ -101,10 +97,10 @@ class DhanInstrumentResolver(InMemoryInstrumentResolver):
     ResolvedInstrument objects with numeric security_ids.
     """
 
-    # Dhan instrument CSV URL (compact format)
-    INSTRUMENT_CSV_URL = "https://images.dhan.co/data/broker-nse/brokerNSEComplete.csv"
-    # MCX detailed CSV (for commodity-specific data)
-    MCX_CSV_URL = "https://images.dhan.co/data/broker-mcx/brokerMCXComplete.csv"
+    # Dhan instrument CSV URL (compact format — official SDK source)
+    INSTRUMENT_CSV_URL = "https://images.dhan.co/api-data/api-scrip-master.csv"
+    # Detailed CSV (for commodity-specific data)
+    MCX_CSV_URL = "https://images.dhan.co/api-data/api-scrip-master-detailed.csv"
 
     # Cache directory (overridable via env)
     DEFAULT_CACHE_DIR = "runtime-dev/instruments"
@@ -221,7 +217,7 @@ class DhanInstrumentResolver(InMemoryInstrumentResolver):
         # Map exchange segment
         exchange_code = str(row.get(_COL_EXCHANGE, "")).strip()
         segment = _COMPACT_SEGMENT_MAP.get(exchange_code, exchange_code)
-        exchange = _SEGMENT_TO_EXCHANGE.get(segment, Exchange.NSE)
+        exchange = _segments.segment_to_exchange(segment)
 
         # Map instrument type
         inst_name = str(row.get(_COL_INSTRUMENT_NAME, "")).strip().upper()
@@ -229,7 +225,7 @@ class DhanInstrumentResolver(InMemoryInstrumentResolver):
 
         # Parse lot size and tick size
         lot_size = _safe_int(row.get(_COL_LOT_UNITS), 1)
-        tick_size = _safe_decimal(row.get(_COL_TICK_SIZE), Decimal("0.05")) or Decimal("0.05")
+        tick_size = _safe_decimal(row.get(_COL_TICK_SIZE), DEFAULT_TICK_SIZE) or DEFAULT_TICK_SIZE
 
         # Parse expiry
         expiry = str(row.get(_COL_EXPIRY, "")).strip() or None

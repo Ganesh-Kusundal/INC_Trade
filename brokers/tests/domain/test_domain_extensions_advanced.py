@@ -1,4 +1,4 @@
-"""Tests for domain historical, stream_health, events, and capability_manifest."""
+"""Tests for domain historical, stream_health, and events."""
 
 from __future__ import annotations
 
@@ -28,17 +28,6 @@ from brokers.domain.events import (
     EventType,
     canonical_event_types,
     make_payload,
-)
-from brokers.domain.capability_manifest import (
-    CAPABILITY_SURFACES,
-    BrokerMethodRef,
-    Capability,
-    CapabilitySurface,
-    all_surfaces,
-    broker_only_capabilities,
-    mapped_capability_values,
-    surface_by_id,
-    surfaces_for_capability,
 )
 
 
@@ -291,63 +280,3 @@ class TestEventPayloads:
     def test_all_event_types_have_payloads(self) -> None:
         for event_type in EventType:
             assert event_type in EVENT_PAYLOADS, f"Missing payload contract for {event_type}"
-
-
-# ── Capability manifest ────────────────────────────────────────────────
-
-
-class TestCapabilityEnum:
-    def test_str_enum(self) -> None:
-        assert Capability.MARKET_DATA == "MARKET_DATA"
-        assert isinstance(Capability.MARKET_DATA, str)
-
-
-class TestBrokerMethodRef:
-    def test_defaults(self) -> None:
-        ref = BrokerMethodRef()
-        assert ref.dhan is None
-        assert ref.upstox is None
-
-    def test_with_values(self) -> None:
-        ref = BrokerMethodRef(dhan="orders.place_order", upstox="order_command.place_order")
-        assert ref.dhan == "orders.place_order"
-
-
-class TestCapabilitySurface:
-    def test_frozen(self) -> None:
-        surface = CapabilitySurface(
-            id="test",
-            capability=Capability.MARKET_DATA,
-            gateway_method="quote",
-        )
-        assert surface.id == "test"
-        assert surface.tier == "core"
-
-
-class TestSurfaceLookups:
-    def test_all_surfaces(self) -> None:
-        surfaces = all_surfaces()
-        assert len(surfaces) > 0
-        assert surfaces == CAPABILITY_SURFACES
-
-    def test_surface_by_id(self) -> None:
-        surface = surface_by_id("market_data.quote")
-        assert surface is not None
-        assert surface.capability == Capability.MARKET_DATA
-
-    def test_surface_by_id_not_found(self) -> None:
-        assert surface_by_id("nonexistent") is None
-
-    def test_surfaces_for_capability(self) -> None:
-        surfaces = surfaces_for_capability(Capability.ORDER_COMMAND)
-        assert len(surfaces) >= 3  # place, cancel, modify
-
-    def test_broker_only_capabilities(self) -> None:
-        caps = broker_only_capabilities()
-        assert isinstance(caps, frozenset)
-        assert Capability.MARKET_INTELLIGENCE in caps
-
-    def test_mapped_capability_values(self) -> None:
-        caps = mapped_capability_values()
-        assert Capability.MARKET_DATA in caps
-        assert Capability.ORDER_COMMAND in caps

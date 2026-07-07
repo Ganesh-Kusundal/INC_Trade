@@ -12,15 +12,20 @@ Injected into :class:`Account`.  ``Account.place_order()`` calls
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from brokers.domain.account import RiskDecision, RiskPolicyProtocol
+from brokers.domain.capabilities import Capability
+from brokers.domain.instrument import Instrument
 from brokers.domain.requests import OrderRequest
 
 if TYPE_CHECKING:
-    from brokers.provider.protocol import ExecutionProvider, MarketDataProvider
+    from brokers.provider.protocol import ExecutionProvider, MarketDataProvider, Provider
+
+logger = logging.getLogger(__name__)
 
 
 class RiskPolicy(ABC, RiskPolicyProtocol):
@@ -57,11 +62,21 @@ class RiskPolicy(ABC, RiskPolicyProtocol):
     def max_position(
         max_quantity: int,
         max_notional: Decimal | None = None,
+        *,
+        fail_open: bool = False,
     ) -> RiskPolicy:
-        """Policy that limits position size and notional value."""
+        """Policy that limits position size and notional value.
+
+        Args:
+            max_quantity: Maximum allowed order quantity.
+            max_notional: Maximum allowed notional value (LTP * quantity).
+            fail_open: If True, allow orders when risk checks fail (e.g. can't
+                fetch LTP). If False (default, safer), deny the order.
+        """
         return _MaxPositionPolicy(
             max_quantity=max_quantity,
             max_notional=max_notional or Decimal("0"),
+            fail_open=fail_open,
         )
 
 
@@ -79,15 +94,18 @@ class _NoLimitsPolicy(RiskPolicy):
 class _MaxPositionPolicy(RiskPolicy):
     """Limits order quantity and notional value."""
 
-    __slots__ = ("_max_notional", "_max_quantity")
+    __slots__ = ("_fail_open", "_max_notional", "_max_quantity")
 
     def __init__(
         self,
         max_quantity: int,
         max_notional: Decimal,
+        *,
+        fail_open: bool = False,
     ) -> None:
         self._max_quantity = max_quantity
         self._max_notional = max_notional
+        self._fail_open = fail_open
 
     async def check(
         self,
@@ -105,16 +123,15 @@ class _MaxPositionPolicy(RiskPolicy):
         # Check notional limit (if set)
         if self._max_notional > 0:
             try:
-                from brokers.domain.instrument import Instrument
-
-                if not isinstance(provider, MarketDataProvider):
+                if not provider.capabilities.supports(Capability.MARKET_DATA):
                     return RiskDecision.allow()  # Can't check notional
-                inst = Instrument(
+                full_provider = cast("Provider", provider)
+                inst = request.instrument or Instrument(
                     request.symbol,
                     request.exchange,
-                    provider=provider,
+                    provider=full_provider,
                 )
-                ltp = await provider.get_ltp(inst)
+                ltp = await full_provider.get_ltp(inst)
                 notional = ltp * Decimal(str(request.quantity))
                 if notional > self._max_notional:
                     return RiskDecision.deny(
@@ -122,9 +139,19 @@ class _MaxPositionPolicy(RiskPolicy):
                         value=notional,
                         limit=self._max_notional,
                     )
-            except Exception:
-                # If we can't get LTP, allow the order (fail-open)
-                pass
+            except Exception as exc:
+                logger.warning(
+                    "risk_check_error",
+                    extra={"rule": "MAX_NOTIONAL", "error": str(exc)[:200], "fail_open": self._fail_open},
+                )
+                if self._fail_open:
+                    pass  # Legacy behavior: allow order when we can't verify
+                else:
+                    return RiskDecision.deny(
+                        rule="MAX_NOTIONAL_CHECK_FAILED",
+                        value=Decimal("0"),
+                        limit=self._max_notional,
+                    )
 
         return RiskDecision.allow()
 

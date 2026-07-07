@@ -5,9 +5,13 @@ __pycache__/
 *.pyd
 *.so
 
-# Default .gitignore patterns
+# Environment files (contain live credentials)
 .env
-.env.local
+.env.*
+!.env.example
 dist/
 build/
 *.egg-info/
+
+# Runtime state (token caches, cooldown files)
+runtime/

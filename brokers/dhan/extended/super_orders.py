@@ -30,7 +30,7 @@ class SuperOrderRequest:
     target_price: float
     stop_loss_price: float
     order_type: str = "LIMIT"
-    product_type: str = "CNC"
+    product_type: str = "INTRADAY"
     validity: str = "DAY"
     trailing_gap: float = 0.0
 
@@ -54,14 +54,14 @@ class DhanSuperOrders:
             "securityId": request.security_id,
             "exchangeSegment": request.exchange_segment,
             "transactionType": request.transaction_type,
-            "quantity": str(request.quantity),
-            "price": str(request.price),
-            "targetPrice": str(request.target_price),
-            "stopLossPrice": str(request.stop_loss_price),
+            "quantity": request.quantity,
+            "price": request.price,
+            "targetPrice": request.target_price,
+            "stopLossPrice": request.stop_loss_price,
             "orderType": request.order_type,
             "productType": request.product_type,
             "validity": request.validity,
-            "trailingGap": str(request.trailing_gap),
+            "trailingJump": request.trailing_gap,
         }
         logger.info("dhan_super_order_place", security_id=request.security_id)
         return self._client.post("/super/orders", json=payload)

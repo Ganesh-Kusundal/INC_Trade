@@ -15,6 +15,7 @@ Usage::
 
 from __future__ import annotations
 
+import inspect
 import itertools
 import logging
 import threading
@@ -48,7 +49,23 @@ class EventBus:
         self._fail_fast = fail_fast
 
     def subscribe(self, event_type: str, handler: EventHandler) -> str:
-        """Subscribe to ``event_type``. Returns a token for unsubscribe."""
+        """Subscribe to ``event_type``. Returns a token for unsubscribe.
+
+        Handlers must be synchronous callables.  ``async def`` handlers are
+        rejected at registration time because ``publish`` dispatches them
+        synchronously; awaiting them here would silently no-op.  If you need
+        async handling, wrap the coroutine in a synchronous function that
+        schedules it (e.g. ``asyncio.create_task``).
+
+        Raises:
+            TypeError: if *handler* is a coroutine function.
+        """
+        if inspect.iscoroutinefunction(handler):
+            raise TypeError(
+                f"async handler for {event_type!r} is not supported by "
+                f"EventBus.publish (synchronous dispatch); wrap it or use an "
+                f"async-aware bus"
+            )
         token = uuid.uuid4().hex
         with self._subscribers_lock:
             self._subscribers.setdefault(event_type, {})[token] = handler

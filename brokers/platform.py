@@ -28,19 +28,41 @@ Usage::
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+import logging
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable
 
 from brokers.domain.account import Account
-from brokers.domain.capabilities import ProviderCapabilities
+from brokers.domain.capabilities import Capability, ProviderCapabilities
 from brokers.domain.enums import AssetClass, Exchange
 from brokers.domain.instrument import Instrument
+from brokers.infrastructure.event_bus import EventBus
 from brokers.risk import RiskPolicy
 
 if TYPE_CHECKING:
+    from brokers.common.auth.token_manager import AuthManager
     from brokers.common.instrument_resolver import InstrumentResolver
-    from brokers.infrastructure.event_bus import EventBus
     from brokers.provider.protocol import Provider
     from brokers.provider.routing import RoutingStrategy
+
+logger = logging.getLogger(__name__)
+
+
+def _set_risk_policy(provider: Provider, risk_policy: RiskPolicy | None) -> None:
+    """Best-effort propagation of the risk policy into a provider.
+
+    Providers expose a settable ``risk_policy`` attribute; setting it makes
+    ``provider.default_account`` return a risk-gated Account.  If the provider
+    lacks the attribute (data-only providers), we silently skip — they don't
+    support execution anyway.
+    """
+    if risk_policy is None:
+        return
+    if hasattr(type(provider), "risk_policy"):
+        try:
+            provider.risk_policy = risk_policy  # type: ignore[attr-defined]
+        except (AttributeError, TypeError):
+            pass
 
 
 class Platform:
@@ -72,9 +94,14 @@ class Platform:
     ) -> None:
         self._provider = provider
         self._risk_policy = risk_policy
-        self._event_bus = event_bus
+        self._event_bus = event_bus or EventBus()
         self._account: Account | None = None
         self._token_scheduler: Any = None  # Set by connect(); stopped in disconnect()
+        # Propagate the risk policy into the provider so that
+        # ``provider.default_account`` (used by Instrument.buy()/sell())
+        # builds an Account that is risk-gated.  Providers expose a
+        # settable ``risk_policy`` attribute (no-op if absent).
+        _set_risk_policy(provider, risk_policy)
 
     # ── Auto-login (recommended) ───────────────────────────────────────
 
@@ -116,17 +143,14 @@ class Platform:
         1. CredentialResolver loads .env.dhan
         2. AuthManager loads cached token or TOTP-login for a fresh one
         3. DhanProvider created with the acquired token
-        4. DhanTokenScheduler starts background refresh daemon
+        4. BackgroundTokenScheduler starts background refresh daemon
         5. Token receiver hooks scheduler → provider hot-swap
         6. Platform wraps provider + scheduler for lifecycle management
         """
-        from pathlib import Path
-
         from brokers.common.auth.credential_resolver import CredentialResolver
         from brokers.common.auth.token_manager import AuthManager, JsonTokenStateStore
         from brokers.dhan.dhan_provider import DhanProvider
-        from brokers.dhan.token_scheduler import DhanTokenScheduler
-        from brokers.dhan.totp_client import DhanTotpClient
+        from brokers.dhan.totp_client import DhanTotpClient, DhanTotpError, TotpRateLimitError
 
         creds = CredentialResolver.for_dhan()
 
@@ -147,15 +171,10 @@ class Platform:
                 "Set them in .env.dhan or provide DHAN_ACCESS_TOKEN."
             )
 
-        # 1. Persistent token cache (survives process restarts)
+        totp_client = DhanTotpClient()
         store = JsonTokenStateStore(
             Path.home() / ".config" / "inc_trade" / ".dhan_token.json"
         )
-
-        # 2. TOTP client with cooldown guard
-        totp_client = DhanTotpClient()
-
-        # 3. Auth manager — orchestrates acquire / refresh / cache
         auth_manager = AuthManager(
             on_acquire=lambda: totp_client.login(
                 creds.totp_secret, creds.pin, creds.client_id
@@ -168,46 +187,35 @@ class Platform:
             broker_name="dhan",
         )
 
-        # 4. Acquire a token (load from cache or TOTP-login)
-        try:
-            auth_manager.ensure_valid()
-        except Exception as exc:
-            raise ValueError(
-                f"Dhan auto-login failed: {exc}. "
-                f"Check DHAN_CLIENT_ID, DHAN_TOTP_SECRET, DHAN_PIN "
-                f"in .env.dhan"
-            ) from exc
+        def _provider_factory(token: str) -> DhanProvider:
+            return DhanProvider(
+                client_id=creds.client_id,
+                access_token=token,
+                resolver=kwargs.pop("resolver", None),
+                **kwargs,
+            )
 
-        # 5. Create provider with the fresh token
-        provider = DhanProvider(
-            client_id=creds.client_id,
-            access_token=auth_manager.access_token,
-            resolver=kwargs.pop("resolver", None),
-            **kwargs,
+        return Platform._build_with_auth(
+            auth_manager=auth_manager,
+            provider_factory=_provider_factory,
+            broker_name="dhan",
+            error_types=(DhanTotpError, TotpRateLimitError),
+            error_hint="Check DHAN_CLIENT_ID, DHAN_TOTP_SECRET, DHAN_PIN in .env.dhan",
         )
-
-        # 6. Background daemon keeps the token alive
-        scheduler = DhanTokenScheduler(auth_manager)
-        scheduler.start()
-
-        # 7. Hot-swap hook — when scheduler refreshes, update the client
-        auth_manager.register_token_receiver(
-            lambda new_token: provider.update_token(new_token)
-        )
-
-        # 8. Build platform with scheduler for lifecycle management
-        platform = Platform(provider)
-        platform._token_scheduler = scheduler
-        return platform
 
     @staticmethod
     async def _connect_upstox(**kwargs: Any) -> Platform:
-        """Auto-login to Upstox.
+        """Auto-login to Upstox via TOTP or static token.
 
-        Currently supports static access tokens.  TOTP-based auto-login
-        will be added when the Upstox TOTP client is implemented.
+        Flow:
+        1. CredentialResolver loads .env.upstox
+        2. If static access token → create provider directly
+        3. If TOTP credentials → UpstoxTotpClient.login() → AuthManager
+        4. Background refresh daemon keeps token alive
         """
         from brokers.common.auth.credential_resolver import CredentialResolver
+        from brokers.common.auth.token_manager import AuthManager, JsonTokenStateStore
+        from brokers.upstox.totp_client import UpstoxTotpClient
         from brokers.upstox.upstox_provider import UpstoxProvider
 
         creds = CredentialResolver.for_upstox()
@@ -216,25 +224,87 @@ class Platform:
         if creds.access_token:
             provider = UpstoxProvider(
                 access_token=creds.access_token,
-                client_id=creds.client_id,
-                api_key=creds.api_key,
-                api_secret=creds.api_secret,
                 **kwargs,
             )
             return Platform(provider)
 
-        # ── TOTP path: not yet implemented (Upstox TOTP client needed)
-        if creds.has_totp:
-            raise NotImplementedError(
-                "Upstox TOTP auto-login is not yet implemented. "
-                "Use Platform.upstox(access_token=...) or set "
-                "UPSTOX_ACCESS_TOKEN in .env.upstox."
+        # ── TOTP auto-login path ─────────────────────────────────
+        if not creds.has_totp:
+            raise ValueError(
+                "UPSTOX_ACCESS_TOKEN or (UPSTOX_TOTP_SECRET + UPSTOX_PIN + "
+                "UPSTOX_MOBILE) must be set in .env.upstox."
             )
 
-        raise ValueError(
-            "UPSTOX_ACCESS_TOKEN or (UPSTOX_TOTP_SECRET + UPSTOX_PIN + "
-            "UPSTOX_MOBILE) must be set in .env.upstox."
+        totp_client = UpstoxTotpClient(api_key=creds.api_key)
+        store = JsonTokenStateStore(
+            Path.home() / ".config" / "inc_trade" / ".upstox_token.json"
         )
+        auth_manager = AuthManager(
+            on_acquire=lambda: totp_client.login(
+                creds.totp_secret, creds.pin, creds.mobile
+            ),
+            on_refresh=lambda old: totp_client.refresh(
+                creds.totp_secret, creds.pin, creds.mobile
+            ),
+            store=store,
+            refresh_buffer_seconds=300,
+            broker_name="upstox",
+        )
+
+        def _provider_factory(token: str) -> UpstoxProvider:
+            return UpstoxProvider(access_token=token, **kwargs)
+
+        return Platform._build_with_auth(
+            auth_manager=auth_manager,
+            provider_factory=_provider_factory,
+            broker_name="upstox",
+            error_types=(),
+            error_hint=(
+                "Check UPSTOX_CLIENT_ID, UPSTOX_TOTP_SECRET, UPSTOX_PIN, "
+                "UPSTOX_MOBILE in .env.upstox"
+            ),
+        )
+
+    @staticmethod
+    def _build_with_auth(
+        *,
+        auth_manager: AuthManager,
+        provider_factory: Callable[[str], Provider],
+        broker_name: str,
+        error_types: tuple[type[Exception], ...] = (),
+        error_hint: str = "",
+    ) -> Platform:
+        """Shared auth → provider → scheduler wiring.
+
+        1. Acquire a token (load from cache or TOTP-login)
+        2. Create provider with the fresh token
+        3. Start background token-refresh daemon
+        4. Hook scheduler → provider hot-swap
+        5. Return Platform with scheduler for lifecycle management
+        """
+        from brokers.common.auth.token_scheduler import BackgroundTokenScheduler
+
+        try:
+            auth_manager.ensure_valid()
+        except Exception as exc:
+            if error_types and isinstance(exc, error_types):
+                raise  # Let broker-specific errors propagate
+            raise ValueError(
+                f"{broker_name.capitalize()} auto-login failed: {exc}. {error_hint}"
+            ) from exc
+
+        provider = provider_factory(auth_manager.access_token)
+
+        scheduler = BackgroundTokenScheduler(auth_manager)
+        scheduler.start()
+
+        auth_manager.register_token_receiver(
+            lambda new_token: provider.update_token(new_token)
+        )
+
+        platform = Platform(provider)
+        platform._token_scheduler = scheduler
+        return platform
 
     # ── Factory methods (manual token, advanced users) ─────────────────
 
@@ -309,7 +379,11 @@ class Platform:
         from brokers.provider.routing import RoutingStrategy as RS
 
         providers = [primary._provider, secondary._provider]
-        composite = CompositeProvider(providers, routing=routing or RS.primary_only())
+        composite = CompositeProvider(
+            providers,
+            routing=routing or RS.primary_only(),
+            event_bus=event_bus or primary._event_bus,
+        )
         return Platform(
             composite,
             risk_policy=risk_policy or primary._risk_policy,
@@ -371,9 +445,7 @@ class Platform:
             TypeError: If this platform's provider does not support
                 execution (e.g. a data-only provider).
         """
-        from brokers.provider.protocol import ExecutionProvider
-
-        if not isinstance(self._provider, ExecutionProvider):
+        if not self._provider.capabilities.supports(Capability.ORDER_PLACEMENT):
             raise TypeError(
                 f"Provider {self._provider.broker_id!r} does not support "
                 f"execution.  Use a full-service broker or paper trading."

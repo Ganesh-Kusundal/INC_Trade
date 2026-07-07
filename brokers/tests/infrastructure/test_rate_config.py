@@ -91,21 +91,32 @@ class TestDhanRateConfig:
         assert c1 is not c2
         assert c1.limits == c2.limits
 
+    def test_data_api_rate_limits_match_dhan_docs(self):
+        """Dhan Data APIs are limited to 5 req/s (0.2s interval)."""
+        config = dhan_rate_config()
+        assert config.get_interval("/marketfeed/ltp") == 0.2
+        assert config.get_interval("/marketfeed/ohlc") == 0.2
+
+    def test_quote_api_rate_limit(self):
+        """Dhan Quote APIs are limited to 1 req/s."""
+        config = dhan_rate_config()
+        assert config.get_interval("/marketfeed/quote") == 1.0
+
 
 class TestUpstoxRateConfig:
     def test_upstox_config_has_order_limit(self):
         config = upstox_rate_config()
-        assert config.get_interval("/v2/order/place") == 0.04
+        assert config.get_interval("/v3/order/place") == 0.1
 
     def test_upstox_categorizes_order_place_as_write(self):
         config = upstox_rate_config()
-        assert config.categorize("/v2/order/place") == "write"
-        assert config.categorize("/v2/order/cancel") == "write"
-        assert config.categorize("/v2/order/modify") == "write"
+        assert config.categorize("/v3/order/place") == "write"
+        assert config.categorize("/v3/order/cancel") == "write"
+        assert config.categorize("/v3/order/modify") == "write"
 
     def test_upstox_categorizes_market_data_as_read(self):
         config = upstox_rate_config()
-        assert config.categorize("/v2/market-quote/ltp") == "read"
+        assert config.categorize("/v3/market-quote/ltp") == "read"
         assert config.categorize("/v2/historical-candle/intraday") == "read"
 
     def test_upstox_categorizes_portfolio_as_admin(self):
@@ -114,4 +125,4 @@ class TestUpstoxRateConfig:
 
     def test_upstox_historical_candle_rate(self):
         config = upstox_rate_config()
-        assert config.get_interval("/v2/historical-candle/daily") == 0.1
+        assert config.get_interval("/v2/historical-candle/daily") == 0.02

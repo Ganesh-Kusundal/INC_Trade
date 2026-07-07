@@ -24,6 +24,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from brokers.domain.capabilities import Capability
 from brokers.domain.enums import AssetClass, Exchange, OptionType, OrderType, ProductType, Side
 from brokers.domain.values import MarketDepth, Quote, Subscription
 
@@ -34,7 +35,11 @@ if TYPE_CHECKING:
     from brokers.domain.option_chain import FutureChain, OptionChain
     from brokers.domain.values import OrderResponse
     from brokers.provider.extensions import ExtensionAccess
-    from brokers.provider.protocol import MarketDataProvider
+    from brokers.provider.protocol import MarketDataProvider, Provider
+
+# Domain-local default tick size (kept in the domain layer to avoid an
+# infra→domain import; domain must not depend on brokers.constants).
+DEFAULT_TICK_SIZE: Decimal = Decimal("0.05")
 
 
 # ── Identity value (immutable, hashable) ───────────────────────────────────
@@ -51,7 +56,7 @@ class InstrumentIdentity:
     exchange: Exchange
     asset_class: AssetClass = AssetClass.EQUITY
     lot_size: int = 1
-    tick_size: Decimal = Decimal("0.05")
+    tick_size: Decimal = DEFAULT_TICK_SIZE
     isin: str = ""
     trading_symbol: str = ""
     security_id: str = ""
@@ -93,9 +98,9 @@ class Instrument:
         exchange: Exchange,
         asset_class: AssetClass = AssetClass.EQUITY,
         *,
-        provider: MarketDataProvider,
+        provider: Provider,
         lot_size: int = 1,
-        tick_size: Decimal = Decimal("0.05"),
+        tick_size: Decimal = DEFAULT_TICK_SIZE,
         isin: str = "",
         trading_symbol: str = "",
         security_id: str = "",
@@ -116,7 +121,7 @@ class Instrument:
             strike=strike,
             option_type=option_type,
         )
-        self._provider = provider
+        self._provider: Provider = provider
         self._lock = threading.RLock()
         self._cached_quote: Quote | None = None
         self._cached_depth: MarketDepth | None = None
@@ -219,7 +224,7 @@ class Instrument:
     # ── Provider access ──────────────────────────────────────────────
 
     @property
-    def provider(self) -> MarketDataProvider:
+    def provider(self) -> Provider:
         return self._provider
 
     @property
@@ -281,9 +286,7 @@ class Instrument:
         self, on_tick: Callable[[Quote], None] | None = None
     ) -> Subscription:
         """Subscribe to real-time quote updates."""
-        from brokers.provider.protocol import StreamingProvider
-
-        if not isinstance(self._provider, StreamingProvider):
+        if not self._provider.capabilities.supports(Capability.STREAMING):
             raise TypeError(
                 f"Provider {self._provider.broker_id!r} does not support streaming."
             )
@@ -296,9 +299,7 @@ class Instrument:
         self, on_depth: Callable[[MarketDepth], None] | None = None
     ) -> Subscription:
         """Subscribe to real-time depth updates."""
-        from brokers.provider.protocol import StreamingProvider
-
-        if not isinstance(self._provider, StreamingProvider):
+        if not self._provider.capabilities.supports(Capability.STREAMING):
             raise TypeError(
                 f"Provider {self._provider.broker_id!r} does not support streaming."
             )
@@ -309,9 +310,7 @@ class Instrument:
 
     async def unsubscribe(self, subscription: Subscription) -> None:
         """Cancel an active subscription."""
-        from brokers.provider.protocol import StreamingProvider
-
-        if not isinstance(self._provider, StreamingProvider):
+        if not self._provider.capabilities.supports(Capability.STREAMING):
             raise TypeError(
                 f"Provider {self._provider.broker_id!r} does not support streaming."
             )
@@ -322,12 +321,10 @@ class Instrument:
 
     async def unsubscribe_all(self) -> None:
         """Cancel all subscriptions for this instrument."""
-        from brokers.provider.protocol import StreamingProvider
-
         with self._lock:
             subs = list(self._subscriptions)
             self._subscriptions.clear()
-        if isinstance(self._provider, StreamingProvider):
+        if self._provider.capabilities.supports(Capability.STREAMING):
             for sub in subs:
                 await self._provider.unsubscribe(sub)
 
@@ -350,10 +347,9 @@ class Instrument:
     ) -> OrderResponse:
         """Place a buy order. Delegates to Account for risk gating."""
         from brokers.domain.requests import OrderRequest
-        from brokers.provider.protocol import ExecutionProvider
 
         if account is None:
-            if not isinstance(self._provider, ExecutionProvider):
+            if not self._provider.capabilities.supports(Capability.ORDER_PLACEMENT):
                 raise TypeError(
                     f"Provider {self._provider.broker_id!r} does not support "
                     f"execution. Pass an explicit Account or use a full-service broker."
@@ -361,6 +357,7 @@ class Instrument:
             account = self._provider.default_account
         return await account.place_order(
             OrderRequest(
+                instrument=self,
                 symbol=self._identity.symbol,
                 exchange=self._identity.exchange,
                 side=Side.BUY,
@@ -382,10 +379,9 @@ class Instrument:
     ) -> OrderResponse:
         """Place a sell order. Delegates to Account for risk gating."""
         from brokers.domain.requests import OrderRequest
-        from brokers.provider.protocol import ExecutionProvider
 
         if account is None:
-            if not isinstance(self._provider, ExecutionProvider):
+            if not self._provider.capabilities.supports(Capability.ORDER_PLACEMENT):
                 raise TypeError(
                     f"Provider {self._provider.broker_id!r} does not support "
                     f"execution. Pass an explicit Account or use a full-service broker."
@@ -393,6 +389,7 @@ class Instrument:
             account = self._provider.default_account
         return await account.place_order(
             OrderRequest(
+                instrument=self,
                 symbol=self._identity.symbol,
                 exchange=self._identity.exchange,
                 side=Side.SELL,

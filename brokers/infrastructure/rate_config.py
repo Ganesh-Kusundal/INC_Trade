@@ -29,8 +29,8 @@ from dataclasses import dataclass, field
 
 DHAN_RATE_LIMITS: dict[str, float] = {
     "/marketfeed/quote": 1.0,       # 1 req/s — strictest
-    "/marketfeed/ltp": 0.1,         # 10 req/s
-    "/marketfeed/ohlc": 0.1,        # 10 req/s
+    "/marketfeed/ltp": 0.2,         # 5 req/s
+    "/marketfeed/ohlc": 0.2,        # 5 req/s
     "/optionchain": 0.35,           # ~3 req/s
     "/charts/historical": 0.1,      # 10 req/s
     "/charts/intraday": 0.1,        # 10 req/s
@@ -61,37 +61,40 @@ DHAN_WRITE_PREFIXES: tuple[str, ...] = (
 
 # ── Upstox Rate Limits (from Upstox API documentation) ─────────────────────
 #
-# Upstox is more generous but still has per-endpoint limits.
-# Default: 25 req/s for most endpoints, 10 req/s for historical.
+# Order Placement (Regular): 10 req/s
+# Order Placement (SEBI-Registered Algo): 50 req/s
+# Standard APIs (holdings, positions, funds, history, quotes): 50 req/s
+# Payout APIs (read): 10 req/s
+# Payout APIs (write): 10 req/min
 
 
 UPSTOX_RATE_LIMITS: dict[str, float] = {
-    "/v2/order/place": 0.04,        # 25 req/s
-    "/v2/order/cancel": 0.04,       # 25 req/s
-    "/v2/order/modify": 0.04,       # 25 req/s
-    "/v2/order/": 0.04,             # 25 req/s (prefix for retrieve-all, history)
-    "/v2/trades/": 0.04,            # 25 req/s
-    "/v2/market-quote/ltp": 0.04,   # 25 req/s
-    "/v2/market-quote/quotes": 0.1, # 10 req/s
-    "/v2/market-quote/ohlc": 0.1,   # 10 req/s
-    "/v2/market-quote/": 0.04,      # 25 req/s (prefix fallback)
-    "/v2/historical-candle/": 0.1,  # 10 req/s
-    "/v2/option/chain": 0.1,        # 10 req/s
-    "/v2/portfolio/": 0.04,         # 25 req/s
-    "/v2/user/": 0.04,              # 25 req/s
+    "/v3/order/place": 0.1,           # 10 req/s — order placement
+    "/v3/order/cancel": 0.1,          # 10 req/s
+    "/v3/order/modify": 0.1,          # 10 req/s
+    "/v3/order/": 0.1,                # 10 req/s (prefix for order endpoints)
+    "/v3/trades/": 0.02,              # 50 req/s — standard API
+    "/v3/market-quote/ltp": 0.02,     # 50 req/s — standard API
+    "/v3/market-quote/quotes": 0.02,  # 50 req/s — standard API
+    "/v3/market-quote/ohlc": 0.02,    # 50 req/s — standard API
+    "/v3/market-quote/": 0.02,        # 50 req/s — standard API prefix
+    "/v2/historical-candle/": 0.02,   # 50 req/s — standard API
+    "/v2/option/chain": 0.02,         # 50 req/s — standard API
+    "/v2/portfolio/": 0.02,           # 50 req/s — standard API
+    "/v2/user/": 0.02,                # 50 req/s — standard API
 }
 
 UPSTOX_READ_PREFIXES: tuple[str, ...] = (
-    "/v2/market-quote/",
+    "/v3/market-quote/",
     "/v2/historical-candle/",
     "/v2/option/",
     "/v2/market-status",
 )
 
 UPSTOX_WRITE_PREFIXES: tuple[str, ...] = (
-    "/v2/order/place",
-    "/v2/order/cancel",
-    "/v2/order/modify",
+    "/v3/order/place",
+    "/v3/order/cancel",
+    "/v3/order/modify",
 )
 
 

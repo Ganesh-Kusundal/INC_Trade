@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 
+from brokers.common.parsing import dec as _dec, int_val as _int, parse_ts as _parse_ts
 from brokers.domain.enums import (
     Exchange,
     OrderStatus,
@@ -39,49 +40,47 @@ from brokers.domain.values import (
 
 # ── Segment to exchange mapping ─────────────────────────────────────────────
 
-_SEGMENT_TO_EXCHANGE: dict[str, Exchange] = {
-    "NSE_EQ": Exchange.NSE,
-    "BSE_EQ": Exchange.BSE,
-    "NSE_FNO": Exchange.NFO,
-    "BSE_FNO": Exchange.NFO,
-    "MCX_COMM": Exchange.MCX,
-    "NSE_CURRENCY": Exchange.NFO,
-    "BSE_CURRENCY": Exchange.NFO,
-    "IDX_I": Exchange.INDEX,
-}
+from brokers.common import segments as _segments
 
 
 def _exchange_from_segment(segment: str) -> Exchange:
-    return _SEGMENT_TO_EXCHANGE.get(segment, Exchange.NSE)
+    return _segments.segment_to_exchange(segment)
 
 
-def _dec(val: Any) -> Decimal:
-    if val is None or val == "":
-        return Decimal("0")
-    try:
-        return Decimal(str(val))
-    except (ValueError, TypeError):
-        return Decimal("0")
+# Alias kept for backward-compatible test references; delegates to the shared map.
+_SEGMENT_TO_EXCHANGE = _segments.SEGMENT_TO_EXCHANGE
 
 
-def _int(val: Any) -> int:
-    if val is None or val == "":
-        return 0
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return 0
+# ── Product-type validation per Dhan segment rules ──────────────────────────
+# Per Dhan API:
+#   NSE_EQ, BSE_EQ → CNC, INTRADAY, MARGIN, MTF
+#   NSE_FNO, BSE_FNO, MCX_COMM, NSE_CURRENCY, BSE_CURRENCY → INTRADAY, MARGIN only
+
+_ALLOWED_PRODUCTS: dict[str, frozenset[str]] = {
+    "NSE_EQ": frozenset({"CNC", "INTRADAY", "MARGIN", "MTF"}),
+    "BSE_EQ": frozenset({"CNC", "INTRADAY", "MARGIN", "MTF"}),
+    "NSE_FNO": frozenset({"INTRADAY", "MARGIN"}),
+    "BSE_FNO": frozenset({"INTRADAY", "MARGIN"}),
+    "MCX_COMM": frozenset({"INTRADAY", "MARGIN"}),
+    "NSE_CURRENCY": frozenset({"INTRADAY", "MARGIN"}),
+    "BSE_CURRENCY": frozenset({"INTRADAY", "MARGIN"}),
+}
 
 
-def _parse_ts(val: Any) -> datetime | None:
-    if val is None or val == "":
-        return None
-    if isinstance(val, datetime):
-        return val
-    try:
-        return datetime.fromisoformat(str(val))
-    except (ValueError, TypeError):
-        return None
+def validate_product_type(segment: str, product_type: str) -> None:
+    """Validate that product_type is allowed for the given Dhan segment.
+
+    Raises:
+        ValueError: If the combination is invalid per Dhan API rules.
+    """
+    allowed = _ALLOWED_PRODUCTS.get(segment)
+    if allowed is None:
+        return  # Unknown segment — skip validation
+    if product_type not in allowed:
+        raise ValueError(
+            f"Product type {product_type!r} is not allowed for segment "
+            f"{segment!r}. Allowed: {sorted(allowed)}"
+        )
 
 
 class DhanMapper:
@@ -114,20 +113,8 @@ class DhanMapper:
     @staticmethod
     def _map_status(raw: str) -> OrderStatus:
         """Map Dhan status strings to OrderStatus enum."""
-        mapping = {
-            "PENDING": OrderStatus.OPEN,
-            "TRANSIT": OrderStatus.OPEN,
-            "PENDING_ORDER": OrderStatus.OPEN,
-            "VALIDATED": OrderStatus.OPEN,
-            "AMO_RECEIVED": OrderStatus.OPEN,
-            "FILLED": OrderStatus.FILLED,
-            "PART_FILLED": OrderStatus.PARTIALLY_FILLED,
-            "CANCELLED": OrderStatus.CANCELLED,
-            "CANCELED": OrderStatus.CANCELLED,
-            "REJECTED": OrderStatus.REJECTED,
-            "EXPIRED": OrderStatus.EXPIRED,
-        }
-        return mapping.get(raw, OrderStatus.UNKNOWN)
+        from brokers.dhan.status_mapping import to_order_status
+        return to_order_status(raw)
 
     @staticmethod
     def build_order_payload(
@@ -137,6 +124,7 @@ class DhanMapper:
         client_id: str,
     ) -> dict[str, Any]:
         """Build the Dhan order placement payload from OrderRequest."""
+        validate_product_type(segment, request.product_type.value)
         payload: dict[str, Any] = {
             "dhanClientId": client_id,
             "securityId": security_id,
@@ -178,11 +166,11 @@ class DhanMapper:
         return Position(
             symbol=str(raw.get("tradingSymbol", "")),
             exchange=_exchange_from_segment(raw.get("exchangeSegment", "NSE_EQ")),
-            quantity=_int(raw.get("netQuantity", 0)),
-            average_price=_dec(raw.get("buyAveragePrice", 0)),
+            quantity=_int(raw.get("netQty", raw.get("netQuantity", 0))),
+            average_price=_dec(raw.get("buyAvg", raw.get("buyAveragePrice", 0))),
             ltp=_dec(raw.get("lastPrice", 0)),
-            unrealized_pnl=_dec(raw.get("unrealizedPnl", 0)),
-            realized_pnl=_dec(raw.get("realizedPnl", 0)),
+            unrealized_pnl=_dec(raw.get("unrealizedProfit", raw.get("unrealizedPnl", 0))),
+            realized_pnl=_dec(raw.get("realizedProfit", raw.get("realizedPnl", 0))),
             product_type=ProductType(str(raw.get("productType", "INTRADAY")).upper()),
         )
 

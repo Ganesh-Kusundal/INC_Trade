@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import inspect
 import threading
 import time
 from collections.abc import Callable
@@ -153,6 +154,30 @@ health_registry = HealthRegistry()
 # ── @health_check decorator ───────────────────────────────────────────────
 
 
+def _make_timeout_handler(name: str, timeout_ms: float):
+    """Build the SIGALRM handler used by the main-thread timeout path."""
+
+    def _timeout_handler(signum, frame):
+        raise TimeoutError(f"Health check {name} timed out after {timeout_ms}ms")
+
+    return _timeout_handler
+
+
+def _run_with_thread_timeout(func, args, kwargs, timeout_ms: float, name: str):
+    """Run *func* in a daemon thread and raise TimeoutError if it overruns.
+
+    Used as a fallback when SIGALRM cannot be installed (non-main thread).
+    """
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(func, *args, **kwargs)
+        try:
+            return future.result(timeout=timeout_ms / 1000.0)
+        except concurrent.futures.TimeoutError:
+            raise TimeoutError(f"Health check {name} timed out after {timeout_ms}ms") from None
+
+
 def health_check(
     name: str,
     *,
@@ -183,16 +208,20 @@ def health_check(
                 if timeout_ms > 0:
                     import signal
 
-                    def _timeout_handler(signum, frame):
-                        raise TimeoutError(f"Health check {name} timed out after {timeout_ms}ms")
-
-                    old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
-                    signal.setitimer(signal.ITIMER_REAL, timeout_ms / 1000.0)
                     try:
-                        result = func(*args, **kwargs)
-                    finally:
-                        signal.setitimer(signal.ITIMER_REAL, 0)
-                        signal.signal(signal.SIGALRM, old_handler)
+                        old_handler = signal.signal(signal.SIGALRM, _make_timeout_handler(name, timeout_ms))
+                        signal.setitimer(signal.ITIMER_REAL, timeout_ms / 1000.0)
+                        try:
+                            result = func(*args, **kwargs)
+                        finally:
+                            signal.setitimer(signal.ITIMER_REAL, 0)
+                            signal.signal(signal.SIGALRM, old_handler)
+                    except (ValueError, OSError):
+                        # Signal handlers can only be installed in the main
+                        # thread. When called from a worker/background thread,
+                        # fall back to a simple wall-clock timeout via a
+                        # thread so we never raise and never hang the check.
+                        result = _run_with_thread_timeout(func, args, kwargs, timeout_ms, name)
                 else:
                     result = func(*args, **kwargs)
 
@@ -223,7 +252,7 @@ def health_check(
                 health_registry.record(name, success=False, message=str(exc)[:200], latency_ms=latency)
                 raise
 
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
             return async_wrapper  # type: ignore[return-value]
         return wrapper  # type: ignore[return-value]
 

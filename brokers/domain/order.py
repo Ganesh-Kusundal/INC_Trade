@@ -6,10 +6,17 @@ every state change.  This is a rich domain object, not an anemic data bag.
 Lifecycle::
 
     PENDING → OPEN → PARTIALLY_FILLED → FILLED
-                  ↓              ↓
-             CANCELLED      CANCELLED
-                  ↓              ↓
-                REJECTED      REJECTED
+         │        ↓              ↓           ↑
+         │   CANCELLED      CANCELLED       │
+         │        ↓              ↓           │
+         │      REJECTED      REJECTED       │
+         ↓                                   │
+    PENDING ──────────────────────────────────→ FILLED
+         │
+         └→ REJECTED | CANCELLED
+
+    OPEN → EXPIRED
+    PARTIALLY_FILLED → EXPIRED
 """
 
 from __future__ import annotations
@@ -20,30 +27,47 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from brokers.domain.enums import Exchange, OrderStatus, OrderType, ProductType, Side, Validity
+from brokers.domain.events import DomainEvent, EventBusProtocol
 from brokers.domain.requests import OrderRequest
 from brokers.domain.values import OrderResponse
 
-if TYPE_CHECKING:
-    from brokers.infrastructure.event_bus import EventBus
 
 
 # Valid state transitions (from → {allowed next states})
 _VALID_TRANSITIONS: dict[OrderStatus, frozenset[OrderStatus]] = {
-    OrderStatus.PENDING: frozenset({OrderStatus.OPEN, OrderStatus.REJECTED, OrderStatus.CANCELLED}),
-    OrderStatus.OPEN: frozenset(
-        {OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJECTED}
-    ),
-    OrderStatus.PARTIALLY_FILLED: frozenset(
-        {OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJECTED}
-    ),
+    OrderStatus.PENDING: frozenset({
+        OrderStatus.OPEN,
+        OrderStatus.PARTIALLY_FILLED,
+        OrderStatus.FILLED,
+        OrderStatus.REJECTED,
+        OrderStatus.CANCELLED,
+    }),
+    OrderStatus.OPEN: frozenset({
+        OrderStatus.PARTIALLY_FILLED,
+        OrderStatus.FILLED,
+        OrderStatus.CANCELLED,
+        OrderStatus.REJECTED,
+        OrderStatus.EXPIRED,
+    }),
+    OrderStatus.PARTIALLY_FILLED: frozenset({
+        OrderStatus.FILLED,
+        OrderStatus.CANCELLED,
+        OrderStatus.REJECTED,
+        OrderStatus.EXPIRED,
+    }),
     # Terminal states
     OrderStatus.FILLED: frozenset(),
     OrderStatus.CANCELLED: frozenset(),
     OrderStatus.REJECTED: frozenset(),
     OrderStatus.EXPIRED: frozenset(),
-    OrderStatus.UNKNOWN: frozenset(
-        {OrderStatus.OPEN, OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJECTED}
-    ),
+    OrderStatus.UNKNOWN: frozenset({
+        OrderStatus.OPEN,
+        OrderStatus.PARTIALLY_FILLED,
+        OrderStatus.FILLED,
+        OrderStatus.CANCELLED,
+        OrderStatus.REJECTED,
+        OrderStatus.EXPIRED,
+    }),
 }
 
 # Map status → event type string for event publication
@@ -191,16 +215,14 @@ class Order:
         *,
         filled_quantity: int | None = None,
         average_price: Decimal | None = None,
-        event_bus: EventBus | None = None,
+        event_bus: EventBusProtocol,
         correlation_id: str | None = None,
     ) -> None:
         """Transition to a new status and publish an event.
 
         Validates the transition against the state machine.  If invalid,
-        raises :class:`InvalidOrderTransitionError`.
-
-        If ``event_bus`` is provided, publishes a DomainEvent for the
-        transition.
+        raises :class:`InvalidOrderTransitionError`.  Always publishes
+        a DomainEvent for the transition.
         """
         with self._lock:
             old_status = self._status
@@ -216,27 +238,25 @@ class Order:
             if average_price is not None:
                 self._average_price = average_price
 
-            # Publish event if we have a bus
-            if event_bus is not None:
-                event_type = _STATUS_TO_EVENT.get(new_status)
-                if event_type is not None:
-                    from brokers.domain.events import DomainEvent
-
-                    event_bus.publish(
-                        DomainEvent.now(
-                            event_type=event_type,
-                            payload={
-                                "order_id": self._order_id,
-                                "symbol": self._request.symbol,
-                                "status": new_status.value,
-                                "old_status": old_status.value,
-                                "filled_quantity": self._filled_quantity,
-                                "average_price": str(self._average_price),
-                            },
-                            symbol=self._request.symbol,
-                            correlation_id=correlation_id,
-                        )
+            # Publish event for the transition
+            event_type = _STATUS_TO_EVENT.get(new_status)
+            if event_type is not None:
+                event_bus.publish(
+                    DomainEvent.now(
+                        event_type=event_type,
+                        payload={
+                            "order": self,
+                            "order_id": self._order_id,
+                            "symbol": self._request.symbol,
+                            "status": new_status.value,
+                            "old_status": old_status.value,
+                            "filled_quantity": self._filled_quantity,
+                            "average_price": str(self._average_price),
+                        },
+                        symbol=self._request.symbol,
+                        correlation_id=correlation_id,
                     )
+                )
 
     # ── Convenience factory ──────────────────────────────────────────
 
@@ -272,8 +292,8 @@ class Order:
         """Reconstruct an Order from broker order-book response data.
 
         Used by mappers when converting broker JSON responses back into
-        Order entities.  Builds an OrderRequest and OrderResponse
-        internally, then constructs the Order.
+        Order entities.  Uses ``_reconstruct`` to set initial state
+        without going through the state-machine transition validation.
         """
         request = OrderRequest(
             symbol=symbol,
@@ -292,11 +312,48 @@ class Order:
             order_id=order_id,
             status=status,
         )
-        order = cls(request, response)
+
+        # Reconcile inconsistent state
+        actual_status = status
+        if status == OrderStatus.FILLED and filled_quantity != quantity:
+            pass  # Broker edge case: partial fills reported as FILLED
+        elif status in (OrderStatus.OPEN, OrderStatus.PENDING) and filled_quantity != 0:
+            actual_status = OrderStatus.PARTIALLY_FILLED
+
+        return cls._reconstruct(
+            request=request,
+            response=response,
+            status=actual_status,
+            filled_quantity=filled_quantity,
+            average_price=average_price,
+            timestamp=timestamp,
+        )
+
+    @classmethod
+    def _reconstruct(
+        cls,
+        *,
+        request: OrderRequest,
+        response: OrderResponse,
+        status: OrderStatus,
+        filled_quantity: int,
+        average_price: Decimal,
+        timestamp: datetime | None,
+    ) -> Order:
+        """Internal reconstruction path — bypasses state-machine validation.
+
+        Only used by ``from_broker_data`` to rebuild Order entities from
+        broker responses where the state is already known.
+        """
+        order = object.__new__(cls)
+        order._request = request
+        order._response = response
+        order._order_id = response.order_id
+        order._status = status
         order._filled_quantity = filled_quantity
         order._average_price = average_price
-        if timestamp is not None:
-            order._timestamp = timestamp
+        order._timestamp = timestamp or datetime.now(timezone.utc)
+        order._lock = threading.RLock()
         return order
 
     def __repr__(self) -> str:

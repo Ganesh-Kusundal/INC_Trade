@@ -20,7 +20,7 @@ Usage::
 
 from brokers.platform import Platform
 
-# Deprecated alias — use Platform instead
+# Deprecated alias — use Platform instead.  Emits DeprecationWarning on instantiation.
 from brokers.broker import Broker  # noqa: F401
 from brokers.domain.account import Account, RiskDecision
 from brokers.domain.capabilities import Capability, ProviderCapabilities

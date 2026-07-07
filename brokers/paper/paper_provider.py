@@ -22,7 +22,8 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from brokers.domain.account import Account
+from brokers.constants import DEFAULT_TICK_SIZE
+from brokers.domain.account import Account, RiskPolicyProtocol
 from brokers.domain.capabilities import ProviderCapabilities
 from brokers.domain.enums import (
     AssetClass,
@@ -31,6 +32,7 @@ from brokers.domain.enums import (
     OrderType,
     Side,
 )
+from brokers.infrastructure.event_bus import EventBus
 from brokers.domain.historical import DateRange, HistoricalBar, HistoricalSeries
 from brokers.domain.instrument import Instrument
 from brokers.domain.option_chain import FutureChain, FutureContract, OptionChain, OptionContract
@@ -81,6 +83,7 @@ class PaperProvider:
         "_account",
         "_balance",
         "_connected",
+        "_event_bus",
         "_extensions",
         "_holdings",
         "_instruments",
@@ -90,6 +93,7 @@ class PaperProvider:
         "_positions",
         "_prices",
         "_quote_queues",
+        "_risk_policy",
         "_trades",
     )
 
@@ -97,9 +101,12 @@ class PaperProvider:
         self,
         *,
         initial_balance: Decimal | None = None,
+        event_bus: EventBus | None = None,
+        risk_policy: RiskPolicyProtocol | None = None,
         **kwargs: Any,
     ) -> None:
         self._lock = threading.RLock()
+        self._risk_policy = risk_policy
         bal = initial_balance or Decimal("100000")
         self._balance = Balance(
             available_balance=bal,
@@ -115,6 +122,7 @@ class PaperProvider:
         self._order_counter = itertools.count(1)
         self._connected = False
         self._quote_queues: list[asyncio.Queue[Quote]] = []
+        self._event_bus = event_bus or EventBus()
         self._extensions = ExtensionAccess(self, extensions={})
         self._account: Account | None = None
         self._seed_defaults()
@@ -145,9 +153,17 @@ class PaperProvider:
         return ProviderCapabilities.paper("paper")
 
     @property
+    def risk_policy(self) -> RiskPolicyProtocol | None:
+        return self._risk_policy
+
+    @risk_policy.setter
+    def risk_policy(self, value: RiskPolicyProtocol | None) -> None:
+        self._risk_policy = value
+
+    @property
     def default_account(self) -> Account:
         if self._account is None:
-            self._account = Account("paper_default", self, risk_policy=None)
+            self._account = Account("paper_default", self, risk_policy=self._risk_policy, event_bus=self._event_bus)
         return self._account
 
     @property
@@ -205,11 +221,11 @@ class PaperProvider:
     async def get_depth(self, instrument: Instrument) -> MarketDepth:
         ltp = self._get_price(instrument.symbol, instrument.exchange)
         bids = [
-            DepthLevel(price=ltp - Decimal(str(i + 1)) * Decimal("0.05"), quantity=100 * (i + 1))
+            DepthLevel(price=ltp - Decimal(str(i + 1)) * DEFAULT_TICK_SIZE, quantity=100 * (i + 1))
             for i in range(5)
         ]
         asks = [
-            DepthLevel(price=ltp + Decimal(str(i + 1)) * Decimal("0.05"), quantity=100 * (i + 1))
+            DepthLevel(price=ltp + Decimal(str(i + 1)) * DEFAULT_TICK_SIZE, quantity=100 * (i + 1))
             for i in range(5)
         ]
         return MarketDepth(symbol=instrument.symbol, bids=bids, asks=asks, depth_type="DEPTH_5")
@@ -307,26 +323,42 @@ class PaperProvider:
 
         for offset in [-200, -100, 0, 100, 200]:
             strike = Decimal(str(atm + offset))
-            # Call
+            sym_call = f"{underlying.symbol}{exp.strftime('%y%m%d')}{strike}CE"
+            sym_put = f"{underlying.symbol}{exp.strftime('%y%m%d')}{strike}PE"
             contracts.append(
                 OptionContract(
+                    instrument=Instrument(
+                        symbol=sym_call,
+                        exchange=underlying.exchange,
+                        asset_class=AssetClass.OPTION,
+                        provider=self,
+                        expiry=exp,
+                        strike=strike,
+                        option_type=OptionType.CALL,
+                    ),
                     strike=strike,
                     option_type=OptionType.CALL,
                     expiry=exp,
-                    symbol=f"{underlying.symbol}{exp.strftime('%y%m%d')}{strike}CE",
                     ltp=max(Decimal("1"), spot - strike + Decimal("50")),
                     oi=5000 + offset,
                     volume=1000,
                     iv=Decimal("15"),
                 )
             )
-            # Put
             contracts.append(
                 OptionContract(
+                    instrument=Instrument(
+                        symbol=sym_put,
+                        exchange=underlying.exchange,
+                        asset_class=AssetClass.OPTION,
+                        provider=self,
+                        expiry=exp,
+                        strike=strike,
+                        option_type=OptionType.PUT,
+                    ),
                     strike=strike,
                     option_type=OptionType.PUT,
                     expiry=exp,
-                    symbol=f"{underlying.symbol}{exp.strftime('%y%m%d')}{strike}PE",
                     ltp=max(Decimal("1"), strike - spot + Decimal("50")),
                     oi=4000 - offset,
                     volume=800,
@@ -337,28 +369,39 @@ class PaperProvider:
             underlying=underlying,
             contracts=contracts,
             spot=spot,
-            provider=self,
         )
 
     async def get_future_chain(self, underlying: Instrument) -> FutureChain:
+        sym_jul = f"{underlying.symbol}26JULFUT"
+        sym_aug = f"{underlying.symbol}26AUGFUT"
         return FutureChain(
             underlying=underlying,
             contracts=[
                 FutureContract(
-                    symbol=f"{underlying.symbol}26JULFUT",
+                    instrument=Instrument(
+                        symbol=sym_jul,
+                        exchange=underlying.exchange,
+                        asset_class=AssetClass.FUTURE,
+                        provider=self,
+                        expiry=date(2026, 7, 31),
+                    ),
                     expiry=date(2026, 7, 31),
                     lot_size=75,
                     ltp=self._get_price(underlying.symbol, underlying.exchange),
                     oi=10000,
-                    underlying=underlying.symbol,
                 ),
                 FutureContract(
-                    symbol=f"{underlying.symbol}26AUGFUT",
+                    instrument=Instrument(
+                        symbol=sym_aug,
+                        exchange=underlying.exchange,
+                        asset_class=AssetClass.FUTURE,
+                        provider=self,
+                        expiry=date(2026, 8, 28),
+                    ),
                     expiry=date(2026, 8, 28),
                     lot_size=75,
                     ltp=self._get_price(underlying.symbol, underlying.exchange),
                     oi=8000,
-                    underlying=underlying.symbol,
                 ),
             ],
         )
@@ -369,8 +412,26 @@ class PaperProvider:
         with self._lock:
             order_id = f"paper_{next(self._order_counter)}"
             price = request.price
-            if request.order_type == OrderType.MARKET:
-                price = self._get_price(request.symbol, request.exchange)
+
+            # LIMIT / STOP_LOSS orders require a positive price; never fill at zero.
+            if request.order_type in (OrderType.LIMIT, OrderType.STOP_LOSS) and (
+                price is None or price <= 0
+            ):
+                return OrderResponse.fail(
+                    "LIMIT/STOP_LOSS order requires a positive price",
+                    error_code="INVALID_PRICE",
+                )
+
+            # MARKET orders need a known LTP; unknown symbols must fail
+            # gracefully (contract returns fail, not raise).
+            if request.order_type == OrderType.MARKET or price is None or price <= 0:
+                try:
+                    price = self._get_price(request.symbol, request.exchange)
+                except ValueError:
+                    return OrderResponse.fail(
+                        f"No price seeded for {request.symbol}:{request.exchange}",
+                        error_code="NO_PRICE",
+                    )
 
             # Store order
             self._orders[order_id] = {
@@ -512,12 +573,12 @@ class PaperProvider:
                 withdrawable_balance=self._balance.available_balance - used,
             )
 
-    async def get_orders(self) -> list[Any]:
+    async def get_orders(self) -> list[Order]:
         from brokers.domain.order import Order
         from brokers.domain.requests import OrderRequest as OReq
 
         with self._lock:
-            orders: list[Any] = []
+            orders: list[Order] = []
             for o in self._orders.values():
                 # Reconstruct OrderRequest and OrderResponse from stored dict
                 req = OReq(

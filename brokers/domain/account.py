@@ -11,19 +11,21 @@ its own Protocol for the risk policy to maintain domain purity
 
 from __future__ import annotations
 
+import asyncio
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
+from brokers.domain.capabilities import Capability
+from brokers.domain.events import DomainEvent, EventBusProtocol
 from brokers.domain.order import Order
 from brokers.domain.requests import ModifyOrderRequest, OrderRequest
 from brokers.domain.values import Balance, Holding, OrderResponse, Position, Subscription, Trade
 
 if TYPE_CHECKING:
-    from brokers.infrastructure.event_bus import EventBus
-    from brokers.provider.protocol import ExecutionProvider
+    from brokers.provider.protocol import ExecutionProvider, Provider, StreamingProvider
 
 
 # ── Domain-local protocols (maintain domain purity) ────────────────────────
@@ -109,7 +111,7 @@ class Account:
         provider: ExecutionProvider,
         *,
         risk_policy: RiskPolicyProtocol | None = None,
-        event_bus: EventBus | None = None,
+        event_bus: EventBusProtocol,
     ) -> None:
         self._account_id = account_id
         self._provider = provider
@@ -151,22 +153,19 @@ class Account:
             decision = await self._risk_policy.check(request, self._provider)
             if not decision.allowed:
                 # Publish RISK_REJECTED event
-                if self._event_bus is not None:
-                    from brokers.domain.events import DomainEvent
-
-                    self._event_bus.publish(
-                        DomainEvent.now(
-                            event_type="RISK_REJECTED",
-                            payload={
-                                "order_id": "",
-                                "rule": decision.rule,
-                                "value": str(decision.value),
-                                "limit": str(decision.limit),
-                                "reason": decision.reason,
-                            },
-                            symbol=request.symbol,
-                        )
+                self._event_bus.publish(
+                    DomainEvent.now(
+                        event_type="RISK_REJECTED",
+                        payload={
+                            "order_id": "",
+                            "rule": decision.rule,
+                            "value": str(decision.value),
+                            "limit": str(decision.limit),
+                            "reason": decision.reason,
+                        },
+                        symbol=request.symbol,
                     )
+                )
                 return OrderResponse.fail(
                     f"Risk denied: {decision.reason}",
                     error_code=decision.error_code,
@@ -182,22 +181,20 @@ class Account:
                 self._open_orders[response.order_id] = order
 
             # Publish ORDER_PLACED event
-            if self._event_bus is not None:
-                from brokers.domain.events import DomainEvent
-
-                self._event_bus.publish(
-                    DomainEvent.now(
-                        event_type="ORDER_PLACED",
-                        payload={
-                            "order_id": response.order_id,
-                            "symbol": request.symbol,
-                            "side": request.side.value,
-                            "quantity": request.quantity,
-                            "order_type": request.order_type.value,
-                        },
-                        symbol=request.symbol,
-                    )
+            self._event_bus.publish(
+                DomainEvent.now(
+                    event_type="ORDER_PLACED",
+                    payload={
+                        "order": order,
+                        "order_id": response.order_id,
+                        "symbol": request.symbol,
+                        "side": request.side.value,
+                        "quantity": request.quantity,
+                        "order_type": request.order_type.value,
+                    },
+                    symbol=request.symbol,
                 )
+            )
 
         return response
 
@@ -222,6 +219,37 @@ class Account:
     async def modify_order(self, request: ModifyOrderRequest) -> OrderResponse:
         """Modify an open order."""
         return await self._provider.modify_order(request)
+
+    # ── Batch operations ─────────────────────────────────────────────
+
+    async def place_orders(
+        self, requests: list[OrderRequest]
+    ) -> list[OrderResponse]:
+        """Place multiple orders concurrently with per-order risk gating.
+
+        Each request is risk-checked and executed independently.  Results
+        maintain the same order as the input list.
+        """
+        results: list[OrderResponse] = list(
+            await asyncio.gather(*[self.place_order(r) for r in requests])
+        )
+        return results
+
+    async def cancel_orders(self, order_ids: list[str]) -> list[OrderResponse]:
+        """Cancel multiple orders concurrently."""
+        results: list[OrderResponse] = list(
+            await asyncio.gather(*[self.cancel_order(oid) for oid in order_ids])
+        )
+        return results
+
+    async def modify_orders(
+        self, requests: list[ModifyOrderRequest]
+    ) -> list[OrderResponse]:
+        """Modify multiple orders concurrently."""
+        results: list[OrderResponse] = list(
+            await asyncio.gather(*[self.modify_order(r) for r in requests])
+        )
+        return results
 
     # ── Portfolio queries (delegate to provider) ─────────────────────
 
@@ -251,13 +279,12 @@ class Account:
         self, *, on_update: Callable[[Any], None] | None = None
     ) -> Subscription:
         """Subscribe to order status updates."""
-        from brokers.provider.protocol import StreamingProvider
-
-        if not isinstance(self._provider, StreamingProvider):
+        if not self._provider.capabilities.supports(Capability.STREAMING):
             raise TypeError(
                 f"Provider {self._provider.broker_id!r} does not support streaming."
             )
-        return await self._provider.subscribe_orders(on_update=on_update)
+        streaming = cast("StreamingProvider", self._provider)
+        return await streaming.subscribe_orders(on_update=on_update)
 
     # ── Tracked orders (local state) ─────────────────────────────────
 

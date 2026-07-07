@@ -1,5 +1,12 @@
 """Configuration schema — typed defaults for all environment variables.
 
+.. deprecated::
+    This module duplicates credential loading that now lives in
+    :class:`brokers.common.auth.credential_resolver.CredentialResolver`.
+    New code should use ``CredentialResolver`` for broker credentials.
+    This module is retained for non-credential config (API, Trading, App)
+    and for backward-compatible tests.
+
 Provides frozen dataclasses for Dhan, Upstox, API, and Trading config.
 All fields map to environment variables with broker-specific prefixes.
 

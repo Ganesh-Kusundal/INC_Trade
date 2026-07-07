@@ -32,7 +32,12 @@ class UpstoxFeedAuthorizer:
         self._http_client = http_client
 
     async def authorize_market_data_v2(self) -> str:
-        """Authorize V2 market data WebSocket and return the redirect URL."""
+        """Authorize V2 market data WebSocket and return the redirect URL.
+
+        NOTE: currently identical to :meth:`authorize_market_data_v3` — both
+        hit the V3 market-data-feed authorize endpoint. Kept for API
+        compatibility; consolidate if a true V2 endpoint is required.
+        """
         return await self._authorize("/v2/feed/market-data-feed/authorize")
 
     async def authorize_market_data_v3(self) -> str:
@@ -45,6 +50,9 @@ class UpstoxFeedAuthorizer:
     ) -> str:
         """Authorize portfolio stream WebSocket and return the redirect URL.
 
+        Uses the dedicated portfolio-stream authorize endpoint, NOT the
+        market-data endpoint.
+
         Args:
             update_types: Types of updates to subscribe to.
                 Defaults to ["order", "position", "holding", "gtt_order"].
@@ -54,13 +62,13 @@ class UpstoxFeedAuthorizer:
 
         params = ",".join(update_types)
         return await self._authorize(
-            f"/v2/feed/market-data-feed/authorize?update_types={params}"
+            f"/v2/feed/portfolio-stream/authorize?update_types={params}"
         )
 
     async def _authorize(self, endpoint: str) -> str:
         """Make the authorize REST call and extract the redirect URL."""
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             response = await loop.run_in_executor(
                 None, lambda: self._http_client.get(endpoint)
             )

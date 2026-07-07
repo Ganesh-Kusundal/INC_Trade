@@ -42,6 +42,7 @@ from brokers.infrastructure.streaming.stream_health import (
     SubscriptionState,
     TransportState,
 )
+from brokers.infrastructure.streaming.queue_iterator import stop_all_iterators
 from brokers.infrastructure.streaming.subscription import (
     SubscriptionPlan,
 )
@@ -120,6 +121,10 @@ class StreamOrchestrator:
         # Consumer fan-out
         self._tick_queues: list[asyncio.Queue] = []
         self._order_queues: list[asyncio.Queue] = []
+
+        # Backpressure metrics
+        self.dropped_ticks: int = 0
+        self.dropped_orders: int = 0
 
         # Callbacks
         self._on_tick: Callable[[MarketTickEvent], None] | None = None
@@ -221,6 +226,9 @@ class StreamOrchestrator:
             self._heartbeat_task = None
 
         await self._disconnect()
+        # Unblock any ``async for`` consumers iterating over QueueIterator
+        # pairs registered during this stream's lifetime.
+        stop_all_iterators()
         self._update_health(TransportState.CLOSED, SubscriptionState.NONE, FreshnessState.UNKNOWN)
 
         logger.info("stream_orchestrator_stopped", broker_id=self._broker_id)
@@ -308,6 +316,15 @@ class StreamOrchestrator:
                 broker_id=self._broker_id,
                 error=str(exc)[:200],
             )
+            # The whole subscribe call failed — we cannot assume success.
+            # Mark the subscription as PARTIAL (degraded) so health reflects
+            # reality instead of optimistically reporting SYNCED.
+            self._update_health(
+                self._health.transport,
+                SubscriptionState.PARTIAL,
+                self._health.freshness,
+                detail=f"subscribe failed: {exc}",
+            )
             # Continue reading — some subscriptions may have succeeded
 
         # Read loop
@@ -388,7 +405,8 @@ class StreamOrchestrator:
             try:
                 q.put_nowait(event)
             except asyncio.QueueFull:
-                # Backpressure: drop oldest and insert new
+                # Backpressure: drop oldest and insert new, but count the drop
+                # so slow consumers are observable rather than silent.
                 try:
                     q.get_nowait()
                 except asyncio.QueueEmpty:
@@ -396,7 +414,12 @@ class StreamOrchestrator:
                 try:
                     q.put_nowait(event)
                 except asyncio.QueueFull:
-                    pass
+                    self.dropped_ticks += 1
+                    logger.warning(
+                        "tick_dropped_backpressure",
+                        broker_id=self._broker_id,
+                        total_dropped=self.dropped_ticks,
+                    )
 
     def _fan_out_order(self, event: OrderUpdateEvent) -> None:
         """Deliver order update to all registered consumer queues and callback."""
@@ -417,7 +440,12 @@ class StreamOrchestrator:
                 try:
                     q.put_nowait(event)
                 except asyncio.QueueFull:
-                    pass
+                    self.dropped_orders += 1
+                    logger.warning(
+                        "order_dropped_backpressure",
+                        broker_id=self._broker_id,
+                        total_dropped=self.dropped_orders,
+                    )
 
     # ── Health management ───────────────────────────────────────────────────
 

@@ -135,7 +135,7 @@ class DhanPollingFeed:
         """Fetch LTP for a batch of instruments via REST."""
         try:
             # Run sync HTTP in thread pool
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             payload = {segment: security_ids}
             response = await loop.run_in_executor(
                 None, lambda: self._http_client.post("/marketfeed/ltp", json=payload)
@@ -201,14 +201,9 @@ class DhanPollingFeed:
 
 def _exchange_to_segment(exchange: Exchange) -> str:
     """Map Exchange enum to Dhan segment string."""
-    mapping = {
-        Exchange.NSE: "NSE_EQ",
-        Exchange.BSE: "BSE_EQ",
-        Exchange.NFO: "NSE_FNO",
-        Exchange.MCX: "MCX_COMM",
-        Exchange.INDEX: "IDX_I",
-    }
-    return mapping.get(exchange, "NSE_EQ")
+    from brokers.common import segments as _segments
+
+    return _segments.dhan_segment_for(exchange)
 
 
 __all__ = ["DhanPollingFeed"]

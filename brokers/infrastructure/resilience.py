@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import inspect
 import logging
 import threading
 import time
@@ -114,7 +115,7 @@ def rate_limit(*, calls: int, per_second: float = 1.0, timeout: float = 0.0):
                 )
             return await func(*args, **kwargs)
 
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
             return async_wrapper  # type: ignore[return-value]
         return wrapper  # type: ignore[return-value]
 
@@ -210,7 +211,7 @@ def circuit_breaker(*, failures: int = 3, reset_timeout: float = 30.0):
             state.record_success()
             return result
 
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
             return async_wrapper  # type: ignore[return-value]
         return wrapper  # type: ignore[return-value]
 

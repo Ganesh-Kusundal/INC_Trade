@@ -220,19 +220,25 @@ def _feed_to_tick(
 
 
 def _parse_depth(market_depth: Any) -> tuple[list[tuple[float, int]], list[tuple[float, int]]]:
-    """Parse market depth protobuf into bid/ask tuples."""
+    """Parse market depth protobuf into bid/ask tuples.
+
+    Upstox ``MarketLevel.bidAskQuote`` is a single repeated list of
+    ``Quote`` messages; each ``Quote`` carries its own ``bidQ/bidP`` and
+    ``askQ/askP`` fields. We read both sides *per quote* rather than
+    splitting a concatenated [bids]+[asks] array.
+    """
     bids: list[tuple[float, int]] = []
     asks: list[tuple[float, int]] = []
 
-    # market_depth is a repeated DepthLevel message
-    for i, level in enumerate(market_depth):
-        price = float(getattr(level, "price", 0))
-        qty = int(getattr(level, "quantity", 0))
-        if price > 0 and qty > 0:
-            if i < len(market_depth) // 2:
-                bids.append((price, qty))
-            else:
-                asks.append((price, qty))
+    for quote in market_depth:
+        bid_q = int(getattr(quote, "bidQ", 0))
+        bid_p = float(getattr(quote, "bidP", 0))
+        ask_q = int(getattr(quote, "askQ", 0))
+        ask_p = float(getattr(quote, "askP", 0))
+        if bid_p > 0 and bid_q > 0:
+            bids.append((bid_p, bid_q))
+        if ask_p > 0 and ask_q > 0:
+            asks.append((ask_p, ask_q))
 
     return bids, asks
 

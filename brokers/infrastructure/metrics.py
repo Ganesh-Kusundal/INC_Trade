@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import threading
 import time
+from collections import deque
 from typing import Any
 
 
@@ -78,9 +79,14 @@ class Gauge:
 
 
 class Histogram:
-    """Distribution of observed values with bucket boundaries."""
+    """Distribution of observed values with bucket boundaries.
+
+    Uses a bounded ring buffer (max 10,000 observations) to prevent
+    unbounded memory growth in long-running processes.
+    """
 
     DEFAULT_BUCKETS = [0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0]
+    _MAX_VALUES = 10_000
 
     def __init__(
         self, name: str, description: str = "", buckets: list[float] | None = None
@@ -88,7 +94,7 @@ class Histogram:
         self.name = name
         self.description = description
         self.buckets = sorted(buckets or self.DEFAULT_BUCKETS)
-        self.values: list[float] = []
+        self.values: deque[float] = deque(maxlen=self._MAX_VALUES)
         self._lock = threading.Lock()
 
     def observe(self, value: float) -> None:
@@ -124,12 +130,18 @@ class Histogram:
 
 
 class Timer:
-    """Records timing durations in milliseconds."""
+    """Records timing durations in milliseconds.
+
+    Uses a bounded ring buffer (max 10,000 observations) to prevent
+    unbounded memory growth in long-running processes.
+    """
+
+    _MAX_VALUES = 10_000
 
     def __init__(self, name: str, description: str = "") -> None:
         self.name = name
         self.description = description
-        self.values: list[float] = []
+        self.values: deque[float] = deque(maxlen=self._MAX_VALUES)
         self._lock = threading.Lock()
 
     def observe(self, duration_ms: float) -> None:

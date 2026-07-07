@@ -222,3 +222,56 @@ class TestDhanSearch:
         results = resolver.search("RELI")
         assert len(results) >= 1
         assert results[0].symbol == "RELIANCE"
+
+
+# ── Currency and BSE_FNO segment mapping tests ─────────────────────────────
+
+
+class TestDhanCurrencyAndBseFno:
+    """Verify resolver maps currency and BSE FNO segments correctly."""
+
+    def test_currency_resolves_to_currency_exchange(self):
+        r = DhanInstrumentResolver()
+        rows = [
+            {
+                "SEM_TRADING_SYMBOL": "USDINR",
+                "SEM_SMST_SECURITY_ID": "12345",
+                "SEM_EXM_EXCH_ID": "1",  # Will use compact map
+                "SEM_INSTRUMENT_NAME": "EQUITY",  # Doesn't matter for segment test
+                "SEM_LOT_UNITS": "1",
+                "SEM_TICK_SIZE": "0.0001",
+                "SEM_CUSTOM_SYMBOL": "USDINR",
+                "SM_SYMBOL_NAME": "USDINR",
+            },
+        ]
+        # Directly test segment mapping
+        from brokers.dhan.resolver import _SEGMENT_TO_EXCHANGE
+
+        assert _SEGMENT_TO_EXCHANGE["NSE_CURRENCY"] == Exchange.CURRENCY
+        assert _SEGMENT_TO_EXCHANGE["BSE_CURRENCY"] == Exchange.CURRENCY
+
+    def test_bse_fno_resolves_correctly(self):
+        from brokers.dhan.resolver import _SEGMENT_TO_EXCHANGE
+
+        assert _SEGMENT_TO_EXCHANGE["BSE_FNO"] == Exchange.BSE_FNO
+
+    def test_nse_fno_still_maps_to_nfo(self):
+        from brokers.dhan.resolver import _SEGMENT_TO_EXCHANGE
+
+        assert _SEGMENT_TO_EXCHANGE["NSE_FNO"] == Exchange.NFO
+
+    def test_mcx_still_maps_to_mcx(self):
+        from brokers.dhan.resolver import _SEGMENT_TO_EXCHANGE
+
+        assert _SEGMENT_TO_EXCHANGE["MCX_COMM"] == Exchange.MCX
+
+    def test_mapper_reverse_mapping_currency(self):
+        from brokers.dhan.mapper import _SEGMENT_TO_EXCHANGE as MAP
+
+        assert MAP["NSE_CURRENCY"] == Exchange.CURRENCY
+        assert MAP["BSE_CURRENCY"] == Exchange.CURRENCY
+
+    def test_mapper_reverse_mapping_bse_fno(self):
+        from brokers.dhan.mapper import _SEGMENT_TO_EXCHANGE as MAP
+
+        assert MAP["BSE_FNO"] == Exchange.BSE_FNO

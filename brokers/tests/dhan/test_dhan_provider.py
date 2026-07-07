@@ -556,6 +556,122 @@ class TestDhanProviderExecution:
         assert response.success is False
         assert "Cannot modify filled order" in response.message
 
+    @pytest.mark.asyncio
+    async def test_cancel_order_dhan_style_success(
+        self, provider: DhanProvider, mock_client: MagicMock
+    ) -> None:
+        """Dhan cancel response has NO top-level status; it uses orderId /
+        orderStatus.  Success must be detected via those fields (#1)."""
+        mock_client.cancel_order.return_value = {
+            "orderId": "dhan_order_001",
+            "orderStatus": "CANCELLED",
+        }
+
+        response = await provider.cancel_order("dhan_order_001")
+
+        assert response.success is True
+        assert response.order_id == "dhan_order_001"
+        assert response.status == OrderStatus.CANCELLED
+
+    @pytest.mark.asyncio
+    async def test_modify_order_includes_required_fields(
+        self, provider: DhanProvider, mock_client: MagicMock
+    ) -> None:
+        """modify_order must resolve the instrument and include securityId /
+        exchangeSegment / transactionType, not just the change-set (#2).
+
+        ModifyOrderRequest is frozen and currently has no instrument field;
+        the provider reads it via getattr so it works once the domain owner
+        extends the request.  Here we drive the resolver path directly and
+        then assert the full payload is sent.
+        """
+        from types import SimpleNamespace
+
+        from brokers.domain.instrument import Instrument
+
+        instrument = Instrument(
+            symbol="RELIANCE", exchange=Exchange.NSE, provider=provider,  # type: ignore[arg-type]
+            security_id="3456",
+        )
+        # Fake request exposing the (future) instrument attribute.
+        request = SimpleNamespace(
+            order_id="dhan_order_001",
+            instrument=instrument,
+            symbol=None,
+            exchange=None,
+            quantity=20,
+            price=Decimal("2550"),
+            trigger_price=None,
+            order_type=OrderType.LIMIT,
+            validity=None,
+            product_type=None,
+        )
+        sid = provider._resolve_modify_security_id(request)  # type: ignore[arg-type]
+        assert sid == "3456"
+
+        response = await provider.modify_order(request)  # type: ignore[arg-type]
+
+        assert response.success is True
+        mock_client.modify_order.assert_called_once()
+        _oid, payload = mock_client.modify_order.call_args.args
+        assert payload["securityId"] == "3456"
+        assert payload["exchangeSegment"] == "NSE_EQ"
+        assert payload["quantity"] == 20
+        assert payload["price"] == Decimal("2550")
+
+    @pytest.mark.asyncio
+    async def test_place_order_uses_resolver_when_instruments_dict_empty(
+        self, mock_client: MagicMock
+    ) -> None:
+        """Verify place_order resolves security_id via resolver, not just _instruments dict."""
+        from brokers.common.instrument_resolver import ResolvedInstrument
+        from brokers.domain.instrument import Instrument
+
+        mock_resolver = MagicMock()
+        mock_resolver.resolve.return_value = ResolvedInstrument(
+            symbol="TCS",
+            exchange=Exchange.NSE,
+            broker_id="9999",
+            segment="NSE_EQ",
+            lot_size=1,
+            tick_size=Decimal("0.05"),
+            trading_symbol="TCS",
+        )
+
+        mock_client.place_order.return_value = {
+            "data": {"orderId": "dhan_order_002"},
+        }
+
+        # Provider with NO _instruments dict — only resolver
+        p = DhanProvider(
+            client_id="test", access_token="tok", resolver=mock_resolver
+        )
+        p._client = mock_client
+
+        # Instrument without security_id (normal user flow)
+        inst = Instrument(
+            symbol="TCS",
+            exchange=Exchange.NSE,
+            provider=p,
+            # No security_id — must be resolved via resolver
+        )
+        request = OrderRequest(
+            symbol="TCS",
+            exchange=Exchange.NSE,
+            side=Side.BUY,
+            quantity=5,
+            instrument=inst,
+        )
+        response = await p.place_order(request)
+
+        assert response.success is True
+        # Verify the resolver was consulted
+        mock_resolver.resolve.assert_called_once_with("TCS", Exchange.NSE)
+        # Verify the payload was built with the resolved numeric security_id
+        call_args = mock_client.place_order.call_args
+        payload = call_args[1]["json"] if "json" in call_args[1] else call_args[0][0]
+        assert payload["securityId"] == "9999"
+
 
 # ── Portfolio tests ────────────────────────────────────────────────────────
 
@@ -837,3 +953,110 @@ class TestDhanProviderResolver:
 
         assert quote.ltp == Decimal("3500")
         mock_resolver.resolve.assert_called_once()
+
+
+# ── Segment routing tests ────────────────────────────────────────────────────
+
+
+class TestDhanSegmentRouting:
+    """Verify Exchange → Dhan segment string mapping."""
+
+    def test_currency_segment_routing(self) -> None:
+        from brokers.dhan.dhan_provider import _segment_for
+
+        assert _segment_for(Exchange.CURRENCY) == "NSE_CURRENCY"
+
+    def test_bse_fno_segment_routing(self) -> None:
+        from brokers.dhan.dhan_provider import _segment_for
+
+        assert _segment_for(Exchange.BSE_FNO) == "BSE_FNO"
+
+    def test_nfo_still_maps_to_nse_fno(self) -> None:
+        from brokers.dhan.dhan_provider import _segment_for
+
+        assert _segment_for(Exchange.NFO) == "NSE_FNO"
+
+    def test_mcx_still_maps_to_mcx_comm(self) -> None:
+        from brokers.dhan.dhan_provider import _segment_for
+
+        assert _segment_for(Exchange.MCX) == "MCX_COMM"
+
+
+# ── Product-type validation tests ────────────────────────────────────────────
+
+
+class TestDhanProductTypeValidation:
+    """Verify product-type validation per Dhan segment rules."""
+
+    def test_rejects_cnc_for_fno(self) -> None:
+        from brokers.dhan.mapper import validate_product_type
+
+        with pytest.raises(ValueError, match="not allowed"):
+            validate_product_type("NSE_FNO", "CNC")
+
+    def test_rejects_mtf_for_fno(self) -> None:
+        from brokers.dhan.mapper import validate_product_type
+
+        with pytest.raises(ValueError, match="not allowed"):
+            validate_product_type("NSE_FNO", "MTF")
+
+    def test_rejects_cnc_for_commodity(self) -> None:
+        from brokers.dhan.mapper import validate_product_type
+
+        with pytest.raises(ValueError, match="not allowed"):
+            validate_product_type("MCX_COMM", "CNC")
+
+    def test_rejects_mtf_for_currency(self) -> None:
+        from brokers.dhan.mapper import validate_product_type
+
+        with pytest.raises(ValueError, match="not allowed"):
+            validate_product_type("NSE_CURRENCY", "MTF")
+
+    def test_accepts_intraday_for_fno(self) -> None:
+        from brokers.dhan.mapper import validate_product_type
+
+        validate_product_type("NSE_FNO", "INTRADAY")  # Should not raise
+
+    def test_accepts_margin_for_fno(self) -> None:
+        from brokers.dhan.mapper import validate_product_type
+
+        validate_product_type("NSE_FNO", "MARGIN")  # Should not raise
+
+    def test_accepts_cnc_for_equity(self) -> None:
+        from brokers.dhan.mapper import validate_product_type
+
+        validate_product_type("NSE_EQ", "CNC")  # Should not raise
+
+    def test_accepts_mtf_for_equity(self) -> None:
+        from brokers.dhan.mapper import validate_product_type
+
+        validate_product_type("BSE_EQ", "MTF")  # Should not raise
+
+    def test_accepts_intraday_for_bse_fno(self) -> None:
+        from brokers.dhan.mapper import validate_product_type
+
+        validate_product_type("BSE_FNO", "INTRADAY")  # Should not raise
+
+    def test_rejects_cnc_for_bse_fno(self) -> None:
+        from brokers.dhan.mapper import validate_product_type
+
+        with pytest.raises(ValueError, match="not allowed"):
+            validate_product_type("BSE_FNO", "CNC")
+
+    def test_unknown_segment_skips_validation(self) -> None:
+        from brokers.dhan.mapper import validate_product_type
+
+        validate_product_type("UNKNOWN_SEG", "CNC")  # Should not raise
+
+    def test_build_order_payload_validates_product_type(self) -> None:
+        from brokers.dhan.mapper import DhanMapper
+
+        request = OrderRequest(
+            symbol="NIFTY",
+            exchange=Exchange.NFO,
+            side=Side.BUY,
+            quantity=50,
+            product_type=ProductType.CNC,  # Invalid for NSE_FNO
+        )
+        with pytest.raises(ValueError, match="not allowed"):
+            DhanMapper.build_order_payload(request, "13", "NSE_FNO", "client123")

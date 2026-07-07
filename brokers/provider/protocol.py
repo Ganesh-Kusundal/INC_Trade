@@ -13,10 +13,10 @@ Full-service brokers (Dhan, Upstox, Paper) implement :class:`Provider`
 which composes all four.  Data-only providers (CSV, Yahoo) implement
 only ``MarketDataProvider`` — no ``NotSupportedError`` stubs needed.
 
-All protocols are ``@runtime_checkable``, enabling ``isinstance()``
-checks for auto-detection at ::
+Providers declare capabilities via :attr:`ProviderCapabilities`.
+Feature detection uses capability checks instead of ``isinstance()``::
 
-    if isinstance(provider, ExecutionProvider):
+    if provider.capabilities.supports(Capability.ORDER_PLACEMENT):
         account = Account(provider, ...)
 
 The protocols use ``TYPE_CHECKING`` for forward references to domain
@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from brokers.domain.historical import HistoricalSeries
     from brokers.domain.instrument import Instrument
     from brokers.domain.option_chain import FutureChain, OptionChain
+    from brokers.domain.order import Order
     from brokers.domain.requests import ModifyOrderRequest, OrderRequest
     from brokers.domain.values import (
         Balance,
@@ -202,7 +203,7 @@ class ExecutionProvider(LifecycleProvider, Protocol):
         """Return account balance and margin usage."""
         ...
 
-    async def get_orders(self) -> list[Any]:
+    async def get_orders(self) -> list[Order]:
         """Return current order book."""
         ...
 

@@ -30,7 +30,7 @@ class ForeverOrderRequest:
     trigger_price: float
     order_flag: str = "SINGLE"  # SINGLE or OCO
     order_type: str = "LIMIT"
-    product_type: str = "CNC"
+    product_type: str = "INTRADAY"
     validity: str = "DAY"
     leg_name: str = "ENTRY"
 
@@ -56,7 +56,7 @@ class DhanForeverOrders:
             "transactionType": request.transaction_type,
             "quantity": str(request.quantity),
             "price": str(request.price),
-            "triggerPrice": str(request.trigger_price),
+            "trigger_Price": str(request.trigger_price),
             "orderFlag": request.order_flag,
             "orderType": request.order_type,
             "productType": request.product_type,
@@ -84,7 +84,7 @@ class DhanForeverOrders:
         if quantity is not None:
             payload["quantity"] = str(quantity)
         if trigger_price is not None:
-            payload["triggerPrice"] = str(trigger_price)
+            payload["trigger_Price"] = str(trigger_price)
         logger.info("dhan_forever_order_modify", order_id=order_id)
         return self._client.put("/forever/orders", json=payload)
 

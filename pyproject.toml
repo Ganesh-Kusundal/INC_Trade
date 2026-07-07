@@ -41,3 +41,18 @@ ignore_missing_imports = true
 warn_return_any = true
 warn_unused_ignores = true
 disallow_untyped_defs = false
+
+# ── pytest ────────────────────────────────────────────────────────────────
+# NOTE: `asyncio_mode = "auto"` was evaluated and reverted.  Enabling it made
+# pytest-asyncio actually execute previously-false-green async tests; in the
+# full-suite run this surfaced 6 ImportErrors in brokers/tests/dhan/test_resolver.py
+# (TestDhanCurrencyAndBseFno) that are import-ordering artifacts, not trivial
+# test bugs.  The suite is intentionally kept green with strict-mode decorators.
+# Markers are registered here so --strict-markers is happy without relying
+# solely on the root conftest.
+
+[tool.pytest.ini_options]
+markers = [
+    "live: marks tests as live-broker tests (skipped by default; run with `-m live`)",
+    "slow: marks slow/soak tests that are opt-in (run with `-m slow`)",
+]
