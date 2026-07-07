@@ -860,3 +860,203 @@ class TestRepr:
 
         r = repr(composite)
         assert "composite" in r
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ISP isinstance() guards — providers missing capabilities raise TypeError
+# ════════════════════════════════════════════════════════════════════════════
+#
+# These test that the @runtime_checkable isinstance() guards in Instrument,
+# Account, and Platform correctly prevent method calls on providers that
+# don't implement the required sub-protocol.
+
+
+# ── Minimal stub providers for negative testing ────────────────────────────
+
+
+class _MarketDataOnlyProvider:
+    """Implements LifecycleProvider + MarketDataProvider only.
+
+    Deliberately MISSING: ExecutionProvider methods (place_order, etc.)
+    and StreamingProvider methods (subscribe_quotes, etc.).
+    """
+
+    broker_id = "data-only"
+    is_connected = False
+
+    @property
+    def capabilities(self):
+        from brokers.domain.capabilities import Capability, ProviderCapabilities
+        return ProviderCapabilities(broker_id=self.broker_id, supported=frozenset({
+            Capability.MARKET_DATA, Capability.HISTORICAL_DATA,
+        }))
+
+    @property
+    def extensions(self):
+        from brokers.provider.extensions import ExtensionAccess
+        return ExtensionAccess(self, extensions={})
+
+    # ── LifecycleProvider ──────────────────────────────────────────────
+    async def connect(self) -> None: pass
+    async def disconnect(self) -> None: pass
+
+    # ── MarketDataProvider ─────────────────────────────────────────────
+    async def get_quote(self, _): raise NotImplementedError
+    async def get_ltp(self, _): raise NotImplementedError
+    async def get_depth(self, _): raise NotImplementedError
+    async def get_history(self, _, **__): raise NotImplementedError
+    async def search_instruments(self, _): raise NotImplementedError
+    async def get_instruments(self, exchange=None): raise NotImplementedError
+    async def resolve_instrument(self, symbol, exchange): raise NotImplementedError
+    async def get_option_chain(self, _, **__): raise NotImplementedError
+    async def get_future_chain(self, _): raise NotImplementedError
+
+
+class _NoStreamingProvider:
+    """Implements Lifecycle + MarketData + Execution, but NOT Streaming.
+
+    Deliberately MISSING: subscribe_quotes, subscribe_depth,
+    subscribe_orders, unsubscribe.
+    """
+
+    broker_id = "no-streaming"
+    is_connected = False
+
+    @property
+    def capabilities(self):
+        from brokers.domain.capabilities import Capability, ProviderCapabilities
+        return ProviderCapabilities.full(self.broker_id)
+
+    @property
+    def extensions(self):
+        from brokers.provider.extensions import ExtensionAccess
+        return ExtensionAccess(self, extensions={})
+
+    @property
+    def default_account(self):
+        from brokers.domain.account import Account
+        return Account("no-stream-default", self)
+
+    # ── LifecycleProvider ──────────────────────────────────────────────
+    async def connect(self) -> None: pass
+    async def disconnect(self) -> None: pass
+
+    # ── MarketDataProvider ─────────────────────────────────────────────
+    async def get_quote(self, _): raise NotImplementedError
+    async def get_ltp(self, _): raise NotImplementedError
+    async def get_depth(self, _): raise NotImplementedError
+    async def get_history(self, _, **__): raise NotImplementedError
+    async def search_instruments(self, _): raise NotImplementedError
+    async def get_instruments(self, exchange=None): raise NotImplementedError
+    async def resolve_instrument(self, symbol, exchange): raise NotImplementedError
+    async def get_option_chain(self, _, **__): raise NotImplementedError
+    async def get_future_chain(self, _): raise NotImplementedError
+
+    # ── ExecutionProvider ──────────────────────────────────────────────
+    async def place_order(self, _): raise NotImplementedError
+    async def cancel_order(self, _): raise NotImplementedError
+    async def modify_order(self, _): raise NotImplementedError
+    async def get_positions(self): raise NotImplementedError
+    async def get_balance(self): raise NotImplementedError
+    async def get_orders(self): raise NotImplementedError
+    async def get_trades(self): raise NotImplementedError
+    async def get_holdings(self): raise NotImplementedError
+
+
+# ── Tests ──────────────────────────────────────────────────────────────────
+
+
+class TestIsinstanceGuards:
+    """isinstance() guards raise TypeError when capabilities are missing."""
+
+    # ── ExecutionProvider guard ────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_buy_raises_without_execution_provider(self) -> None:
+        """Instrument.buy() → TypeError if provider lacks ExecutionProvider."""
+        from brokers.domain.instrument import Instrument
+
+        provider = _MarketDataOnlyProvider()
+        inst = Instrument("RELIANCE", Exchange.NSE, provider=provider)
+
+        with pytest.raises(TypeError, match="does not support execution"):
+            await inst.buy(quantity=10)
+
+    @pytest.mark.asyncio
+    async def test_sell_raises_without_execution_provider(self) -> None:
+        """Instrument.sell() → TypeError if provider lacks ExecutionProvider."""
+        from brokers.domain.instrument import Instrument
+
+        provider = _MarketDataOnlyProvider()
+        inst = Instrument("RELIANCE", Exchange.NSE, provider=provider)
+
+        with pytest.raises(TypeError, match="does not support execution"):
+            await inst.sell(quantity=10)
+
+    def test_platform_account_raises_without_execution_provider(self) -> None:
+        """Platform.account() → TypeError if provider lacks ExecutionProvider."""
+        provider = _MarketDataOnlyProvider()
+        platform = Platform(provider)  # type: ignore[arg-type]
+
+        with pytest.raises(TypeError, match="does not support execution"):
+            platform.account()
+
+    # ── StreamingProvider guard ────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_subscribe_quotes_raises_without_streaming_provider(self) -> None:
+        """Instrument.subscribe_quotes() → TypeError if no StreamingProvider."""
+        from brokers.domain.instrument import Instrument
+
+        provider = _NoStreamingProvider()
+        inst = Instrument("RELIANCE", Exchange.NSE, provider=provider)
+
+        with pytest.raises(TypeError, match="does not support streaming"):
+            await inst.subscribe_quotes()
+
+    @pytest.mark.asyncio
+    async def test_subscribe_depth_raises_without_streaming_provider(self) -> None:
+        """Instrument.subscribe_depth() → TypeError if no StreamingProvider."""
+        from brokers.domain.instrument import Instrument
+
+        provider = _NoStreamingProvider()
+        inst = Instrument("RELIANCE", Exchange.NSE, provider=provider)
+
+        with pytest.raises(TypeError, match="does not support streaming"):
+            await inst.subscribe_depth()
+
+    @pytest.mark.asyncio
+    async def test_unsubscribe_raises_without_streaming_provider(self) -> None:
+        """Instrument.unsubscribe() → TypeError if no StreamingProvider."""
+        from brokers.domain.instrument import Instrument
+        from brokers.domain.values import Subscription
+
+        provider = _NoStreamingProvider()
+        inst = Instrument("RELIANCE", Exchange.NSE, provider=provider)
+
+        with pytest.raises(TypeError, match="does not support streaming"):
+            await inst.unsubscribe(Subscription("dummy", "quote"))
+
+    @pytest.mark.asyncio
+    async def test_account_subscribe_orders_raises_without_streaming(self) -> None:
+        """Account.subscribe_orders() → TypeError if no StreamingProvider."""
+        from brokers.domain.account import Account
+
+        provider = _NoStreamingProvider()
+        acct = Account("test", provider)
+
+        with pytest.raises(TypeError, match="does not support streaming"):
+            await acct.subscribe_orders()
+
+    # ── Graceful skip (no error, just doesn't unsubscribe) ────────────
+
+    @pytest.mark.asyncio
+    async def test_unsubscribe_all_silently_skips_without_streaming(self) -> None:
+        """Instrument.unsubscribe_all() does NOT raise — silently skips."""
+        from brokers.domain.instrument import Instrument
+
+        provider = _NoStreamingProvider()
+        inst = Instrument("RELIANCE", Exchange.NSE, provider=provider)
+
+        # Should not raise — the isinstance guard is a positive check
+        await inst.unsubscribe_all()
