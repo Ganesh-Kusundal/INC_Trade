@@ -1,8 +1,10 @@
-"""Tests for brokers.upstox.totp_client and token_manager.
+"""Tests for brokers.upstox.totp_client — upstox-totp library wrapper.
 
 Covers:
-  - UpstoxTotpClient: login flow with mocked HTTP, cooldown, error handling
-  - UpstoxTokenManager: bootstrap, ensure_valid, bearer_token
+  - UpstoxOAuthClient: wraps upstox-totp library for automated login
+  - UpstoxTotpClient: backward-compatible alias
+  - Cooldown guard behaviour
+  - Error handling and rate limiting
 """
 
 from __future__ import annotations
@@ -10,97 +12,136 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-import requests
 
-from brokers.common.auth.credential_resolver import UpstoxCredentials
 from brokers.common.auth.token_manager import (
     TokenSource,
     TotpCooldownGuard,
 )
 from brokers.upstox.totp_client import (
+    UpstoxOAuthClient,
     UpstoxTotpClient,
     UpstoxTotpError,
     UpstoxTotpRateLimitError,
 )
 
 
-# ── UpstoxTotpClient tests ─────────────────────────────────────────────────
+# ── UpstoxOAuthClient tests ────────────────────────────────────────────────
 
 
-class TestUpstoxTotpClient:
-    def _make_mock_response(self, status: int = 200, data: dict | None = None) -> MagicMock:
-        resp = MagicMock()
-        resp.status_code = status
-        resp.json.return_value = data or {"access_token": "up_tok", "expires_in": 86400}
-        resp.text = str(data or {})
-        return resp
+class TestUpstoxOAuthClient:
+    def _make_client(self, **kwargs) -> UpstoxOAuthClient:
+        defaults = dict(
+            api_key="test_key",
+            api_secret="test_secret",
+            redirect_uri="http://127.0.0.1:18080/callback",
+            username="9999999999",
+            password="testpass",
+            pin="123456",
+            totp_secret="JBSWY3DPEHPK3PXP",
+            cooldown=TotpCooldownGuard(cooldown_seconds=0),
+        )
+        defaults.update(kwargs)
+        return UpstoxOAuthClient(**defaults)
 
-    @patch("brokers.upstox.totp_client.requests.post")
-    def test_login_success(self, mock_post):
-        mock_post.return_value = self._make_mock_response(200, {
-            "access_token": "upstox_tok_abc",
-            "expires_in": 86400,
-            "refresh_token": "refresh_xyz",
-        })
-        client = UpstoxTotpClient(api_key="test_key", cooldown=TotpCooldownGuard(cooldown_seconds=0))
-        state = client.login("JBSWY3DPEHPK3PXP", "1234", "+919876543210")
+    def _make_mock_response(self, success: bool = True, access_token: str = "tok") -> MagicMock:
+        """Create a mock upstox-totp response."""
+        response = MagicMock()
+        response.success = success
+        if success:
+            response.data = MagicMock()
+            response.data.access_token = access_token
+            response.data.user_name = "TESTUSER"
+        else:
+            response.data = None
+            response.error = {"message": "Login failed", "errorCode": "UDAPI100001"}
+        return response
+
+    @patch("brokers.upstox.totp_client.UpstoxTOTP", create=True)
+    def test_login_success(self, mock_totp_cls):
+        """Login succeeds and returns valid TokenState."""
+        # Mock the upstox-totp library
+        mock_client = MagicMock()
+        mock_client.app_token.get_access_token.return_value = self._make_mock_response(
+            success=True, access_token="upstox_tok_abc"
+        )
+        mock_totp_cls.return_value = mock_client
+
+        client = self._make_client()
+
+        # Patch the import inside _initialize_client
+        with patch.dict("sys.modules", {"upstox_totp": MagicMock(UpstoxTOTP=mock_totp_cls)}):
+            state = client.login()
+
         assert state.access_token == "upstox_tok_abc"
         assert state.source == TokenSource.TOTP
         assert state.is_valid
 
-    @patch("brokers.upstox.totp_client.requests.post")
-    def test_login_rate_limit(self, mock_post):
-        mock_post.return_value = self._make_mock_response(429, {
-            "error": "Too many attempts",
-        })
-        client = UpstoxTotpClient(cooldown=TotpCooldownGuard(cooldown_seconds=0))
-        with pytest.raises(UpstoxTotpRateLimitError):
-            client.login("JBSWY3DPEHPK3PXP", "1234", "+919876543210")
+    def test_login_missing_credentials(self):
+        """Login raises when credentials are invalid."""
+        client = self._make_client(username="", password="")
 
-    @patch("brokers.upstox.totp_client.requests.post")
-    def test_login_http_error(self, mock_post):
-        mock_post.return_value = self._make_mock_response(500, {"error": "server"})
-        client = UpstoxTotpClient(cooldown=TotpCooldownGuard(cooldown_seconds=0))
-        with pytest.raises(UpstoxTotpError, match="HTTP 500"):
-            client.login("JBSWY3DPEHPK3PXP", "1234", "+919876543210")
+        # The upstox-totp library will fail with UDAPI100068 when redirect_uri
+        # doesn't match the registered one, or with other auth errors
+        with pytest.raises(UpstoxTotpError):
+            client.login()
 
-    @patch("brokers.upstox.totp_client.requests.post")
-    def test_login_network_error(self, mock_post):
-        mock_post.side_effect = requests.ConnectionError("network down")
-        client = UpstoxTotpClient(cooldown=TotpCooldownGuard(cooldown_seconds=0))
-        with pytest.raises(UpstoxTotpError, match="network"):
-            client.login("JBSWY3DPEHPK3PXP", "1234", "+919876543210")
-
-    @patch("brokers.upstox.totp_client.requests.post")
-    def test_login_no_access_token(self, mock_post):
-        mock_post.return_value = self._make_mock_response(200, {"foo": "bar"})
-        client = UpstoxTotpClient(cooldown=TotpCooldownGuard(cooldown_seconds=0))
-        with pytest.raises(UpstoxTotpError, match="no access token"):
-            client.login("JBSWY3DPEHPK3PXP", "1234", "+919876543210")
-
-    @patch("brokers.upstox.totp_client.requests.post")
-    def test_cooldown_blocks_repeated_login(self, mock_post):
-        mock_post.return_value = self._make_mock_response(200, {"access_token": "tok", "expires_in": 300})
+    def test_cooldown_blocks_repeated_login(self):
+        """Cooldown prevents rapid repeated login attempts."""
         cooldown = TotpCooldownGuard(cooldown_seconds=300)
-        client = UpstoxTotpClient(cooldown=cooldown)
-        state = client.login("JBSWY3DPEHPK3PXP", "1234", "+919876543210")
-        assert state.access_token == "tok"
-        # Cooldown is reset on success, so manually record to simulate a prior failed attempt
+        client = self._make_client(cooldown=cooldown)
         cooldown.record_attempt()
         with pytest.raises(UpstoxTotpRateLimitError, match="cooldown"):
-            client.login("JBSWY3DPEHPK3PXP", "1234", "+919876543210")
+            client.login()
 
-    @patch("brokers.upstox.totp_client.requests.post")
-    def test_refresh_calls_login_again(self, mock_post):
-        mock_post.return_value = self._make_mock_response(200, {"access_token": "new_tok", "expires_in": 300})
-        client = UpstoxTotpClient(cooldown=TotpCooldownGuard(cooldown_seconds=0))
-        state = client.refresh("JBSWY3DPEHPK3PXP", "1234", "+919876543210")
-        assert state.access_token == "new_tok"
+    def test_extract_error_message_dict(self):
+        """Extract error message from dict response."""
+        response = MagicMock()
+        response.error = {"message": "Invalid credentials", "errorCode": "UDAPI100069"}
+        msg = UpstoxOAuthClient._extract_error_message(response)
+        assert "Invalid credentials" in msg
+        assert "UDAPI100069" in msg
+
+    def test_extract_error_message_none(self):
+        """Extract error message when no error present."""
+        response = MagicMock()
+        response.error = None
+        msg = UpstoxOAuthClient._extract_error_message(response)
+        assert msg == "Unknown error"
+
+    def test_is_rate_limit_error_true(self):
+        """Detect rate limit error correctly."""
+        assert UpstoxOAuthClient._is_rate_limit_error(
+            "UDAPI100500: You have exceeded the maximum number of requests"
+        )
+        assert UpstoxOAuthClient._is_rate_limit_error(
+            "Too many request please try again later"
+        )
+
+    def test_is_rate_limit_error_false(self):
+        """Non-rate-limit errors return False."""
+        assert not UpstoxOAuthClient._is_rate_limit_error("Invalid credentials")
+        assert not UpstoxOAuthClient._is_rate_limit_error("UDAPI100069")
 
 
-# ── UpstoxTokenManager tests ───────────────────────────────────────────────
-#
-# NOTE: UpstoxTokenManager was removed (brokers/upstox/token_manager.py) in
-# favor of the shared brokers/common/auth AuthManager + scheduler wired in
-# Platform. Token lifecycle is now owned by the common AuthManager; the
-# UpstoxProvider.update_token method is the receiver the scheduler calls.
+# ── UpstoxTotpClient backward-compat alias ─────────────────────────────────
+
+
+class TestUpstoxTotpClientAlias:
+    """The old UpstoxTotpClient is now an alias for UpstoxOAuthClient."""
+
+    def test_is_subclass_of_oauth_client(self):
+        assert issubclass(UpstoxTotpClient, UpstoxOAuthClient)
+
+    def test_can_instantiate_with_old_params(self):
+        """Old-style params are accepted but ignored."""
+        client = UpstoxTotpClient(
+            api_key="k",
+            api_secret="s",
+            redirect_uri="http://127.0.0.1:18080/callback",
+            username="9999999999",
+            password="pass",
+            pin="1234",
+            totp_secret="JBSWY3DPEHPK3PXP",
+            cooldown=TotpCooldownGuard(cooldown_seconds=0),
+        )
+        assert isinstance(client, UpstoxOAuthClient)

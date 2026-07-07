@@ -28,7 +28,10 @@ Usage::
 
 from __future__ import annotations
 
+import base64
+import json
 import logging
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -205,47 +208,56 @@ class Platform:
 
     @staticmethod
     async def _connect_upstox(**kwargs: Any) -> Platform:
-        """Auto-login to Upstox via TOTP or static token.
+        """Auto-login to Upstox via headless TOTP or static token.
 
         Flow:
-        1. CredentialResolver loads .env.upstox
-        2. If static access token → create provider directly
-        3. If TOTP credentials → UpstoxTotpClient.login() → AuthManager
+        1. CredentialResolver loads .env.local
+        2. If static access token is valid → create provider directly
+        3. If session credentials → UpstoxOAuthClient.login() (headless TOTP)
+           (6-step automated flow: dialog → OTP → TOTP → PIN → OAuth → token)
         4. Background refresh daemon keeps token alive
         """
         from brokers.common.auth.credential_resolver import CredentialResolver
         from brokers.common.auth.token_manager import AuthManager, JsonTokenStateStore
-        from brokers.upstox.totp_client import UpstoxTotpClient
+        from brokers.upstox.totp_client import UpstoxOAuthClient, UpstoxTotpError
         from brokers.upstox.upstox_provider import UpstoxProvider
 
         creds = CredentialResolver.for_upstox()
 
-        # ── Fast path: static access token ───────────────────────
-        if creds.access_token:
+        # ── Fast path: static access token (only if not expired) ──
+        if creds.access_token and Platform._is_jwt_valid(creds.access_token):
             provider = UpstoxProvider(
                 access_token=creds.access_token,
                 **kwargs,
             )
             return Platform(provider)
 
-        # ── TOTP auto-login path ─────────────────────────────────
-        if not creds.has_totp:
+        if creds.access_token:
+            logger.info("upstox_static_token_expired_falling_through_to_oauth")
+
+        # ── OAuth authorization code flow ─────────────────────────
+        if not creds.has_oauth:
             raise ValueError(
-                "UPSTOX_ACCESS_TOKEN or (UPSTOX_TOTP_SECRET + UPSTOX_PIN + "
-                "UPSTOX_MOBILE) must be set in .env.upstox."
+                "UPSTOX_ACCESS_TOKEN (valid) or "
+                "(UPSTOX_API_KEY + UPSTOX_API_SECRET + UPSTOX_REDIRECT_URI) "
+                "must be set in .env.local"
             )
 
-        totp_client = UpstoxTotpClient(api_key=creds.api_key)
+        oauth_client = UpstoxOAuthClient(
+            api_key=creds.api_key,
+            api_secret=creds.api_secret,
+            redirect_uri=creds.redirect_uri,
+            username=creds.username,
+            password=creds.password,
+            pin=creds.pin,
+            totp_secret=creds.totp_secret,
+        )
         store = JsonTokenStateStore(
             Path.home() / ".config" / "inc_trade" / ".upstox_token.json"
         )
         auth_manager = AuthManager(
-            on_acquire=lambda: totp_client.login(
-                creds.totp_secret, creds.pin, creds.mobile
-            ),
-            on_refresh=lambda old: totp_client.refresh(
-                creds.totp_secret, creds.pin, creds.mobile
-            ),
+            on_acquire=oauth_client.login,
+            on_refresh=lambda old: oauth_client.refresh(),
             store=store,
             refresh_buffer_seconds=300,
             broker_name="upstox",
@@ -258,12 +270,36 @@ class Platform:
             auth_manager=auth_manager,
             provider_factory=_provider_factory,
             broker_name="upstox",
-            error_types=(),
+            error_types=(UpstoxTotpError,),
             error_hint=(
-                "Check UPSTOX_CLIENT_ID, UPSTOX_TOTP_SECRET, UPSTOX_PIN, "
-                "UPSTOX_MOBILE in .env.upstox"
+                "Check UPSTOX_API_KEY, UPSTOX_API_SECRET, UPSTOX_REDIRECT_URI "
+                "in .env.local"
             ),
         )
+
+    @staticmethod
+    def _is_jwt_valid(token: str) -> bool:
+        """Decode a JWT payload and check whether it is still valid.
+
+        Returns ``False`` if the token is malformed, has no ``exp`` claim,
+        or has already expired.  No signature verification is performed —
+        this is a client-side sanity check only.
+        """
+        try:
+            parts = token.split(".")
+            if len(parts) != 3:
+                return False
+            payload = parts[1]
+            # Add padding
+            padding = 4 - len(payload) % 4
+            if padding != 4:
+                payload += "=" * padding
+            decoded = base64.urlsafe_b64decode(payload)
+            data = json.loads(decoded)
+            exp = data.get("exp", 0)
+            return time.time() < exp
+        except Exception:
+            return False
 
     @staticmethod
     def _build_with_auth(

@@ -39,6 +39,7 @@ from brokers.common.auth.token_manager import TokenSource, TokenState
 from brokers.dhan.totp_client import DhanTotpError, TotpRateLimitError
 from brokers.domain.enums import Exchange
 from brokers.platform import Platform
+from brokers.upstox.totp_client import UpstoxTotpError
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -535,6 +536,9 @@ class TestConnectUpstox:
             "brokers.common.auth.credential_resolver.CredentialResolver.for_upstox",
             return_value=creds,
         ), patch(
+            "brokers.platform.Platform._is_jwt_valid",
+            return_value=True,
+        ), patch(
             "brokers.upstox.upstox_provider.UpstoxProvider"
         ) as mock_provider_cls:
 
@@ -547,21 +551,24 @@ class TestConnectUpstox:
 
     @pytest.mark.asyncio
     async def test_totp_login_attempted(self) -> None:
-        """connect("upstox") with TOTP creds → attempts TOTP login (fails with invalid base32)."""
+        """connect("upstox") with OAuth creds → attempts semi-automated login."""
         creds = UpstoxCredentials(
             client_id="U123",
             access_token="",
-            totp_secret="SECRET",
-            pin="1234",
-            mobile="9999999999",
+            api_key="key",
+            api_secret="secret",
+            redirect_uri="http://127.0.0.1:18080/callback",
         )
 
         with patch(
             "brokers.common.auth.credential_resolver.CredentialResolver.for_upstox",
             return_value=creds,
+        ), patch(
+            "brokers.upstox.totp_client.UpstoxOAuthClient.login",
+            side_effect=UpstoxTotpError("mock login failed"),
         ):
-            # TOTP is now implemented (A2) — fails because "SECRET" is not valid base32
-            with pytest.raises(ValueError, match="auto-login failed"):
+            # Semi-automated flow fails as expected (propagates as UpstoxTotpError)
+            with pytest.raises(UpstoxTotpError, match="mock login failed"):
                 await Platform.connect("upstox")
 
     @pytest.mark.asyncio

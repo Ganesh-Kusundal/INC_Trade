@@ -46,25 +46,49 @@ class DhanCredentials:
 
 @dataclass(frozen=True)
 class UpstoxCredentials:
-    """Upstox API credentials."""
+    """Upstox API credentials.
+
+    ``client_id`` is resolved from ``UPSTOX_CLIENT_ID`` first, falling back
+    to ``UPSTOX_API_KEY`` (they are the same value — the API key doubles as
+    the OAuth client_id).
+    """
 
     client_id: str
     access_token: str = ""
     api_key: str = ""
     api_secret: str = ""
-    redirect_uri: str = "https://api.upstox.com/v2/login/authorization/redirect"
+    redirect_uri: str = "http://127.0.0.1:18080/callback"
     base_url: str = "https://api.upstox.com"
+    username: str = ""
     mobile: str = ""
     pin: str = ""
+    password: str = ""
     totp_secret: str = ""
 
     @property
     def has_totp(self) -> bool:
+        """Whether TOTP-based session login is possible."""
         return bool(self.totp_secret and self.pin and self.mobile)
 
     @property
     def has_oauth(self) -> bool:
-        return bool(self.api_key and self.api_secret)
+        """Whether the full OAuth authorization code flow is possible."""
+        return bool(self.api_key and self.api_secret and self.redirect_uri)
+
+    @property
+    def has_session_auth(self) -> bool:
+        """Whether fully automated (no-browser) login is possible.
+
+        Requires username (mobile), pin, TOTP secret, and OAuth
+        app credentials (api_key + api_secret + redirect_uri).
+        Note: upstox-totp uses PIN as password fallback.
+        """
+        return bool(
+            self.username
+            and self.pin
+            and self.totp_secret
+            and self.has_oauth
+        )
 
 
 # ── Credential resolver ────────────────────────────────────────────────────
@@ -107,20 +131,28 @@ class CredentialResolver:
 
     @classmethod
     def for_upstox(cls, env_file: str | Path | None = None) -> UpstoxCredentials:
-        """Load Upstox credentials from env or .env file."""
+        """Load Upstox credentials from env or .env file.
+
+        ``UPSTOX_API_KEY`` is aliased as ``client_id`` when ``UPSTOX_CLIENT_ID``
+        is not explicitly set — the API key is the OAuth client_id.
+        """
         env = cls._load_env("upstox", env_file)
 
-        client_id = env.get("UPSTOX_CLIENT_ID", "")
-        access_token = env.get("UPSTOX_ACCESS_TOKEN", "")
         api_key = env.get("UPSTOX_API_KEY", "")
+        # UPSTOX_CLIENT_ID takes precedence; fall back to UPSTOX_API_KEY
+        client_id = env.get("UPSTOX_CLIENT_ID", "") or api_key
+        access_token = env.get("UPSTOX_ACCESS_TOKEN", "")
         api_secret = env.get("UPSTOX_API_SECRET", "")
-        redirect_uri = env.get("UPSTOX_REDIRECT_URI", "https://api.upstox.com/v2/login/authorization/redirect")
+        redirect_uri = env.get("UPSTOX_REDIRECT_URI", "http://127.0.0.1:18080/callback")
         base_url = env.get("UPSTOX_BASE_URL", "https://api.upstox.com")
-        mobile = env.get("UPSTOX_MOBILE", "")
+        username = env.get("UPSTOX_USERNAME", "") or env.get("UPSTOX_MOBILE", "")  # UPSTOX_MOBILE aliases UPSTOX_USERNAME
+        mobile = env.get("UPSTOX_MOBILE", "") or username
         pin = env.get("UPSTOX_PIN", "")
+        pin_code = env.get("UPSTOX_PIN_CODE", "") or pin  # UPSTOX_PIN_CODE aliases UPSTOX_PIN
+        password = env.get("UPSTOX_PASSWORD", "")
         totp_secret = env.get("UPSTOX_TOTP_SECRET", "")
 
-        cls._validate_upstox(client_id, access_token, api_key, totp_secret, pin, mobile)
+        cls._validate_upstox(client_id, access_token, api_key, api_secret, redirect_uri)
 
         return UpstoxCredentials(
             client_id=client_id,
@@ -129,8 +161,10 @@ class CredentialResolver:
             api_secret=api_secret,
             redirect_uri=redirect_uri,
             base_url=base_url,
+            username=username,
             mobile=mobile,
-            pin=pin,
+            pin=pin_code,
+            password=password,
             totp_secret=totp_secret,
         )
 
@@ -217,17 +251,26 @@ class CredentialResolver:
         client_id: str,
         access_token: str,
         api_key: str,
-        totp_secret: str,
-        pin: str,
-        mobile: str,
+        api_secret: str,
+        redirect_uri: str,
     ) -> None:
-        """Validate that minimum Upstox credentials are present."""
-        if not client_id:
-            raise ValueError("UPSTOX_CLIENT_ID is required")
-        if not access_token and not (totp_secret and pin and mobile) and not (api_key):
+        """Validate that minimum Upstox credentials are present.
+
+        Valid auth paths (any one is sufficient):
+        1. ``UPSTOX_ACCESS_TOKEN`` — static token (manual refresh)
+        2. ``UPSTOX_API_KEY`` + ``UPSTOX_API_SECRET`` + ``UPSTOX_REDIRECT_URI``
+           — full OAuth authorization code flow (recommended)
+        """
+        if not client_id and not api_key:
             raise ValueError(
-                "Either UPSTOX_ACCESS_TOKEN or (UPSTOX_TOTP_SECRET + UPSTOX_PIN + UPSTOX_MOBILE) "
-                "or UPSTOX_API_KEY must be set"
+                "UPSTOX_API_KEY (or UPSTOX_CLIENT_ID) is required"
+            )
+        has_static = bool(access_token)
+        has_oauth = bool(api_key and api_secret and redirect_uri)
+        if not has_static and not has_oauth:
+            raise ValueError(
+                "Either UPSTOX_ACCESS_TOKEN or "
+                "(UPSTOX_API_KEY + UPSTOX_API_SECRET + UPSTOX_REDIRECT_URI) must be set"
             )
 
 
