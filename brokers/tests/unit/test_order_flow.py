@@ -6,9 +6,9 @@ import threading
 from decimal import Decimal
 from types import SimpleNamespace
 
-from inc_trade.domain.entities import Trade
-from inc_trade.domain.enums import Side
-from inc_trade.market.analytics.order_flow import (
+from brokers.domain.entities import Trade
+from brokers.domain.enums import Side
+from brokers.market.analytics.order_flow import (
     OrderFlowAnalyzer,
     OrderFlowMetrics,
 )
@@ -439,7 +439,7 @@ class TestThreadSafety:
 
 class TestExports:
     def test_exported_from_analytics_package(self) -> None:
-        from inc_trade.market.analytics import OrderFlowAnalyzer, OrderFlowMetrics
+        from brokers.market.analytics import OrderFlowAnalyzer, OrderFlowMetrics
 
         assert OrderFlowAnalyzer is not None
         assert OrderFlowMetrics is not None

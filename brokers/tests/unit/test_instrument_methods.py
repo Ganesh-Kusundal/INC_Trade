@@ -8,8 +8,8 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-from inc_trade.market.instrument import Instrument
-from inc_trade.market.quote_state import QuoteState
+from brokers.market.instrument import Instrument
+from brokers.market.quote_state import QuoteState
 
 
 @pytest.fixture

@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from inc_trade.market.streaming_router import StreamingBackend, StreamingRouter
+from brokers.market.streaming_router import StreamingBackend, StreamingRouter
 
 
 class _MockAdapter:

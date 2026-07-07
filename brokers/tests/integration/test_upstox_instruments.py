@@ -1,6 +1,6 @@
 from unittest.mock import Mock, patch
 
-from inc_trade.ports.instruments import InstrumentInfo
+from brokers.ports.instruments import InstrumentInfo
 
 from brokers.adapters.upstox.instrument_definition import UpstoxInstrumentDefinition
 from brokers.adapters.upstox.instruments import UpstoxInstruments

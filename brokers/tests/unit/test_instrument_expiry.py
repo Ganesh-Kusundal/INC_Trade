@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from inc_trade.market.instrument import Instrument
+from brokers.market.instrument import Instrument
 
 
 class TestInstrumentExpiry:

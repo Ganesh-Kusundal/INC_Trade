@@ -5,10 +5,11 @@ from __future__ import annotations
 from dataclasses import FrozenInstanceError, is_dataclass
 from typing import Any
 
-from brokers_core.market.config import MarketDataConfig
-from inc_trade.market.context import MarketDataContext
-from inc_trade.market.instrument import Instrument
-from inc_trade.market.instrument_registry import InstrumentRegistry
+from brokers.market.config import MarketDataConfig
+from brokers.market import MarketDataConfig as Exported
+from brokers.market.context import MarketDataContext
+from brokers.market.instrument import Instrument
+from brokers.market.instrument_registry import InstrumentRegistry
 
 # ── Fakes (duplicated locally to keep this test file self-contained) ─────
 
@@ -288,14 +289,14 @@ class TestMarketDataContextWithConfig:
 
 
 class TestMarketDataConfigExport:
-    """MarketDataConfig must be exported from inc_trade.market."""
+    """MarketDataConfig must be exported from brokers.market."""
 
     def test_exported_from_market_package(self) -> None:
-        from inc_trade.market import MarketDataConfig as Exported
+        from brokers.market import MarketDataConfig as Exported
 
         assert Exported is MarketDataConfig
 
     def test_in_market_all(self) -> None:
-        from inc_trade import market
+        import brokers.market as market_module
 
-        assert "MarketDataConfig" in market.__all__
+        assert "MarketDataConfig" in market_module.__all__

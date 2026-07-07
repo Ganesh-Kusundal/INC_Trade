@@ -41,7 +41,7 @@ class TestConnectionLifecycleInit:
 
 
 class TestDepth20Feed:
-    @patch("brokers_core.adapters.dhan.connection_lifecycle.DhanDepth20Stream")
+    @patch("brokers.adapters.dhan.connection_lifecycle.DhanDepth20Stream")
     def test_create_depth_20_feed(self, MockStream, lifecycle):
         mock_feed = MagicMock()
         mock_feed.name = "depth20"
@@ -56,7 +56,7 @@ class TestDepth20Feed:
         assert result is mock_feed
         assert lifecycle.depth_20_feed is mock_feed
 
-    @patch("brokers_core.adapters.dhan.connection_lifecycle.DhanDepth20Stream")
+    @patch("brokers.adapters.dhan.connection_lifecycle.DhanDepth20Stream")
     def test_create_depth_20_feed_singleton(self, MockStream, lifecycle):
         mock_feed = MagicMock()
         mock_feed.name = "depth20"
@@ -66,7 +66,7 @@ class TestDepth20Feed:
         assert first is second
         MockStream.assert_called_once()
 
-    @patch("brokers_core.adapters.dhan.connection_lifecycle.DhanDepth20Stream")
+    @patch("brokers.adapters.dhan.connection_lifecycle.DhanDepth20Stream")
     def test_create_depth_20_feed_with_instruments(self, MockStream, lifecycle):
         mock_feed = MagicMock()
         mock_feed.name = "depth20"
@@ -81,13 +81,13 @@ class TestDepth20Feed:
     def test_depth_20_feed_property_none(self, lifecycle):
         assert lifecycle.depth_20_feed is None
 
-    @patch("brokers_core.adapters.dhan.connection_lifecycle.DhanDepth20Stream")
+    @patch("brokers.adapters.dhan.connection_lifecycle.DhanDepth20Stream")
     def test_depth_20_feed_property_setter(self, MockStream, lifecycle):
         mock_feed = MagicMock()
         lifecycle.depth_20_feed = mock_feed
         assert lifecycle.depth_20_feed is mock_feed
 
-    @patch("brokers_core.adapters.dhan.connection_lifecycle.DhanDepth20Stream")
+    @patch("brokers.adapters.dhan.connection_lifecycle.DhanDepth20Stream")
     def test_create_depth_20_feed_registers_with_lifecycle(self, MockStream):
         mock_lifecycle_mgr = MagicMock()
         lc = ConnectionLifecycle(
@@ -102,7 +102,7 @@ class TestDepth20Feed:
 
 
 class TestDepth200Feed:
-    @patch("brokers_core.adapters.dhan.connection_lifecycle.Depth200ConnectionPool")
+    @patch("brokers.adapters.dhan.connection_lifecycle.Depth200ConnectionPool")
     def test_create_depth_200_feed_creates_pool(self, MockPool, lifecycle):
         mock_pool = MagicMock()
         MockPool.return_value = mock_pool
@@ -114,7 +114,7 @@ class TestDepth200Feed:
         )
         assert lifecycle.depth_200_pool is mock_pool
 
-    @patch("brokers_core.adapters.dhan.connection_lifecycle.Depth200ConnectionPool")
+    @patch("brokers.adapters.dhan.connection_lifecycle.Depth200ConnectionPool")
     def test_create_depth_200_feed_reuses_pool(self, MockPool, lifecycle):
         mock_pool = MagicMock()
         MockPool.return_value = mock_pool

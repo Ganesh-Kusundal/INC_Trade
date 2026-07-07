@@ -6,9 +6,9 @@ import threading
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
-from inc_trade.domain.exceptions import TokenRateLimitError
-from inc_trade.infrastructure.storage.token_store import TokenSource, TokenState
-from inc_trade.resilience.token_scheduler import TokenRefreshScheduler
+from brokers.domain.exceptions import TokenRateLimitError
+from brokers.infrastructure.storage.token_store import TokenSource, TokenState
+from brokers.resilience.token_scheduler import TokenRefreshScheduler
 
 from brokers.adapters.dhan.auth import DhanAuth
 

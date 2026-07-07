@@ -8,8 +8,8 @@ from datetime import datetime
 from decimal import Decimal
 
 import pytest
-from inc_trade.market.instrument import Instrument
-from inc_trade.market.instrument_registry import InstrumentRegistry
+from brokers.market.instrument import Instrument
+from brokers.market.instrument_registry import InstrumentRegistry
 
 # ── Instrument Identity Tests ────────────────────────────────────────────
 

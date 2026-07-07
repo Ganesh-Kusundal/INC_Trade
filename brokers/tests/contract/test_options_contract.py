@@ -5,8 +5,8 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-from inc_trade.domain import OptionChain, OptionLeg, OptionStrike
-from inc_trade.ports import OptionsPort
+from brokers.domain import OptionChain, OptionLeg, OptionStrike
+from brokers.ports import OptionsPort
 
 
 def _make_fake_leg() -> OptionLeg:

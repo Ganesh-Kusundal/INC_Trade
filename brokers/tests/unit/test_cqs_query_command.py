@@ -7,9 +7,9 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
-from inc_trade.market.instrument import Instrument
-from inc_trade.market.order import OrderCommand
-from inc_trade.market.query import MarketDataQuery
+from brokers.market.instrument import Instrument
+from brokers.market.order import OrderCommand
+from brokers.market.query import MarketDataQuery
 
 # ── Fixtures ─────────────────────────────────────────────────────────────
 
@@ -193,7 +193,7 @@ class TestOrderCommand:
         cmd = OrderCommand(equity, order_provider=mock_order_provider)
         cmd.buy(quantity=10)
         call_kwargs = mock_order_provider.place_order.call_args[1]
-        from inc_trade.domain.enums import OrderType
+        from brokers.domain.enums import OrderType
 
         assert call_kwargs["order_type"] == OrderType.MARKET
 
@@ -208,7 +208,7 @@ class TestMarketDataQueryEvents:
         """When event_publisher is set, subscribe wraps the callback to publish events."""
         from unittest.mock import MagicMock
 
-        from inc_trade.domain.events import QuoteTickEvent
+        from brokers.domain.events import QuoteTickEvent
 
         event_publisher = MagicMock()
         streaming = MagicMock()

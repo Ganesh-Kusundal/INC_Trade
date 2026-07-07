@@ -6,8 +6,8 @@ from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import pytest
-from inc_trade.domain import MarketDepth
-from inc_trade.domain.entities import DepthLevel, OptionChain, OptionLeg, OptionStrike
+from brokers.domain import MarketDepth
+from brokers.domain.entities import DepthLevel, OptionChain, OptionLeg, OptionStrike
 
 from brokers.adapters.dhan.gateway import DhanGateway
 from brokers.adapters.dhan.identity import DhanInstrumentRef

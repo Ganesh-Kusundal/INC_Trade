@@ -18,19 +18,19 @@ from decimal import Decimal
 from inspect import getmembers, isfunction, ismethod
 
 import pytest
-from inc_trade.domain.enums import (
+from brokers.domain.enums import (
     OrderStatus,
     OrderType,
     ProductType,
     Side,
     Validity,
 )
-from inc_trade.services.audit_facade import AuditFacade
-from inc_trade.services.broker_session import BrokerSession
-from inc_trade.trading.audit import OrderStateChange, OrderStateHistory
-from inc_trade.trading.execution_router import ExecutionRouter
-from inc_trade.trading.oms import OrderManagementSystem
-from inc_trade.trading.order_repository import OrderRepository
+from brokers.services.audit_facade import AuditFacade
+from brokers.services.broker_session import BrokerSession
+from brokers.trading.audit import OrderStateChange, OrderStateHistory
+from brokers.trading.execution_router import ExecutionRouter
+from brokers.trading.oms import OrderManagementSystem
+from brokers.trading.order_repository import OrderRepository
 
 import brokers
 
@@ -57,7 +57,7 @@ class _FakeOrderExecution:
         validity: Validity = Validity.DAY,
         trigger_price: Decimal = Decimal("0"),
     ) -> object:
-        from inc_trade.domain.entities import Order, OrderResponse
+        from brokers.domain.entities import Order, OrderResponse
 
         order_id = f"BROKER-{len(self.orders) + 1:04d}"
         self.orders[order_id] = Order(
@@ -79,12 +79,12 @@ class _FakeOrderExecution:
         order_type: OrderType | None = None,
         validity: Validity | None = None,
     ) -> object:
-        from inc_trade.domain.entities import OrderResponse
+        from brokers.domain.entities import OrderResponse
 
         return OrderResponse(order_id=order_id, success=True)
 
     def cancel_order(self, order_id: str) -> object:
-        from inc_trade.domain.entities import OrderResponse
+        from brokers.domain.entities import OrderResponse
 
         return OrderResponse(order_id=order_id, success=True, status=OrderStatus.CANCELLED)
 

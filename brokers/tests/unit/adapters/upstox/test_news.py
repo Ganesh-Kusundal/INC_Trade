@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from inc_trade.config.endpoints import Upstox
+from brokers.config.endpoints import Upstox
 
 from brokers.adapters.upstox.news import UpstoxNews
 

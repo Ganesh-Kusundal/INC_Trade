@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import pytest
-from inc_trade.ports.historical import HistoricalPort
+from brokers.ports.historical import HistoricalPort
 
 
 class HistoricalContractTests:
@@ -25,7 +25,7 @@ class HistoricalContractTests:
             pass
 
     def test_candles_are_candle_type(self, historical: HistoricalPort) -> None:
-        from inc_trade.domain import Candle
+        from brokers.domain import Candle
 
         now = datetime.now(UTC)
         try:

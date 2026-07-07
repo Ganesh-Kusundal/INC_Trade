@@ -13,12 +13,12 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
-from inc_trade.market.depth_decorators import (
+from brokers.market.depth_decorators import (
     Depth20Decorator,
     Depth30Decorator,
     Depth200Decorator,
 )
-from inc_trade.market.factory import InstrumentFactory
+from brokers.market.factory import InstrumentFactory
 
 
 @pytest.fixture
@@ -127,7 +127,7 @@ class TestFactoryApplyDepth:
             provider=mock_provider,
             apply_depth=0,
         )
-        from inc_trade.market.types.equity import Equity
+        from brokers.market.types.equity import Equity
 
         assert isinstance(inst, Equity)
         assert not isinstance(inst, Depth20Decorator)
@@ -138,7 +138,7 @@ class TestFactoryApplyDepth:
             exchange="NSE",
             provider=mock_provider,
         )
-        from inc_trade.market.types.equity import Equity
+        from brokers.market.types.equity import Equity
 
         assert isinstance(inst, Equity)
         assert not isinstance(inst, Depth20Decorator)
@@ -221,7 +221,7 @@ class TestInstrumentBuySell:
             inst.buy(quantity=10)
 
     def test_buy_custom_order_type(self, mock_provider) -> None:
-        from inc_trade.domain.enums import OrderType
+        from brokers.domain.enums import OrderType
 
         inst = InstrumentFactory.create(
             symbol="RELIANCE",

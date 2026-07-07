@@ -6,12 +6,12 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
-from inc_trade.domain.entities import Candle, OptionLeg, Trade
-from inc_trade.domain.enums import Side
-from inc_trade.market.analytics.atr import ATRCalculator
-from inc_trade.market.analytics.greeks import GreeksCalculator
-from inc_trade.market.analytics.volume_profile import VolumeProfile
-from inc_trade.market.analytics.vwap import VWAPCalculator
+from brokers.domain.entities import Candle, OptionLeg, Trade
+from brokers.domain.enums import Side
+from brokers.market.analytics.atr import ATRCalculator
+from brokers.market.analytics.greeks import GreeksCalculator
+from brokers.market.analytics.volume_profile import VolumeProfile
+from brokers.market.analytics.vwap import VWAPCalculator
 
 
 def _trade(price: Decimal, qty: int) -> Trade:

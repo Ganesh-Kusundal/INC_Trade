@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from inc_trade.domain.exceptions import InstrumentNotFoundError
+from brokers.domain.exceptions import InstrumentNotFoundError
 
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
 

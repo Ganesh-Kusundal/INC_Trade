@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from inc_trade.infrastructure.storage.token_store import JsonTokenStateStore
+from brokers.infrastructure.storage.token_store import JsonTokenStateStore
 
 from brokers.adapters.upstox.auth.config import UpstoxConnectionSettings
 from brokers.adapters.upstox.auth.token_manager import UpstoxTokenManager

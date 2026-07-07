@@ -10,7 +10,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-from inc_trade.infrastructure.reconnect_strategy import ReconnectStrategy, run_reconnect_loop
+from brokers.infrastructure.reconnect_strategy import ReconnectStrategy, run_reconnect_loop
 
 
 def _make_strategy(max_retries: int = 0) -> ReconnectStrategy:
@@ -115,7 +115,7 @@ class TestRunReconnectLoopFailurePath:
         connect = MagicMock(side_effect=ConnectionError("boom"))
         is_running = MagicMock(return_value=True)
 
-        with patch("inc_trade.infrastructure.reconnect_strategy.time.sleep") as mock_sleep:
+        with patch("brokers.infrastructure.reconnect_strategy.time.sleep") as mock_sleep:
             run_reconnect_loop(
                 strategy=strategy,
                 is_running=is_running,
@@ -185,7 +185,7 @@ class TestRunReconnectLoopHooks:
         is_running = MagicMock(return_value=True)
         on_reconnecting = MagicMock()
 
-        with patch("inc_trade.infrastructure.reconnect_strategy.time.sleep"):
+        with patch("brokers.infrastructure.reconnect_strategy.time.sleep"):
             run_reconnect_loop(
                 strategy=strategy,
                 is_running=is_running,
@@ -237,7 +237,7 @@ class TestRunReconnectLoopHooks:
             raise RuntimeError("hook failure")
 
         # Should not raise despite on_reconnecting raising.
-        with patch("inc_trade.infrastructure.reconnect_strategy.time.sleep"):
+        with patch("brokers.infrastructure.reconnect_strategy.time.sleep"):
             run_reconnect_loop(
                 strategy=strategy,
                 is_running=is_running,
@@ -337,6 +337,6 @@ class TestReconnectStrategyWaitInjection:
     def test_wait_default_resolves_to_time_sleep_at_call_time(self):
         """Patching time.sleep at the module level affects default sleep."""
         strategy = ReconnectStrategy(base_delay=0.0, max_delay=0.0, max_retries=5)
-        with patch("inc_trade.infrastructure.reconnect_strategy.time.sleep") as mock_sleep:
+        with patch("brokers.infrastructure.reconnect_strategy.time.sleep") as mock_sleep:
             strategy.wait()
         mock_sleep.assert_called_once_with(0.0)

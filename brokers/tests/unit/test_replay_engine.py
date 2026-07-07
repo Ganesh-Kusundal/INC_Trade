@@ -8,7 +8,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from inc_trade.domain.entities import Candle, Quote
+from brokers.domain.entities import Candle, Quote
 
 from brokers.adapters.replay.engine import ReplayEngine
 from brokers.adapters.replay.sources import CsvSource

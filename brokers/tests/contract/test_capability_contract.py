@@ -14,11 +14,11 @@ import json
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from inc_trade.domain.capabilities import BrokerCapabilities
-from inc_trade.domain.enums import BrokerID
+from brokers.domain.capabilities import BrokerCapabilities
+from brokers.domain.enums import BrokerID
 
 if TYPE_CHECKING:
-    from inc_trade.adapters.broker_adapter import BrokerAdapter
+    from brokers.adapters.broker_adapter import BrokerAdapter
 
 
 class CapabilityContractTests:

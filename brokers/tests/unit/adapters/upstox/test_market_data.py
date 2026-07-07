@@ -5,7 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 from unittest.mock import MagicMock
 
-from inc_trade.domain import MarketDepth, Quote
+from brokers.domain import MarketDepth, Quote
 
 from brokers.adapters.upstox.market_data import UpstoxMarketData
 

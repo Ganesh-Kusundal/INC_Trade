@@ -5,19 +5,19 @@ import time
 from datetime import UTC, datetime
 
 import pytest
-from inc_trade.core.di import Container, Scope, ServiceNotFoundError
-from inc_trade.core.di_scopes import ScopeManager
-from inc_trade.domain.lifecycle_health import HealthState, HealthStatus
-from inc_trade.infrastructure.bootstrap import Bootstrap, BootstrapError, BootstrapResult
-from inc_trade.infrastructure.jwt_expiry import parse_jwt_expiry
-from inc_trade.infrastructure.lifecycle import LifecycleManager
-from inc_trade.infrastructure.registry import (
+from brokers.core.di import Container, Scope, ServiceNotFoundError
+from brokers.core.di_scopes import ScopeManager
+from brokers.domain.lifecycle_health import HealthState, HealthStatus
+from brokers.infrastructure.bootstrap import Bootstrap, BootstrapError, BootstrapResult
+from brokers.infrastructure.jwt_expiry import parse_jwt_expiry
+from brokers.infrastructure.lifecycle import LifecycleManager
+from brokers.infrastructure.registry import (
     BrokerHealthSnapshot,
     BrokerRegistry,
     GatewayRegistry,
     ServiceRegistry,
 )
-from inc_trade.infrastructure.totp_cooldown import TOTPCooldown
+from brokers.infrastructure.totp_cooldown import TOTPCooldown
 
 # ── DI Container ────────────────────────────────────────────────────────────
 

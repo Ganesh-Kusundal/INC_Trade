@@ -5,7 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 from unittest.mock import Mock
 
-from inc_trade.domain.enums import OrderType, Side
+from brokers.domain.enums import OrderType, Side
 
 from brokers.adapters.dhan.alerts import DhanAlerts
 from brokers.adapters.dhan.conditional_triggers import DhanConditionalTriggers

@@ -13,11 +13,11 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-from inc_trade.domain.entities import Balance, Order, OrderResponse, Position
-from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
-from inc_trade.trading.account import Account, AccountStatus, AccountType
-from inc_trade.trading.account_registry import AccountRegistry
-from inc_trade.trading.context import AccountHandle, TradingContext
+from brokers.domain.entities import Balance, Order, OrderResponse, Position
+from brokers.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
+from brokers.trading.account import Account, AccountStatus, AccountType
+from brokers.trading.account_registry import AccountRegistry
+from brokers.trading.context import AccountHandle, TradingContext
 
 # ═══════════════════════════════════════════════════════════════
 # Account entity tests
@@ -231,7 +231,7 @@ def fake_portfolio() -> _FakePortfolio:
 def context(
     fake_order_execution: _FakeOrderExecution, fake_portfolio: _FakePortfolio
 ) -> TradingContext:
-    from inc_trade.trading.account_registry import AccountRegistry
+    from brokers.trading.account_registry import AccountRegistry
 
     registry = AccountRegistry()
     return TradingContext(
@@ -345,8 +345,8 @@ class TestAccountHandle:
 
     def test_disabled_account_raises_on_place(self, context: TradingContext) -> None:
         """Disabled accounts should reject order placement."""
-        from inc_trade.domain.exceptions import BrokerError
-        from inc_trade.trading.account_registry import AccountRegistry
+        from brokers.domain.exceptions import BrokerError
+        from brokers.trading.account_registry import AccountRegistry
 
         registry = AccountRegistry()
         disabled = Account(
@@ -377,7 +377,7 @@ class TestTradingIntegration:
 
         broker = brokers.connect("paper")
         try:
-            from inc_trade.trading.context import TradingContext
+            from brokers.trading.context import TradingContext
 
             # broker.trading should be a TradingContext
             assert isinstance(broker.trading, TradingContext)
@@ -394,7 +394,7 @@ class TestTradingIntegration:
 
     def test_place_order_through_trading_context(self) -> None:
         """Verify orders can be placed through broker.trading."""
-        from inc_trade.domain.enums import Side
+        from brokers.domain.enums import Side
 
         import brokers
 
@@ -409,7 +409,7 @@ class TestTradingIntegration:
 
     def test_portfolio_through_trading_context(self) -> None:
         """Verify portfolio access through broker.trading."""
-        from inc_trade.domain import Balance
+        from brokers.domain import Balance
 
         import brokers
 
@@ -424,7 +424,7 @@ class TestTradingIntegration:
 
     def test_legacy_orders_still_work(self) -> None:
         """Verify old broker.orders.place_order() still works."""
-        from inc_trade.domain.enums import Side
+        from brokers.domain.enums import Side
 
         import brokers
 
@@ -437,7 +437,7 @@ class TestTradingIntegration:
 
     def test_both_paths_coexist(self) -> None:
         """Verify old and new order paths both work simultaneously."""
-        from inc_trade.domain.enums import Side
+        from brokers.domain.enums import Side
 
         import brokers
 

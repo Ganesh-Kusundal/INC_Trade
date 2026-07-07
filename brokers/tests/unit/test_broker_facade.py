@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from inc_trade.ports.capabilities import ForeverOrderProvider, NewsProvider
+from brokers.ports.capabilities import ForeverOrderProvider, NewsProvider
 
 import brokers
 
@@ -11,7 +11,7 @@ import brokers
 def test_broker_session_options_exposure():
     broker = brokers.connect("paper")
 
-    from inc_trade.domain.exceptions import NotSupportedError
+    from brokers.domain.exceptions import NotSupportedError
 
     # Test getting expiries throws error for paper
     with pytest.raises(NotSupportedError):
@@ -35,7 +35,7 @@ def test_broker_session_extensions_dhan():
 
 
 def test_broker_session_extensions_upstox():
-    from inc_trade.ports.capabilities import GTTProvider
+    from brokers.ports.capabilities import GTTProvider
 
     broker = brokers.connect("upstox", access_token="test")
 

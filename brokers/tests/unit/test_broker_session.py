@@ -7,7 +7,7 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
-from inc_trade.market.session import BrokerSession
+from brokers.market.session import BrokerSession
 
 
 @pytest.fixture

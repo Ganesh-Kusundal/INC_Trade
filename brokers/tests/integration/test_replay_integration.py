@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-from inc_trade.domain.entities import Candle, MarketDepth, Quote
+from brokers.domain.entities import Candle, MarketDepth, Quote
 
 from brokers.adapters.replay.engine import ReplayEngine
 

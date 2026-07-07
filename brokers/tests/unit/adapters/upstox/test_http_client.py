@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
-from inc_trade.domain.exceptions import BrokerError
-from inc_trade.infrastructure.http.resilient_client import TokenRefreshSignal
+from brokers.domain.exceptions import BrokerError
+from brokers.infrastructure.http.resilient_client import TokenRefreshSignal
 
 from brokers.adapters.upstox.http import UpstoxHttpClient
 

@@ -26,7 +26,7 @@ class TestSessionIntegration:
 
     def test_session_connect_disconnect(self, adapter: PaperAdapter) -> None:
         """BrokerSession connects and disconnects with PaperAdapter."""
-        from inc_trade.market.session import BrokerSession
+        from brokers.market.session import BrokerSession
 
         session = BrokerSession(adapter)
 
@@ -41,7 +41,7 @@ class TestSessionIntegration:
 
     def test_session_equity_instrument(self, adapter: PaperAdapter) -> None:
         """BrokerSession.equity() returns an Instrument."""
-        from inc_trade.market.session import BrokerSession
+        from brokers.market.session import BrokerSession
 
         session = BrokerSession(adapter)
 
@@ -57,7 +57,7 @@ class TestSessionIntegration:
 
     def test_session_query_ltp(self, adapter: PaperAdapter) -> None:
         """BrokerSession.query().ltp() works."""
-        from inc_trade.market.session import BrokerSession
+        from brokers.market.session import BrokerSession
 
         session = BrokerSession(adapter)
 
@@ -73,7 +73,7 @@ class TestSessionIntegration:
 
     def test_session_command_place_order(self, adapter: PaperAdapter) -> None:
         """BrokerSession.command().buy() works."""
-        from inc_trade.market.session import BrokerSession
+        from brokers.market.session import BrokerSession
 
         session = BrokerSession(adapter)
 
@@ -90,7 +90,7 @@ class TestSessionIntegration:
 
     def test_session_quote_via_adapter(self, adapter: PaperAdapter) -> None:
         """Quote set via adapter is reflected in session.query."""
-        from inc_trade.market.session import BrokerSession
+        from brokers.market.session import BrokerSession
 
         session = BrokerSession(adapter)
 
@@ -109,7 +109,7 @@ class TestSessionIntegration:
 
     def test_instrument_identity_same_symbol(self, adapter: PaperAdapter) -> None:
         """Same symbol returns same Instrument object."""
-        from inc_trade.market.session import BrokerSession
+        from brokers.market.session import BrokerSession
 
         session = BrokerSession(adapter)
 
@@ -134,7 +134,7 @@ class TestSessionIntegration:
 
     def test_session_search(self, adapter: PaperAdapter) -> None:
         """BrokerSession.search() works."""
-        from inc_trade.market.session import BrokerSession
+        from brokers.market.session import BrokerSession
 
         session = BrokerSession(adapter)
 

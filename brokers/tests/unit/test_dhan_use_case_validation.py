@@ -12,8 +12,8 @@ from __future__ import annotations
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
-from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
-from inc_trade.domain.validators.order_validator import validate_order
+from brokers.domain.enums import OrderType, ProductType, Side, Validity
+from brokers.domain.validators.order_validator import validate_order
 
 from brokers.adapters.dhan.identity import DhanInstrumentRef
 from brokers.adapters.dhan.use_cases.place_order import PlaceOrderUseCase
@@ -56,7 +56,7 @@ def _make_uc() -> PlaceOrderUseCase:
 
 
 def _default_request(**overrides: object):
-    from inc_trade.domain import OrderRequest
+    from brokers.domain import OrderRequest
 
     defaults = dict(
         symbol="RELIANCE",

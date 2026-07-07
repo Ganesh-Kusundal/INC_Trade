@@ -157,7 +157,7 @@ def _build_adapter(
         name = name.value
     name = name.lower().strip()
     if name == "dhan":
-        from brokers_core.adapters.dhan.adapter import DhanAdapter
+        from brokers.adapters.dhan.adapter import DhanAdapter
 
         return DhanAdapter(
             access_token=credentials.get("access_token"),
@@ -170,7 +170,7 @@ def _build_adapter(
             auto_refresh=auto_refresh,
         )
     if name == "upstox":
-        from brokers_core.adapters.upstox.adapter import UpstoxAdapter
+        from brokers.adapters.upstox.adapter import UpstoxAdapter
 
         return UpstoxAdapter(
             access_token=credentials["access_token"],
@@ -179,7 +179,7 @@ def _build_adapter(
     if name == "paper":
         from decimal import Decimal
 
-        from brokers_core.adapters.paper.adapter import PaperAdapter
+        from brokers.adapters.paper.adapter import PaperAdapter
 
         initial_cash = credentials.get("initial_cash")
         if initial_cash is not None:
@@ -206,7 +206,7 @@ def _build_facade(
         name = name.value
     name = name.lower().strip()
     if name == "dhan":
-        from brokers_core.adapters.dhan.gateway import DhanGateway
+        from brokers.adapters.dhan.gateway import DhanGateway
 
         dhan_gw = DhanGateway(
             access_token=credentials.get("access_token"),
@@ -241,7 +241,7 @@ def _build_facade(
             extension_registry=registry,
         )
     if name == "upstox":
-        from brokers_core.adapters.upstox.gateway import UpstoxGateway
+        from brokers.adapters.upstox.gateway import UpstoxGateway
 
         upstox_gw = UpstoxGateway(
             access_token=credentials["access_token"],
@@ -261,7 +261,7 @@ def _build_facade(
     if name == "paper":
         from decimal import Decimal
 
-        from brokers_core.adapters.paper.gateway import PaperGateway
+        from brokers.adapters.paper.gateway import PaperGateway
 
         initial_cash = credentials.get("initial_cash")
         if initial_cash is not None:
@@ -304,8 +304,8 @@ def connect(
     """
     from brokers.services.audit_facade import AuditFacade
     from brokers.trading.order_repository import OrderRepository
-    from brokers_core.infrastructure.event_bus import EventBus
-    from brokers_core.market.session import BrokerSession as V3BrokerSession
+    from brokers.infrastructure.event_bus import EventBus
+    from brokers.market.session import BrokerSession as V3BrokerSession
 
     broker_id_str = name.value if isinstance(name, BrokerID) else str(name)
     adapter = _build_adapter(

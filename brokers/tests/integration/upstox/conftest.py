@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 import pytest
-from inc_trade.infrastructure.credentials import CredentialResolver
+from brokers.infrastructure.credentials import CredentialResolver
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _INTEGRATION_DIR = Path(__file__).resolve().parent

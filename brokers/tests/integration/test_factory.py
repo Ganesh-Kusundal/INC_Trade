@@ -8,7 +8,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-from inc_trade.services.broker_session import BrokerSession
+from brokers.services.broker_session import BrokerSession
 
 from brokers import connect
 

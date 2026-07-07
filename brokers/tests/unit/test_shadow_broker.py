@@ -18,7 +18,7 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
-from inc_trade.services.shadow_broker import ShadowBroker
+from brokers.services.shadow_broker import ShadowBroker
 
 # ---------------------------------------------------------------------------
 # Minimal domain-like dataclass stubs for deterministic comparison

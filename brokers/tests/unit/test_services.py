@@ -5,10 +5,10 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-from inc_trade.domain import Side
-from inc_trade.domain.enums import OrderType
-from inc_trade.domain.exceptions import OrderRejectedError, ValidationError
-from inc_trade.services.order_service import OrderService
+from brokers.domain import Side
+from brokers.domain.enums import OrderType
+from brokers.domain.exceptions import OrderRejectedError, ValidationError
+from brokers.services.order_service import OrderService
 
 from brokers.adapters.paper.gateway import PaperGateway
 
@@ -96,7 +96,7 @@ class TestOrderService:
 
 class TestMarketDataService:
     def setup_method(self):
-        from inc_trade.services.market_data_service import MarketDataService
+        from brokers.services.market_data_service import MarketDataService
 
         self.gw = PaperGateway()
         self.gw.set_quote("RELIANCE", Decimal("2500"))
@@ -149,7 +149,7 @@ class TestMarketDataService:
 
 class TestPortfolioService:
     def setup_method(self):
-        from inc_trade.services.portfolio_service import PortfolioService
+        from brokers.services.portfolio_service import PortfolioService
 
         self.gw = PaperGateway()
         self.service = PortfolioService(self.gw.portfolio)
@@ -182,7 +182,7 @@ class TestPortfolioService:
 
 class TestInstrumentService:
     def setup_method(self):
-        from inc_trade.services.instrument_service import InstrumentService
+        from brokers.services.instrument_service import InstrumentService
 
         self.gw = PaperGateway()
         self.service = InstrumentService(self.gw.instruments, auto_load=False)

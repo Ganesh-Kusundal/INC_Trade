@@ -9,21 +9,21 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from inc_trade.domain import (
+from brokers.domain import (
     Order,
     OrderResponse,
     OrderStateError,
     Side,
 )
-from inc_trade.domain.enums import OrderStatus
-from inc_trade.domain.events import (
+from brokers.domain.enums import OrderStatus
+from brokers.domain.events import (
     EVENT_ORDER_CANCELLED,
     EVENT_ORDER_MODIFIED,
     EVENT_ORDER_PLACED,
     EVENT_ORDER_STATE_CHANGE,
 )
-from inc_trade.trading.execution_router import ExecutionRouter
-from inc_trade.trading.order_repository import OrderRepository
+from brokers.trading.execution_router import ExecutionRouter
+from brokers.trading.order_repository import OrderRepository
 
 
 class _FakeOrderExecution:
@@ -138,7 +138,7 @@ def _make_oms(
     event_bus: Any | None = None,
     adapter: Any | None = None,
 ) -> Any:
-    from inc_trade.trading.oms import OrderManagementSystem
+    from brokers.trading.oms import OrderManagementSystem
 
     return OrderManagementSystem(
         execution_router=_make_router(adapter),
@@ -284,7 +284,7 @@ class OMSContractTests:
         assert order.side == Side.BUY
 
     def test_place_order_rejects_invalid_quantity(self, oms: Any) -> None:
-        from inc_trade.domain.exceptions import ValidationError
+        from brokers.domain.exceptions import ValidationError
 
         with pytest.raises(ValidationError):
             oms.place_order(
@@ -556,7 +556,7 @@ class OMSContractTests:
         assert metrics["modifications"] >= 1
 
     def test_metrics_validation_failures(self, oms: Any) -> None:
-        from inc_trade.domain.exceptions import ValidationError
+        from brokers.domain.exceptions import ValidationError
 
         try:
             oms.place_order(

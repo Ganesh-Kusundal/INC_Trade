@@ -6,10 +6,10 @@ import threading
 import time
 
 import pytest
-from inc_trade.domain.exceptions import CircuitOpenError
-from inc_trade.resilience.circuit_breaker import CircuitBreaker, CircuitState
-from inc_trade.resilience.rate_limiter import TokenBucketRateLimiter
-from inc_trade.resilience.retry import RetryPolicy
+from brokers.domain.exceptions import CircuitOpenError
+from brokers.resilience.circuit_breaker import CircuitBreaker, CircuitState
+from brokers.resilience.rate_limiter import TokenBucketRateLimiter
+from brokers.resilience.retry import RetryPolicy
 
 
 class TestTokenBucketRateLimiter:
@@ -192,13 +192,13 @@ class TestRetryPolicy:
 
 class TestTokenManager:
     def test_get_token(self):
-        from inc_trade.resilience.token_manager import TokenManager
+        from brokers.resilience.token_manager import TokenManager
 
         tm = TokenManager(get_token_fn=lambda: "tok-123")
         assert tm.token == "tok-123"
 
     def test_token_cached(self):
-        from inc_trade.resilience.token_manager import TokenManager
+        from brokers.resilience.token_manager import TokenManager
 
         calls = []
 
@@ -212,7 +212,7 @@ class TestTokenManager:
         assert len(calls) == 1
 
     def test_refresh(self):
-        from inc_trade.resilience.token_manager import TokenManager
+        from brokers.resilience.token_manager import TokenManager
 
         tm = TokenManager(
             get_token_fn=lambda: "old",
@@ -224,7 +224,7 @@ class TestTokenManager:
         assert tm.token == "new"
 
     def test_refresh_cooldown(self):
-        from inc_trade.resilience.token_manager import TokenManager
+        from brokers.resilience.token_manager import TokenManager
 
         calls = []
 
@@ -242,7 +242,7 @@ class TestTokenManager:
         assert len(calls) == 1
 
     def test_invalidate(self):
-        from inc_trade.resilience.token_manager import TokenManager
+        from brokers.resilience.token_manager import TokenManager
 
         calls = []
 
@@ -257,7 +257,7 @@ class TestTokenManager:
         assert len(calls) == 2
 
     def test_no_refresh_fn_returns_current(self):
-        from inc_trade.resilience.token_manager import TokenManager
+        from brokers.resilience.token_manager import TokenManager
 
         tm = TokenManager(get_token_fn=lambda: "tok")
         result = tm.refresh()

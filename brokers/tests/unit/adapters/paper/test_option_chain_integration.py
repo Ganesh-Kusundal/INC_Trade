@@ -30,7 +30,7 @@ class TestInstrumentOptionChain:
         The Instrument-level shortcut still uses the legacy _context
         path; only MarketDataQuery uses the new provider path.
         """
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="NIFTY", exchange="NFO")
         inst.with_providers(provider=adapter)
@@ -40,8 +40,8 @@ class TestInstrumentOptionChain:
 
     def test_query_option_chain_via_provider(self, adapter: PaperAdapter) -> None:
         """MarketDataQuery.option_chain() resolves via provider."""
-        from inc_trade.market.instrument import Instrument
-        from inc_trade.market.query import MarketDataQuery
+        from brokers.market.instrument import Instrument
+        from brokers.market.query import MarketDataQuery
 
         inst = Instrument(symbol="NIFTY", exchange="NFO")
 
@@ -58,8 +58,8 @@ class TestInstrumentOptionChain:
 
     def test_query_option_chain_no_expiry(self, adapter: PaperAdapter) -> None:
         """MarketDataQuery.option_chain() works without specifying expiry."""
-        from inc_trade.market.instrument import Instrument
-        from inc_trade.market.query import MarketDataQuery
+        from brokers.market.instrument import Instrument
+        from brokers.market.query import MarketDataQuery
 
         inst = Instrument(symbol="NIFTY", exchange="NFO")
         query = MarketDataQuery(instrument=inst, provider=adapter)
@@ -71,8 +71,8 @@ class TestInstrumentOptionChain:
 
     def test_instrument_option_chain_construction(self) -> None:
         """InstrumentOptionChain can be constructed manually."""
-        from inc_trade.market.instrument import Instrument
-        from inc_trade.market.option_chain import (
+        from brokers.market.instrument import Instrument
+        from brokers.market.option_chain import (
             InstrumentOptionChain,
             InstrumentOptionLeg,
             InstrumentOptionStrike,
@@ -130,8 +130,8 @@ class TestInstrumentOptionChain:
 
     def test_option_chain_atm_strike(self) -> None:
         """InstrumentOptionChain finds ATM strike correctly."""
-        from inc_trade.market.instrument import Instrument
-        from inc_trade.market.option_chain import (
+        from brokers.market.instrument import Instrument
+        from brokers.market.option_chain import (
             InstrumentOptionChain,
             InstrumentOptionLeg,
             InstrumentOptionStrike,
@@ -205,8 +205,8 @@ class TestInstrumentOptionChain:
 
     def test_option_leg_query_and_command(self) -> None:
         """InstrumentOptionLeg provides query() and command()."""
-        from inc_trade.market.instrument import Instrument
-        from inc_trade.market.option_chain import InstrumentOptionLeg
+        from brokers.market.instrument import Instrument
+        from brokers.market.option_chain import InstrumentOptionLeg
 
         inst = Instrument(symbol="NIFTY", exchange="NFO", strike=Decimal("25000"), option_type="CE")
 
@@ -225,8 +225,8 @@ class TestInstrumentOptionChain:
         """SyntheticFuture can be constructed from call+put."""
         from datetime import datetime
 
-        from inc_trade.market.instrument import Instrument
-        from inc_trade.market.option_chain import (
+        from brokers.market.instrument import Instrument
+        from brokers.market.option_chain import (
             InstrumentOptionChain,
             InstrumentOptionLeg,
             InstrumentOptionStrike,

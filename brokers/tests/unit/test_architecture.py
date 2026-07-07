@@ -84,11 +84,11 @@ def _get_inc_trade_imports(filepath: Path) -> list[tuple[int, str]]:
     imports = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
-            if node.module.startswith(("inc_trade.", "brokers_core.", "brokers.")):
+            if node.module.startswith(("brokers.", "brokers_core.", "brokers.")):
                 imports.append((node.lineno, node.module))
         elif isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name.startswith(("inc_trade.", "brokers_core.", "brokers.")):
+                if alias.name.startswith(("brokers.", "brokers_core.", "brokers.")):
                     imports.append((node.lineno, alias.name))
     return imports
 
@@ -174,15 +174,15 @@ BROKERS_CORE_BOUNDARY_RULES: dict[str, set[str]] = {
 }
 
 INC_TRADE_NATIVE_ALLOWED = {
-    "inc_trade.domain",
-    "inc_trade.ports",
-    "inc_trade.services",
-    "inc_trade.trading",
-    "inc_trade.oms",
-    "inc_trade.core",
-    "inc_trade.utils",
-    "inc_trade.config.profiles",
-    "inc_trade.market",
+    "brokers.domain",
+    "brokers.ports",
+    "brokers.services",
+    "brokers.trading",
+    "brokers.oms",
+    "brokers.core",
+    "brokers.utils",
+    "brokers.config.profiles",
+    "brokers.market",
     "brokers_core.utils",
 }
 
@@ -308,27 +308,27 @@ class TestIncTradeNativeBoundaryRules:
 @pytest.mark.architecture
 class TestPortStructure:
     ALL_PORTS = [
-        "inc_trade.ports.auth.AuthPort",
-        "inc_trade.ports.clock.ClockPort",
-        "inc_trade.ports.connection_lifecycle.ConnectionLifecyclePort",
-        "inc_trade.ports.historical.HistoricalPort",
-        "inc_trade.ports.instruments.InstrumentPort",
-        "inc_trade.ports.market_data.MarketDataPort",
-        "inc_trade.ports.order_execution.OrderExecutionPort",
-        "inc_trade.ports.order_guard.OrderGuardPort",
-        "inc_trade.ports.portfolio.PortfolioPort",
-        "inc_trade.ports.risk_manager.RiskManagerPort",
-        "inc_trade.ports.streaming.StreamHandle",
-        "inc_trade.ports.streaming.StreamingPort",
-        "inc_trade.ports.token_store.TokenStorePort",
-        "inc_trade.ports.capabilities.MarginProvider",
-        "inc_trade.ports.capabilities.SuperOrderProvider",
-        "inc_trade.ports.capabilities.ForeverOrderProvider",
-        "inc_trade.ports.capabilities.KillSwitchProvider",
-        "inc_trade.ports.capabilities.SliceOrderProvider",
-        "inc_trade.ports.capabilities.NewsProvider",
-        "inc_trade.ports.options.OptionsPort",
-        "inc_trade.ports.extension_registry.ExtensionRegistryPort",
+        "brokers.ports.auth.AuthPort",
+        "brokers.ports.clock.ClockPort",
+        "brokers.ports.connection_lifecycle.ConnectionLifecyclePort",
+        "brokers.ports.historical.HistoricalPort",
+        "brokers.ports.instruments.InstrumentPort",
+        "brokers.ports.market_data.MarketDataPort",
+        "brokers.ports.order_execution.OrderExecutionPort",
+        "brokers.ports.order_guard.OrderGuardPort",
+        "brokers.ports.portfolio.PortfolioPort",
+        "brokers.ports.risk_manager.RiskManagerPort",
+        "brokers.ports.streaming.StreamHandle",
+        "brokers.ports.streaming.StreamingPort",
+        "brokers.ports.token_store.TokenStorePort",
+        "brokers.ports.capabilities.MarginProvider",
+        "brokers.ports.capabilities.SuperOrderProvider",
+        "brokers.ports.capabilities.ForeverOrderProvider",
+        "brokers.ports.capabilities.KillSwitchProvider",
+        "brokers.ports.capabilities.SliceOrderProvider",
+        "brokers.ports.capabilities.NewsProvider",
+        "brokers.ports.options.OptionsPort",
+        "brokers.ports.extension_registry.ExtensionRegistryPort",
     ]
 
     @pytest.mark.parametrize("dotted_path", ALL_PORTS, ids=lambda p: p.rsplit(".", 1)[-1])
@@ -342,26 +342,26 @@ class TestPortStructure:
         )
 
     def test_all_core_ports_exported(self) -> None:
-        import inc_trade.ports
+        import brokers.ports
 
         for dotted_path in self.ALL_PORTS:
             cls_name = dotted_path.rsplit(".", 1)[-1]
-            assert hasattr(inc_trade.ports, cls_name), (
-                f"{cls_name} not exported from inc_trade.ports"
+            assert hasattr(brokers.ports, cls_name), (
+                f"{cls_name} not exported from brokers.ports"
             )
 
 
 @pytest.mark.architecture
 class TestExceptionHierarchy:
     def test_order_state_error_inherits_tradexv2_error(self) -> None:
-        from inc_trade.domain.exceptions import TradeXV2Error
-        from inc_trade.domain.order_lifecycle import OrderStateError
+        from brokers.domain.exceptions import TradeXV2Error
+        from brokers.domain.order_lifecycle import OrderStateError
 
         assert issubclass(OrderStateError, TradeXV2Error)
 
     def test_all_exceptions_inherit_tradexv2_error(self) -> None:
-        from inc_trade.domain import exceptions
-        from inc_trade.domain.exceptions import TradeXV2Error
+        from brokers.domain import exceptions
+        from brokers.domain.exceptions import TradeXV2Error
 
         for name in dir(exceptions):
             obj = getattr(exceptions, name)
@@ -665,13 +665,13 @@ class TestCapabilityConstants:
     """All capability constants must be defined in domain/constants/capabilities.py."""
 
     def test_all_capabilities_in_all_caps(self) -> None:
-        from inc_trade.domain.constants.capabilities import ALL_CAPABILITIES
+        from brokers.domain.constants.capabilities import ALL_CAPABILITIES
 
         for cap in ALL_CAPABILITIES:
             assert cap.islower() or cap.isupper(), f"Capability {cap} should be in ALL_CAPS"
 
     def test_no_duplicate_capabilities(self) -> None:
-        from inc_trade.domain.constants.capabilities import ALL_CAPABILITIES
+        from brokers.domain.constants.capabilities import ALL_CAPABILITIES
 
         assert len(ALL_CAPABILITIES) == len(set(ALL_CAPABILITIES)), "Duplicate capabilities found"
 
@@ -682,7 +682,7 @@ class TestServiceLayer:
     def test_order_service_depends_only_on_ports(self) -> None:
         import inspect
 
-        from inc_trade.services.order_service import OrderService
+        from brokers.services.order_service import OrderService
 
         # Check that OrderService only imports from allowed modules
         source = inspect.getsource(OrderService)
@@ -697,7 +697,7 @@ class TestServiceLayer:
     def test_historical_service_depends_only_on_ports(self) -> None:
         import inspect
 
-        from inc_trade.services.historical_service import HistoricalService
+        from brokers.services.historical_service import HistoricalService
 
         source = inspect.getsource(HistoricalService)
         disallowed_imports = [
@@ -789,7 +789,7 @@ class TestInstrumentRegistryInvariants:
 
     def test_instrument_registry_single_instance(self) -> None:
         """InstrumentRegistry.get_or_create must return the same object for the same key."""
-        from inc_trade.market.instrument_registry import InstrumentRegistry
+        from brokers.market.instrument_registry import InstrumentRegistry
 
         registry = InstrumentRegistry()
         factory_calls = 0
@@ -807,7 +807,7 @@ class TestInstrumentRegistryInvariants:
 
     def test_instrument_registry_different_keys(self) -> None:
         """Different composite keys must produce different instances."""
-        from inc_trade.market.instrument_registry import InstrumentRegistry
+        from brokers.market.instrument_registry import InstrumentRegistry
 
         registry = InstrumentRegistry()
         inst1 = registry.get_or_create("NSE:RELIANCE", object)
@@ -817,14 +817,14 @@ class TestInstrumentRegistryInvariants:
 
     def test_instrument_registry_get(self) -> None:
         """Registry.get must return None for missing keys."""
-        from inc_trade.market.instrument_registry import InstrumentRegistry
+        from brokers.market.instrument_registry import InstrumentRegistry
 
         registry = InstrumentRegistry()
         assert registry.get("NSE:MISSING") is None
 
     def test_instrument_registry_get_all(self) -> None:
         """Registry.get_all must return a snapshot dict."""
-        from inc_trade.market.instrument_registry import InstrumentRegistry
+        from brokers.market.instrument_registry import InstrumentRegistry
 
         registry = InstrumentRegistry()
         registry.get_or_create("NSE:RELIANCE", object)
@@ -839,7 +839,7 @@ class TestInstrumentRegistryInvariants:
         """Concurrent get_or_create calls must not cause race conditions."""
         import concurrent.futures
 
-        from inc_trade.market.instrument_registry import InstrumentRegistry
+        from brokers.market.instrument_registry import InstrumentRegistry
 
         registry = InstrumentRegistry()
         n_threads = 10
@@ -866,8 +866,8 @@ class TestExtensionPackage:
     """Extensions must not import from adapters; protocols must be runtime_checkable."""
 
     EXTENSION_PROTOCOLS = [
-        "inc_trade.extensions.base.Extension",
-        "inc_trade.extensions.depth.DepthExtension",
+        "brokers.extensions.base.Extension",
+        "brokers.extensions.depth.DepthExtension",
     ]
 
     def test_extensions_not_import_adapters(self) -> None:
@@ -901,13 +901,13 @@ class TestExtensionPackage:
         )
 
     def test_all_extension_protocols_exported(self) -> None:
-        """All extension protocols must be exported from inc_trade.extensions."""
-        import inc_trade.extensions
+        """All extension protocols must be exported from brokers.extensions."""
+        import brokers.extensions
 
         for dotted_path in self.EXTENSION_PROTOCOLS:
             cls_name = dotted_path.rsplit(".", 1)[-1]
-            assert hasattr(inc_trade.extensions, cls_name), (
-                f"{cls_name} not exported from inc_trade.extensions"
+            assert hasattr(brokers.extensions, cls_name), (
+                f"{cls_name} not exported from brokers.extensions"
             )
 
 

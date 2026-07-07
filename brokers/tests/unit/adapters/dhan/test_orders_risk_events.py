@@ -5,9 +5,9 @@ from __future__ import annotations
 from decimal import Decimal
 from unittest.mock import MagicMock
 
-from inc_trade.domain import RiskCheckRequest, RiskCheckResult
-from inc_trade.domain.enums import Side
-from inc_trade.infrastructure.event_bus import EventBus
+from brokers.domain import RiskCheckRequest, RiskCheckResult
+from brokers.domain.enums import Side
+from brokers.infrastructure.event_bus import EventBus
 
 from brokers.adapters.dhan.identity import DhanInstrumentRef
 from brokers.adapters.dhan.orders import DhanOrders
@@ -45,7 +45,7 @@ def test_place_order_publishes_event():
     resp = orders.place_order("RELIANCE", "NSE", Side.BUY, 1, correlation_id="c1")
     assert resp.success
     assert len(received) == 1
-    assert received[0].payload["order"].order_id == "ORD123"
+    assert received[0].order.order_id == "ORD123"
 
 
 def test_place_order_idempotency_does_not_publish_duplicate():

@@ -12,8 +12,8 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
-from inc_trade.market.factory import InstrumentFactory
-from inc_trade.market.instrument import Instrument
+from brokers.market.factory import InstrumentFactory
+from brokers.market.instrument import Instrument
 
 # ── with_providers() Tests ────────────────────────────────────────────────
 

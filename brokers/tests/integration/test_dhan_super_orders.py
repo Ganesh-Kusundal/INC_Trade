@@ -2,7 +2,7 @@ from decimal import Decimal
 from unittest.mock import Mock
 
 import pytest
-from inc_trade.domain.enums import Side
+from brokers.domain.enums import Side
 
 from brokers.adapters.dhan.extensions.super_orders import DhanSuperOrders
 

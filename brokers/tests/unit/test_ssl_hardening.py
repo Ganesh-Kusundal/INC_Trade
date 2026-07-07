@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import ssl
 
-from inc_trade.infrastructure.ssl_hardening import (
+from brokers.infrastructure.ssl_hardening import (
     HardenedHTTPSAdapter,
     create_pinned_session,
     hardened_ssl_context,

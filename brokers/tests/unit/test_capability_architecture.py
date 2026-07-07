@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from inc_trade.domain.constants.capabilities import (
+from brokers.domain.constants.capabilities import (
     FEATURE_ORDERS,
 )
-from inc_trade.services.broker_router import BrokerRouter
-from inc_trade.services.capability_discovery import CapabilityDiscovery
+from brokers.services.broker_router import BrokerRouter
+from brokers.services.capability_discovery import CapabilityDiscovery
 
 from brokers.adapters.paper.gateway import PaperGateway
 
@@ -92,10 +92,10 @@ class TestCapabilityBasedArchitecture:
         # Check that services import only from allowed modules
         import inspect
 
-        from inc_trade.services.historical_service import HistoricalService
-        from inc_trade.services.market_data_service import MarketDataService
-        from inc_trade.services.order_service import OrderService
-        from inc_trade.services.portfolio_service import PortfolioService
+        from brokers.services.historical_service import HistoricalService
+        from brokers.services.market_data_service import MarketDataService
+        from brokers.services.order_service import OrderService
+        from brokers.services.portfolio_service import PortfolioService
 
         for service in [OrderService, MarketDataService, PortfolioService, HistoricalService]:
             source = inspect.getsource(service)
@@ -110,7 +110,7 @@ class TestCapabilityBasedArchitecture:
 
     def test_broker_facade_uses_services(self) -> None:
         """Test that BrokerFacade delegates to services."""
-        from inc_trade.services.broker_facade import BrokerFacade
+        from brokers.services.broker_facade import BrokerFacade
 
         gateway = PaperGateway()
         facade = BrokerFacade(gateway)

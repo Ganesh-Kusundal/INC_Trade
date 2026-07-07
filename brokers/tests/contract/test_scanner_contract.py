@@ -11,15 +11,15 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
-from inc_trade.domain.entities import Candle, Quote
-from inc_trade.market.scanner.criteria import (
+from brokers.domain.entities import Candle, Quote
+from brokers.market.scanner.criteria import (
     CrossingMA,
     PriceAbove,
     PriceBelow,
     VolumeSpike,
 )
-from inc_trade.market.scanner.result import ScanResult
-from inc_trade.market.scanner.scanner import Scanner
+from brokers.market.scanner.result import ScanResult
+from brokers.market.scanner.scanner import Scanner
 
 
 class _FakeInstrument:
@@ -39,7 +39,7 @@ def _make_fake_registry(
     symbols: dict[str, _FakeInstrument],
 ) -> Any:
     """Build a minimal registry that returns instruments via get_all()."""
-    from inc_trade.market.instrument_registry import InstrumentRegistry
+    from brokers.market.instrument_registry import InstrumentRegistry
 
     reg = InstrumentRegistry()
     for key, inst in symbols.items():
@@ -282,7 +282,7 @@ class ScannerContractTests:
 
     def test_scan_with_empty_registry_returns_no_matches(self, scanner: Scanner) -> None:
         del scanner
-        from inc_trade.market.instrument_registry import InstrumentRegistry
+        from brokers.market.instrument_registry import InstrumentRegistry
 
         reg = InstrumentRegistry()
         mkt = _FakeMarketData()

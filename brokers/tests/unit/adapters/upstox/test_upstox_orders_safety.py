@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from inc_trade.config.endpoints import Upstox
-from inc_trade.domain import Order, OrderResponse
-from inc_trade.domain.enums import OrderStatus, Side
-from inc_trade.utils.idempotency_cache import TypedIdempotencyCache as InMemoryIdempotencyCache
+from brokers.config.endpoints import Upstox
+from brokers.domain import Order, OrderResponse
+from brokers.domain.enums import OrderStatus, Side
+from brokers.utils.idempotency_cache import TypedIdempotencyCache as InMemoryIdempotencyCache
 
 from brokers.adapters.upstox.orders import UpstoxOrders
 

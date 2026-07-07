@@ -5,8 +5,8 @@ from __future__ import annotations
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
-from inc_trade.domain import Side
-from inc_trade.domain.enums import OrderStatus, OrderType
+from brokers.domain import Side
+from brokers.domain.enums import OrderStatus, OrderType
 
 from brokers.adapters.upstox.gateway import UpstoxGateway
 

@@ -18,8 +18,8 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
-from inc_trade.market.instrument import Instrument
-from inc_trade.market.strategies import (
+from brokers.market.instrument import Instrument
+from brokers.market.strategies import (
     ComboOrder,
     IronCondor,
     OptionStrategy,

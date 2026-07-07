@@ -10,7 +10,7 @@ from datetime import time as dt_time
 from pathlib import Path
 
 import pytest
-from inc_trade.infrastructure.credentials import CredentialResolver
+from brokers.infrastructure.credentials import CredentialResolver
 
 from brokers.adapters.dhan.gateway import DhanGateway
 

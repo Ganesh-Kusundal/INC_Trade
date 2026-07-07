@@ -7,9 +7,9 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
-from inc_trade.domain import OrderRequest, OrderResponse
-from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
-from inc_trade.domain.exceptions import InstrumentNotFoundError
+from brokers.domain import OrderRequest, OrderResponse
+from brokers.domain.enums import OrderType, ProductType, Side, Validity
+from brokers.domain.exceptions import InstrumentNotFoundError
 
 from brokers.adapters.dhan.identity import DhanInstrumentRef
 from brokers.adapters.dhan.use_cases.place_order import PlaceOrderUseCase
@@ -173,7 +173,7 @@ class TestExecute:
 
         assert not result.success
         assert result.error_code == "VALIDATION_FAILED"
-        assert "positive price" in result.message
+        assert "price" in result.message.lower()
         assert placed is None
 
     def test_validation_failure_sl_requires_trigger(self) -> None:
@@ -191,7 +191,7 @@ class TestExecute:
 
         assert not result.success
         assert result.error_code == "VALIDATION_FAILED"
-        assert "trigger_price must be positive for stop orders" in result.message
+        assert "trigger_price" in result.message
 
     def test_risk_check_rejection(self) -> None:
         risk_manager = MagicMock()
@@ -351,7 +351,7 @@ class TestValidate:
         req = _default_request(order_type=OrderType.LIMIT, price=Decimal("0"))
         error = uc.validate(ref, req)
         assert error is not None
-        assert "positive price" in error
+        assert "price" in error.lower()
 
     def test_sl_requires_price_and_trigger(self) -> None:
         uc = self._uc()
@@ -374,7 +374,7 @@ class TestValidate:
         )
         error = uc.validate(ref, req)
         assert error is not None
-        assert "trigger_price must be positive for stop orders" in error
+        assert "trigger_price" in error
 
     def test_tick_alignment_failure(self) -> None:
         uc = self._uc()

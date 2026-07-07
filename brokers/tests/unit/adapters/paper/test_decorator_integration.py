@@ -34,12 +34,12 @@ class TestCachedDecoratorIntegration:
 
     def test_decorator_caches_quote(self, adapter: PaperAdapter) -> None:
         """CachedDecorator returns cached quote within TTL."""
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         inst.with_providers(provider=adapter, query=None)
 
-        from inc_trade.market.cache_decorator import CachedDecorator
+        from brokers.market.cache_decorator import CachedDecorator
 
         cached = CachedDecorator(inst, ttl_seconds=10.0)
 
@@ -56,12 +56,12 @@ class TestCachedDecoratorIntegration:
 
     def test_decorator_cache_expires(self, adapter: PaperAdapter) -> None:
         """CachedDecorator fetches fresh after TTL expires."""
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         inst.with_providers(provider=adapter, query=None)
 
-        from inc_trade.market.cache_decorator import CachedDecorator
+        from brokers.market.cache_decorator import CachedDecorator
 
         cached = CachedDecorator(inst, ttl_seconds=0.01)  # 10ms TTL
 
@@ -81,12 +81,12 @@ class TestCachedDecoratorIntegration:
 
     def test_decorator_caches_ltp(self, adapter: PaperAdapter) -> None:
         """CachedDecorator caches LTP separately."""
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         inst.with_providers(provider=adapter, query=None)
 
-        from inc_trade.market.cache_decorator import CachedDecorator
+        from brokers.market.cache_decorator import CachedDecorator
 
         cached = CachedDecorator(inst, ttl_seconds=10.0)
 
@@ -100,12 +100,12 @@ class TestCachedDecoratorIntegration:
 
     def test_decorator_invalidate(self, adapter: PaperAdapter) -> None:
         """CachedDecorator.invalidate() clears the cache."""
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         inst.with_providers(provider=adapter, query=None)
 
-        from inc_trade.market.cache_decorator import CachedDecorator
+        from brokers.market.cache_decorator import CachedDecorator
 
         cached = CachedDecorator(inst, ttl_seconds=10.0)
 
@@ -122,8 +122,8 @@ class TestDepthDecoratorIntegration:
 
     def test_with_depth_decorates_instrument(self, adapter: PaperAdapter) -> None:
         """with_depth() wraps instrument with DepthDecorator."""
-        from inc_trade.market.decorators import with_depth
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.decorators import with_depth
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         inst.with_providers(provider=adapter, depth_provider=adapter)
@@ -136,8 +136,8 @@ class TestDepthDecoratorIntegration:
 
     def test_with_depth_returns_original_for_5_or_less(self, adapter: PaperAdapter) -> None:
         """with_depth() returns original instrument for levels <= 5."""
-        from inc_trade.market.decorators import with_depth
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.decorators import with_depth
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         result = with_depth(inst, levels=5)
@@ -145,8 +145,8 @@ class TestDepthDecoratorIntegration:
 
     def test_decorator_chain_preserves_identity(self, adapter: PaperAdapter) -> None:
         """Decorator chain preserves instrument identity."""
-        from inc_trade.market.decorators import with_cache, with_depth
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.decorators import with_cache, with_depth
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         inst.with_providers(provider=adapter, depth_provider=adapter)
@@ -159,8 +159,8 @@ class TestDepthDecoratorIntegration:
 
     def test_with_cache_decorates_instrument(self, adapter: PaperAdapter) -> None:
         """with_cache() wraps instrument with CachedDecorator."""
-        from inc_trade.market.decorators import with_cache
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.decorators import with_cache
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         inst.with_providers(provider=adapter)
@@ -176,9 +176,9 @@ class TestCqsPurity:
 
     def test_query_bypasses_instrument_decorator(self, adapter: PaperAdapter) -> None:
         """MarketDataQuery goes directly to adapter, bypassing decorator."""
-        from inc_trade.market.decorators import with_cache
-        from inc_trade.market.instrument import Instrument
-        from inc_trade.market.query import MarketDataQuery
+        from brokers.market.decorators import with_cache
+        from brokers.market.instrument import Instrument
+        from brokers.market.query import MarketDataQuery
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         inst.with_providers(provider=adapter, query=None)
@@ -202,8 +202,8 @@ class TestCqsPurity:
 
     def test_instrument_convenience_uses_decorator(self, adapter: PaperAdapter) -> None:
         """Instrument.quote() convenience goes through the decorator."""
-        from inc_trade.market.decorators import with_cache
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.decorators import with_cache
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         inst.with_providers(provider=adapter)

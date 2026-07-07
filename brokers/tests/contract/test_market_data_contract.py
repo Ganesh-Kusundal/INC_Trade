@@ -9,7 +9,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-from inc_trade.ports.market_data import MarketDataPort
+from brokers.ports.market_data import MarketDataPort
 
 
 class MarketDataContractTests:
@@ -28,7 +28,7 @@ class MarketDataContractTests:
         assert price > 0
 
     def test_quote_returns_quote(self, market_data: MarketDataPort) -> None:
-        from inc_trade.domain import Quote
+        from brokers.domain import Quote
 
         q = market_data.quote("RELIANCE")
         assert isinstance(q, Quote)
@@ -36,7 +36,7 @@ class MarketDataContractTests:
         assert q.ltp > 0
 
     def test_depth_returns_depth(self, market_data: MarketDataPort) -> None:
-        from inc_trade.domain import MarketDepth
+        from brokers.domain import MarketDepth
 
         d = market_data.depth("RELIANCE")
         assert isinstance(d, MarketDepth)
@@ -48,7 +48,7 @@ class MarketDataContractTests:
         assert all(isinstance(v, Decimal) for v in prices.values())
 
     def test_quote_batch_returns_dict(self, market_data: MarketDataPort) -> None:
-        from inc_trade.domain import Quote
+        from brokers.domain import Quote
 
         quotes = market_data.quote_batch(["RELIANCE", "TCS"])
         assert isinstance(quotes, dict)

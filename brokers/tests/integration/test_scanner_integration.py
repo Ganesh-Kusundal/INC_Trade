@@ -12,17 +12,17 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-from inc_trade.market.context import MarketDataContext
-from inc_trade.market.instrument import Instrument
-from inc_trade.market.instrument_registry import InstrumentRegistry
-from inc_trade.market.scanner.criteria import (
+from brokers.market.context import MarketDataContext
+from brokers.market.instrument import Instrument
+from brokers.market.instrument_registry import InstrumentRegistry
+from brokers.market.scanner.criteria import (
     CrossingMA,
     PriceAbove,
     PriceBelow,
     VolumeSpike,
 )
-from inc_trade.market.scanner.result import ScanResult
-from inc_trade.market.scanner.scanner import Scanner
+from brokers.market.scanner.result import ScanResult
+from brokers.market.scanner.scanner import Scanner
 
 from brokers.adapters.paper.gateway import PaperGateway
 from brokers.adapters.replay.engine import ReplayEngine

@@ -10,8 +10,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from inc_trade.domain.exceptions import BrokerServerError
-from inc_trade.resilience.circuit_breaker import (
+from brokers.domain.exceptions import BrokerServerError
+from brokers.resilience.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
     CircuitState,

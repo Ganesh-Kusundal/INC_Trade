@@ -11,8 +11,8 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
-from inc_trade.domain.cache_policy import CachePolicy
-from inc_trade.domain.entities import Candle
+from brokers.domain.cache_policy import CachePolicy
+from brokers.domain.entities import Candle
 
 
 class _DictCache:
@@ -314,7 +314,7 @@ class TestHistoricalRouterContractConformance:
 
     @pytest.fixture
     def router(self) -> Any:
-        from inc_trade.services.historical_router import HistoricalRouter
+        from brokers.services.historical_router import HistoricalRouter
 
         cache = _DictCache()
         provider = _MockHistoricalProvider("primary")

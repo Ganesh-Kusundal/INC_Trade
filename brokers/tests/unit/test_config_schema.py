@@ -3,12 +3,12 @@
 import os
 
 import pytest
-from inc_trade.config.defaults import DEFAULT_CONFIG, get_config, reset_config
-from inc_trade.config.profiles import load_profile
-from inc_trade.config.profiles.dev import DevProfile
-from inc_trade.config.profiles.prod import ProdProfile
-from inc_trade.config.profiles.staging import StagingProfile
-from inc_trade.config.schema import (
+from brokers.config.defaults import DEFAULT_CONFIG, get_config, reset_config
+from brokers.config.profiles import load_profile
+from brokers.config.profiles.dev import DevProfile
+from brokers.config.profiles.prod import ProdProfile
+from brokers.config.profiles.staging import StagingProfile
+from brokers.config.schema import (
     AppConfig,
     load_api_config,
     load_dhan_config,

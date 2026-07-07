@@ -15,12 +15,12 @@ from dataclasses import FrozenInstanceError
 from decimal import Decimal
 
 import pytest
-from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
-from inc_trade.domain.events import EVENT_ORDER_STATE_CHANGE, OrderStateChangeEvent
-from inc_trade.trading.audit import OrderStateChange, OrderStateHistory
-from inc_trade.trading.execution_router import ExecutionRouter
-from inc_trade.trading.oms import OrderManagementSystem
-from inc_trade.trading.order_repository import OrderRepository
+from brokers.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
+from brokers.domain.events import EVENT_ORDER_STATE_CHANGE, OrderStateChangeEvent
+from brokers.trading.audit import OrderStateChange, OrderStateHistory
+from brokers.trading.execution_router import ExecutionRouter
+from brokers.trading.oms import OrderManagementSystem
+from brokers.trading.order_repository import OrderRepository
 
 
 class _FakeOrderExecution:
@@ -43,7 +43,7 @@ class _FakeOrderExecution:
         validity: Validity = Validity.DAY,
         trigger_price: Decimal = Decimal("0"),
     ) -> object:
-        from inc_trade.domain.entities import Order, OrderResponse
+        from brokers.domain.entities import Order, OrderResponse
 
         if self.fail_next:
             self.fail_next = False
@@ -73,12 +73,12 @@ class _FakeOrderExecution:
         order_type: OrderType | None = None,
         validity: Validity | None = None,
     ) -> object:
-        from inc_trade.domain.entities import OrderResponse
+        from brokers.domain.entities import OrderResponse
 
         return OrderResponse(order_id=order_id, success=True)
 
     def cancel_order(self, order_id: str) -> object:
-        from inc_trade.domain.entities import OrderResponse
+        from brokers.domain.entities import OrderResponse
 
         return OrderResponse(order_id=order_id, success=True, status=OrderStatus.CANCELLED)
 
@@ -319,7 +319,7 @@ class TestOrderStateChangeEventPublication:
     """Every transition publishes an OrderStateChangeEvent on the event bus."""
 
     def test_place_publishes_state_change_event(self) -> None:
-        from inc_trade.infrastructure.event_bus import EventBus
+        from brokers.infrastructure.event_bus import EventBus
 
         adapter = _FakeOrderExecution()
         router = ExecutionRouter()
@@ -355,7 +355,7 @@ class TestOrderStateChangeEventPublication:
         assert event.correlation_id == "corr-100"
 
     def test_cancel_publishes_state_change_event(self) -> None:
-        from inc_trade.infrastructure.event_bus import EventBus
+        from brokers.infrastructure.event_bus import EventBus
 
         adapter = _FakeOrderExecution()
         router = ExecutionRouter()

@@ -10,16 +10,16 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
-from inc_trade.domain.enums import OrderStatus, OrderType, Side
-from inc_trade.domain.events import (
+from brokers.domain.enums import OrderStatus, OrderType, Side
+from brokers.domain.events import (
     OrderCancelledEvent,
     OrderModifiedEvent,
     OrderPlacedEvent,
     OrderRejectedEvent,
 )
-from inc_trade.trading.execution_router import ExecutionRouter
-from inc_trade.trading.oms import OrderManagementSystem
-from inc_trade.trading.order_repository import OrderRepository
+from brokers.trading.execution_router import ExecutionRouter
+from brokers.trading.oms import OrderManagementSystem
+from brokers.trading.order_repository import OrderRepository
 
 from brokers.adapters.paper.gateway import PaperGateway
 

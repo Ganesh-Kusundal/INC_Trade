@@ -26,8 +26,8 @@ class TestDepthDecorators:
 
     def test_depth20_decorator(self, adapter: PaperAdapter) -> None:
         """Depth20Decorator wraps instrument and delegates depth."""
-        from inc_trade.market.depth_decorators import Depth20Decorator
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.depth_decorators import Depth20Decorator
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         inst.with_providers(provider=adapter, depth_provider=adapter)
@@ -45,8 +45,8 @@ class TestDepthDecorators:
 
     def test_depth200_decorator(self, adapter: PaperAdapter) -> None:
         """Depth200Decorator wraps instrument and delegates depth."""
-        from inc_trade.market.depth_decorators import Depth200Decorator
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.depth_decorators import Depth200Decorator
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         inst.with_providers(provider=adapter, depth_provider=adapter)
@@ -59,8 +59,8 @@ class TestDepthDecorators:
 
     def test_depth_decorator_chain(self, adapter: PaperAdapter) -> None:
         """Depth and cache decorators stack correctly."""
-        from inc_trade.market.decorators import with_cache, with_depth
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.decorators import with_cache, with_depth
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         inst.with_providers(provider=adapter, depth_provider=adapter)
@@ -77,8 +77,8 @@ class TestDepthDecorators:
 
     def test_depth_decorator_supports_depth_check(self, adapter: PaperAdapter) -> None:
         """Depth decorator validates supported levels."""
-        from inc_trade.market.depth_decorators import Depth200Decorator
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.depth_decorators import Depth200Decorator
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         inst.with_providers(provider=adapter, depth_provider=adapter)
@@ -100,8 +100,8 @@ class TestDepthDecorators:
 
     def test_depth_via_query(self, adapter: PaperAdapter) -> None:
         """MarketDataQuery.depth() works with paper adapter."""
-        from inc_trade.market.instrument import Instrument
-        from inc_trade.market.query import MarketDataQuery
+        from brokers.market.instrument import Instrument
+        from brokers.market.query import MarketDataQuery
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         inst.with_providers(provider=adapter, depth_provider=adapter)

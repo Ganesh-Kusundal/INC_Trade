@@ -5,7 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-from inc_trade.domain.entities import (
+from brokers.domain.entities import (
     Balance,
     DepthLevel,
     Holding,
@@ -16,7 +16,7 @@ from inc_trade.domain.entities import (
     Quote,
     Trade,
 )
-from inc_trade.domain.enums import (
+from brokers.domain.enums import (
     OrderStatus,
     OrderType,
     ProductType,

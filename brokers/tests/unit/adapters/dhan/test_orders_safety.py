@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from inc_trade.domain import OrderResponse
-from inc_trade.domain.enums import OrderStatus, Side
-from inc_trade.utils.idempotency_cache import TypedIdempotencyCache
+from brokers.domain import OrderResponse
+from brokers.domain.enums import OrderStatus, Side
+from brokers.utils.idempotency_cache import TypedIdempotencyCache
 
 from brokers.adapters.dhan.identity import DhanInstrumentRef
 from brokers.adapters.dhan.orders import DhanOrders
@@ -120,7 +120,7 @@ class TestDhanCancelOrder:
         assert resp.error_code == "DH-404"
 
     def test_cancel_race_already_filled(self):
-        from inc_trade.domain import Order
+        from brokers.domain import Order
 
         client = MagicMock()
         client.delete.return_value = {"status": "success"}

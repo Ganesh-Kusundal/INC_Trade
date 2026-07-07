@@ -5,11 +5,11 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-from inc_trade.domain.entities import AggregatedExposure, Position
+from brokers.domain.entities import AggregatedExposure, Position
 
 # MarketAggregatedExposure removed - AggregatedExposure is in domain.entities
-from inc_trade.market import Instrument
-from inc_trade.market.instrument import Instrument as DirectInstrument
+from brokers.market import Instrument
+from brokers.market.instrument import Instrument as DirectInstrument
 
 
 def _pos(

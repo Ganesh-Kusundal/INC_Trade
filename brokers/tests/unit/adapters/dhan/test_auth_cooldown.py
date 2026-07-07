@@ -5,8 +5,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-from inc_trade.domain.exceptions import TokenRateLimitError
-from inc_trade.infrastructure.totp_cooldown import TOTPCooldown
+from brokers.domain.exceptions import TokenRateLimitError
+from brokers.infrastructure.totp_cooldown import TOTPCooldown
 
 from brokers.adapters.dhan.auth import DhanAuth
 

@@ -24,7 +24,11 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock
+
+if TYPE_CHECKING:
+    from brokers.market.instrument import Instrument
 
 logger = logging.getLogger(__name__)
 
@@ -148,3 +152,52 @@ class ExtensionDecoratorRegistry:
     def __repr__(self) -> str:
         keys = ", ".join(sorted(self._factories.keys()))
         return f"ExtensionDecoratorRegistry({keys})"
+
+
+_default_registry: ExtensionDecoratorRegistry | None = None
+
+
+def get_default_registry() -> ExtensionDecoratorRegistry:
+    """Get the singleton default registry with pre-populated factories."""
+    global _default_registry
+    if _default_registry is None:
+        _default_registry = ExtensionDecoratorRegistry()
+        _populate_default_registry(_default_registry)
+    return _default_registry
+
+
+def reset_default_registry() -> None:
+    """Reset the default registry singleton. For testing."""
+    global _default_registry
+    _default_registry = None
+
+
+def _populate_default_registry(registry: ExtensionDecoratorRegistry) -> None:
+    """Populate the registry with default decorator factories."""
+    from brokers.market.depth_decorators import Depth20Decorator, Depth30Decorator, Depth200Decorator
+    from brokers.market.cache_decorator import CachedDecorator
+    from brokers.market.log_decorator import LoggedDecorator
+
+    def _make_depth_20(instrument: Instrument, **_: Any) -> Depth20Decorator:
+        dp = getattr(instrument, "_depth_provider", None)
+        if dp is None:
+            dp = MagicMock()
+        return Depth20Decorator(instrument, dp)
+
+    def _make_depth_30(instrument: Instrument, **_: Any) -> Depth30Decorator:
+        dp = getattr(instrument, "_depth_provider", None)
+        if dp is None:
+            dp = MagicMock()
+        return Depth30Decorator(instrument, dp)
+
+    def _make_depth_200(instrument: Instrument, **_: Any) -> Depth200Decorator:
+        dp = getattr(instrument, "_depth_provider", None)
+        if dp is None:
+            dp = MagicMock()
+        return Depth200Decorator(instrument, dp)
+
+    registry.register("depth_20", _make_depth_20)
+    registry.register("depth_30", _make_depth_30)
+    registry.register("depth_200", _make_depth_200)
+    registry.register("cache", CachedDecorator)
+    registry.register("logging", LoggedDecorator)

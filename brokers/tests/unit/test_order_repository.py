@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from inc_trade.domain.entities import Order
-from inc_trade.domain.enums import OrderStatus, Side
-from inc_trade.trading.order_repository import OrderRepository
+from brokers.domain.entities import Order
+from brokers.domain.enums import OrderStatus, Side
+from brokers.trading.order_repository import OrderRepository
 
 
 class TestOrderRepository:

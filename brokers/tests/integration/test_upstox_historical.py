@@ -2,8 +2,8 @@ from datetime import datetime
 from decimal import Decimal
 from unittest.mock import Mock
 
-from inc_trade.config.endpoints import Upstox
-from inc_trade.domain.entities import Candle
+from brokers.config.endpoints import Upstox
+from brokers.domain.entities import Candle
 
 from brokers.adapters.upstox.historical import UpstoxHistorical
 

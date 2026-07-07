@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from inc_trade.services.broker_router import BrokerRouter
+from brokers.services.broker_router import BrokerRouter
 
 
 def _make_gateway(broker_id: str, capabilities: list[str] | None = None) -> MagicMock:

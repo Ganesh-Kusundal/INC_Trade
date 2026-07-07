@@ -15,7 +15,7 @@ import asyncio
 from decimal import Decimal
 
 import pytest
-from inc_trade.domain.enums import OrderStatus, Side
+from brokers.domain.enums import OrderStatus, Side
 
 from brokers.adapters.paper.adapter import PaperAdapter
 
@@ -174,7 +174,7 @@ class TestSessionTradingFlow:
 
     def test_session_command_buy(self, adapter: PaperAdapter) -> None:
         """BrokerSession.command().buy() places an order."""
-        from inc_trade.market.session import BrokerSession
+        from brokers.market.session import BrokerSession
 
         session = BrokerSession(adapter)
 
@@ -191,7 +191,7 @@ class TestSessionTradingFlow:
 
     def test_session_command_sell(self, adapter: PaperAdapter) -> None:
         """BrokerSession.command().sell() places an order."""
-        from inc_trade.market.session import BrokerSession
+        from brokers.market.session import BrokerSession
 
         session = BrokerSession(adapter)
 
@@ -207,7 +207,7 @@ class TestSessionTradingFlow:
 
     def test_command_validates_instrument(self, adapter: PaperAdapter) -> None:
         """OrderCommand resolves provider from session adapter."""
-        from inc_trade.market.session import BrokerSession
+        from brokers.market.session import BrokerSession
 
         session = BrokerSession(adapter)
 
@@ -223,8 +223,8 @@ class TestSessionTradingFlow:
 
     def test_order_placed_event_published(self, adapter: PaperAdapter) -> None:
         """OrderCommand publishes OrderPlacedEvent after successful order."""
-        from inc_trade.domain.events import EVENT_ORDER_PLACED
-        from inc_trade.market.session import BrokerSession
+        from brokers.domain.events import EVENT_ORDER_PLACED
+        from brokers.market.session import BrokerSession
 
         session = BrokerSession(adapter)
 
@@ -246,8 +246,8 @@ class TestSessionTradingFlow:
 
     def test_event_not_published_on_failure(self, adapter: PaperAdapter) -> None:
         """No event published when order placement fails."""
-        from inc_trade.domain.events import EVENT_ORDER_PLACED
-        from inc_trade.market.session import BrokerSession
+        from brokers.domain.events import EVENT_ORDER_PLACED
+        from brokers.market.session import BrokerSession
 
         session = BrokerSession(adapter)
 

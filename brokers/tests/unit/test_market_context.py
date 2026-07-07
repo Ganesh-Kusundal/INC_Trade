@@ -13,13 +13,13 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-from inc_trade.domain.entities import MarketDepth, Quote
-from inc_trade.market.context import InstrumentHandle, MarketDataContext
-from inc_trade.market.depth_state import DepthLevelState, DepthState
-from inc_trade.market.instrument import Instrument
-from inc_trade.market.instrument_registry import InstrumentRegistry
-from inc_trade.market.market_router import MarketRouter
-from inc_trade.market.quote_state import QuoteState
+from brokers.domain.entities import MarketDepth, Quote
+from brokers.market.context import InstrumentHandle, MarketDataContext
+from brokers.market.depth_state import DepthLevelState, DepthState
+from brokers.market.instrument import Instrument
+from brokers.market.instrument_registry import InstrumentRegistry
+from brokers.market.market_router import MarketRouter
+from brokers.market.quote_state import QuoteState
 
 # ═══════════════════════════════════════════════════════════════
 # QuoteState tests
@@ -104,7 +104,7 @@ class TestQuoteState:
 
 class TestDepthLevelState:
     def test_snapshot_returns_depth_level(self) -> None:
-        from inc_trade.domain.entities import DepthLevel
+        from brokers.domain.entities import DepthLevel
 
         level = DepthLevelState(price=Decimal("100"), quantity=1000, orders=5)
         snap = level.snapshot()
@@ -241,7 +241,7 @@ class _FakeOptions:
     def get_option_chain(
         self, underlying: str, exchange: str = "NFO", expiry: str | None = None
     ) -> OptionChain:
-        from inc_trade.domain.entities import OptionChain
+        from brokers.domain.entities import OptionChain
 
         return OptionChain(
             underlying=underlying, expiry=expiry or "2024-01-25", spot=Decimal("20000"), strikes=()
@@ -371,7 +371,7 @@ class TestMarketDataContext:
     def test_ohlcv_raises_not_supported_when_no_historical(
         self, registry: InstrumentRegistry
     ) -> None:
-        from inc_trade.domain.exceptions import NotSupportedError
+        from brokers.domain.exceptions import NotSupportedError
 
         ctx = MarketDataContext(registry=registry, market_data=_FakeMarketData())
         with pytest.raises(NotSupportedError):
@@ -380,7 +380,7 @@ class TestMarketDataContext:
     def test_option_chain_raises_not_supported_when_no_options(
         self, registry: InstrumentRegistry
     ) -> None:
-        from inc_trade.domain.exceptions import NotSupportedError
+        from brokers.domain.exceptions import NotSupportedError
 
         ctx = MarketDataContext(registry=registry, market_data=_FakeMarketData())
         with pytest.raises(NotSupportedError):
@@ -391,8 +391,8 @@ class TestMarketDataContext:
     def test_streaming_tick_invalidates_market_router_cache(self) -> None:
         """When a streaming tick arrives, MarketRouter cache must be
         invalidated so the next quote() call fetches fresh data."""
-        from inc_trade.infrastructure.cache.memory_cache import MemoryCache
-        from inc_trade.market.subscription_manager import SubscriptionManager
+        from brokers.infrastructure.cache.memory_cache import MemoryCache
+        from brokers.market.subscription_manager import SubscriptionManager
 
         cache = MemoryCache()
         market_router = MarketRouter(cache=cache, primary=_FakeMarketData())
@@ -431,7 +431,7 @@ class TestMarketDataContext:
     def test_streaming_tick_no_market_router_does_not_crash(self) -> None:
         """When no MarketRouter is configured, streaming tick should
         not crash (regression test)."""
-        from inc_trade.market.subscription_manager import SubscriptionManager
+        from brokers.market.subscription_manager import SubscriptionManager
 
         streaming = _FakeStreaming()
         sub_mgr = SubscriptionManager(stream_adapter=streaming)
@@ -600,7 +600,7 @@ class TestInstrumentCentric:
         assert isinstance(snap, Quote)
 
     def test_instrument_quote_state_returns_quote_state(self, context: MarketDataContext) -> None:
-        from inc_trade.market.quote_state import QuoteState
+        from brokers.market.quote_state import QuoteState
 
         handle = context.instrument("RELIANCE")
         inst = handle._instrument
@@ -611,7 +611,7 @@ class TestInstrumentCentric:
     def test_raw_instrument_without_context_raises_runtime_error(self) -> None:
         """A raw Instrument created directly (not via MarketDataContext)
         raises RuntimeError when calling context-backed methods."""
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         assert inst._context is None
@@ -619,35 +619,35 @@ class TestInstrumentCentric:
             inst.quote()
 
     def test_raw_instrument_ltp_without_context_raises(self) -> None:
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         with pytest.raises(RuntimeError, match="no market data context"):
             inst.ltp()
 
     def test_raw_instrument_depth_without_context_raises(self) -> None:
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         with pytest.raises(RuntimeError, match="no market data context"):
             inst.depth()
 
     def test_raw_instrument_subscribe_without_context_raises(self) -> None:
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         with pytest.raises(RuntimeError, match="no market data context"):
             inst.subscribe(lambda q: None)
 
     def test_raw_instrument_unsubscribe_without_context_raises(self) -> None:
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         with pytest.raises(RuntimeError, match="no market data context"):
             inst.unsubscribe()
 
     def test_raw_instrument_option_chain_without_context_raises(self) -> None:
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         with pytest.raises(RuntimeError, match="no market data context"):
@@ -656,7 +656,7 @@ class TestInstrumentCentric:
     def test_raw_instrument_history_without_context_raises(self) -> None:
         from datetime import datetime
 
-        from inc_trade.market.instrument import Instrument
+        from brokers.market.instrument import Instrument
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         with pytest.raises(RuntimeError, match="no market data context"):
@@ -676,13 +676,13 @@ class TestConnectIntegration:
         broker = brokers.connect("paper")
         try:
             # broker.market should be a MarketDataContext instance
-            from inc_trade.market.context import MarketDataContext
+            from brokers.market.context import MarketDataContext
 
             assert isinstance(broker.market, MarketDataContext)
 
             # Instrument-centric path works
             handle = broker.market.instrument("RELIANCE")
-            from inc_trade.market.context import InstrumentHandle
+            from brokers.market.context import InstrumentHandle
 
             assert isinstance(handle, InstrumentHandle)
             assert handle.symbol == "RELIANCE"
@@ -704,7 +704,7 @@ class TestConnectIntegration:
 
     def test_legacy_operations_still_work(self) -> None:
         """Verify old broker.orders.place_order() still works."""
-        from inc_trade.domain.enums import Side
+        from brokers.domain.enums import Side
 
         import brokers
 
@@ -721,7 +721,7 @@ class TestConnectIntegration:
 
     def test_legacy_portfolio_still_works(self) -> None:
         """Verify old broker.portfolio.get_balance() still works."""
-        from inc_trade.domain import Balance
+        from brokers.domain import Balance
 
         import brokers
 

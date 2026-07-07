@@ -7,16 +7,16 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-from inc_trade.domain.entities import Quote
-from inc_trade.market.instrument import Instrument
-from inc_trade.market.instrument_registry import InstrumentRegistry
-from inc_trade.market.scanner.criteria import (
+from brokers.domain.entities import Quote
+from brokers.market.instrument import Instrument
+from brokers.market.instrument_registry import InstrumentRegistry
+from brokers.market.scanner.criteria import (
     PriceAbove,
     PriceBelow,
     VolumeSpike,
 )
-from inc_trade.market.scanner.result import ScanResult
-from inc_trade.market.scanner.scanner import Scanner
+from brokers.market.scanner.result import ScanResult
+from brokers.market.scanner.scanner import Scanner
 
 
 def _make_quote(symbol: str, ltp: Decimal, exchange: str = "NSE") -> Quote:
@@ -124,7 +124,7 @@ class TestScannerIsolation:
     """Scanner must not import from forbidden layers."""
 
     def test_scanner_does_not_import_adapters(self) -> None:
-        from inc_trade.market.scanner import scanner as mod
+        from brokers.market.scanner import scanner as mod
 
         src = mod.__file__
         assert src is not None
@@ -138,7 +138,7 @@ class TestScannerIsolation:
             assert forbidden not in content, f"scanner.py imports {forbidden}"
 
     def test_criteria_does_not_import_adapters(self) -> None:
-        from inc_trade.market.scanner import criteria as mod
+        from brokers.market.scanner import criteria as mod
 
         content = open(mod.__file__).read()
         for forbidden in (

@@ -5,9 +5,9 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-from inc_trade.domain.entities import MarketDepth, Quote
-from inc_trade.infrastructure.cache.memory_cache import MemoryCache
-from inc_trade.market.market_router import MarketRouter
+from brokers.domain.entities import MarketDepth, Quote
+from brokers.infrastructure.cache.memory_cache import MemoryCache
+from brokers.market.market_router import MarketRouter
 
 
 class _StubProvider:

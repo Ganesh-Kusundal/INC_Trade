@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 import time
 
-from inc_trade.utils.idempotency_cache import OrderResultCache
+from brokers.utils.idempotency_cache import OrderResultCache
 
 
 class TestIdempotencyCache:

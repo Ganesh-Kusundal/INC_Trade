@@ -55,6 +55,7 @@ Market Data MUST NOT import from trading.
 #     VolumeSpike as VolumeSpike,
 # )
 
+from brokers.market.config import MarketDataConfig as MarketDataConfig
 from brokers.market.depth_state import DepthLevelState as DepthLevelState
 from brokers.market.depth_state import DepthState as DepthState
 from brokers.market.instrument import Instrument as Instrument
@@ -68,5 +69,6 @@ __all__ = [
     "DepthState",
     "Instrument",
     "InstrumentRegistry",
+    "MarketDataConfig",
     "QuoteState",
 ]

@@ -1,8 +1,8 @@
 """Tests for endpoints and indices configuration."""
 
 import pytest
-from inc_trade.config.endpoints import Dhan, Upstox, _UpstoxUrls
-from inc_trade.config.indices import (
+from brokers.config.endpoints import Dhan, Upstox, _UpstoxUrls
+from brokers.config.indices import (
     INDEX_SYMBOLS,
     INDEX_TO_FNO_EXCHANGE,
     get_index_entry,

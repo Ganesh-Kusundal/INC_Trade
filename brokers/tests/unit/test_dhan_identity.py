@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 
 import pytest
-from inc_trade.domain.exceptions import InstrumentNotFoundError
+from brokers.domain.exceptions import InstrumentNotFoundError
 
 from brokers.adapters.dhan.config import DHAN_SEGMENTS
 from brokers.adapters.dhan.identity import DhanInstrumentRef, DhanInstrumentResolver

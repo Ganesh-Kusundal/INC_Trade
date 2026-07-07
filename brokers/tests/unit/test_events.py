@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from inc_trade.domain.events import (
+from brokers.domain.events import (
     EVENT_CONNECTION_CHANGED,
     EVENT_DEPTH_UPDATE,
     EVENT_ORDER_CANCELLED,
@@ -120,7 +120,7 @@ class TestEventBusWithTypedEvents:
 
     def test_eventbus_accepts_quote_tick_event(self) -> None:
         """EventBus should correctly route typed events by event_type string."""
-        from inc_trade.infrastructure.event_bus import EventBus
+        from brokers.infrastructure.event_bus import EventBus
 
         bus = EventBus()
         received: list[QuoteTickEvent] = []
@@ -141,7 +141,7 @@ class TestEventBusWithTypedEvents:
 
     def test_eventbus_routes_by_event_type(self) -> None:
         """Different event types should go to different subscribers."""
-        from inc_trade.infrastructure.event_bus import EventBus
+        from brokers.infrastructure.event_bus import EventBus
 
         bus = EventBus()
         quote_events: list[QuoteTickEvent] = []
@@ -169,7 +169,7 @@ class TestEventBusWithTypedEvents:
 
     def test_eventbus_ignores_unsubscribed_types(self) -> None:
         """Events with no subscribers should be silently ignored."""
-        from inc_trade.infrastructure.event_bus import EventBus
+        from brokers.infrastructure.event_bus import EventBus
 
         bus = EventBus()
         # No subscribers registered - should not raise
@@ -177,7 +177,7 @@ class TestEventBusWithTypedEvents:
 
     def test_eventbus_mixed_generic_and_typed(self) -> None:
         """EventBus should accept both generic DomainEvent and typed events."""
-        from inc_trade.infrastructure.event_bus import EventBus
+        from brokers.infrastructure.event_bus import EventBus
 
         bus = EventBus()
         received: list[object] = []
@@ -197,9 +197,9 @@ class TestMarketContextEventBusWiring:
 
     def test_market_context_accepts_event_bus(self) -> None:
         """MarketDataContext should accept optional EventBus."""
-        from inc_trade.infrastructure.event_bus import EventBus
-        from inc_trade.market.context import MarketDataContext
-        from inc_trade.market.instrument_registry import InstrumentRegistry
+        from brokers.infrastructure.event_bus import EventBus
+        from brokers.market.context import MarketDataContext
+        from brokers.market.instrument_registry import InstrumentRegistry
 
         registry = InstrumentRegistry()
         ctx = MarketDataContext(
@@ -222,11 +222,11 @@ class TestMarketContextEventBusWiring:
     def test_subscribe_publishes_quote_tick_event(self) -> None:
         """When streaming tick arrives via subscribe callback,
         a QuoteTickEvent should be published on the EventBus."""
-        from inc_trade.domain.events import EVENT_QUOTE_TICK
-        from inc_trade.infrastructure.event_bus import EventBus
-        from inc_trade.market.context import MarketDataContext
-        from inc_trade.market.instrument_registry import InstrumentRegistry
-        from inc_trade.market.subscription_manager import SubscriptionManager
+        from brokers.domain.events import EVENT_QUOTE_TICK
+        from brokers.infrastructure.event_bus import EventBus
+        from brokers.market.context import MarketDataContext
+        from brokers.market.instrument_registry import InstrumentRegistry
+        from brokers.market.subscription_manager import SubscriptionManager
 
         # Mock streaming adapter
         class MockStreaming:
@@ -281,10 +281,10 @@ class TestMarketContextEventBusWiring:
 
     def test_event_bus_publishes_on_subscribe(self) -> None:
         """Verify that EventBus.publish is called during subscribe callback."""
-        from inc_trade.infrastructure.event_bus import EventBus
-        from inc_trade.market.context import MarketDataContext
-        from inc_trade.market.instrument_registry import InstrumentRegistry
-        from inc_trade.market.subscription_manager import SubscriptionManager
+        from brokers.infrastructure.event_bus import EventBus
+        from brokers.market.context import MarketDataContext
+        from brokers.market.instrument_registry import InstrumentRegistry
+        from brokers.market.subscription_manager import SubscriptionManager
 
         class TrackingEventBus(EventBus):
             def __init__(self) -> None:
@@ -316,7 +316,7 @@ class TestMarketContextEventBusWiring:
         # Subscribe (this should register the internal _quote_callback)
         # We need a streaming port for the legacy path to work,
         # but we're using subscription_manager path
-        from inc_trade.domain.entities import Quote
+        from brokers.domain.entities import Quote
 
         # Register a callback via subscribe
         def user_callback(quote: Quote) -> None:
@@ -348,14 +348,14 @@ class TestOrderEventsPublishing:
 
     def test_oms_publishes_order_placed_event(self) -> None:
         """OrderManagementSystem.place_order should publish OrderPlacedEvent."""
-        from inc_trade.infrastructure.event_bus import EventBus
-        from inc_trade.trading.execution_router import ExecutionRouter
-        from inc_trade.trading.oms import OrderManagementSystem
-        from inc_trade.trading.order_repository import OrderRepository
+        from brokers.infrastructure.event_bus import EventBus
+        from brokers.trading.execution_router import ExecutionRouter
+        from brokers.trading.oms import OrderManagementSystem
+        from brokers.trading.order_repository import OrderRepository
 
         class MockExecutionPort:
             def place_order(self, **kwargs: object) -> object:
-                from inc_trade.domain.entities import OrderResponse
+                from brokers.domain.entities import OrderResponse
 
                 return OrderResponse(
                     order_id="ord1",
@@ -365,12 +365,12 @@ class TestOrderEventsPublishing:
                 )
 
             def modify_order(self, **kwargs: object) -> object:
-                from inc_trade.domain.entities import OrderResponse
+                from brokers.domain.entities import OrderResponse
 
                 return OrderResponse(order_id="ord1", status="MODIFIED", success=True)
 
             def cancel_order(self, order_id: str) -> object:
-                from inc_trade.domain.entities import OrderResponse
+                from brokers.domain.entities import OrderResponse
 
                 return OrderResponse(order_id="ord1", status="CANCELLED", success=True)
 
@@ -391,7 +391,7 @@ class TestOrderEventsPublishing:
 
         from decimal import Decimal
 
-        from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
+        from brokers.domain.enums import OrderType, ProductType, Side, Validity
 
         oms.place_order(
             account_id="test/default",

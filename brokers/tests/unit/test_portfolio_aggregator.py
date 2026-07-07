@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from inc_trade.domain.entities import Holding, Position
-from inc_trade.trading.portfolio import ExposureSummary, PortfolioAggregator
+from brokers.domain.entities import Holding, Position
+from brokers.trading.portfolio import ExposureSummary, PortfolioAggregator
 
 
 def _position(

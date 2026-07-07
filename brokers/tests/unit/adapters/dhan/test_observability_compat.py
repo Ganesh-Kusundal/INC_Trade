@@ -5,13 +5,13 @@ from __future__ import annotations
 from decimal import Decimal
 from unittest.mock import MagicMock, PropertyMock, patch
 
-from inc_trade.domain import OrderResponse, Quote
+from brokers.domain import OrderResponse, Quote
 
 from brokers.adapters.dhan.gateway import DhanGateway
 
 
 @patch("brokers_core.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
-@patch("inc_trade.infrastructure.storage.token_store.JsonTokenStateStore")
+@patch("brokers.infrastructure.storage.token_store.JsonTokenStateStore")
 def test_gateway_delegates_place_order(_store, _token):
     gw = DhanGateway(access_token="tok", client_id="cid", auto_refresh=False)
     gw.orders.place_order = MagicMock(return_value=OrderResponse.ok("1"))  # type: ignore[method-assign]
@@ -21,7 +21,7 @@ def test_gateway_delegates_place_order(_store, _token):
 
 
 @patch("brokers_core.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
-@patch("inc_trade.infrastructure.storage.token_store.JsonTokenStateStore")
+@patch("brokers.infrastructure.storage.token_store.JsonTokenStateStore")
 def test_gateway_observability_methods(_store, _token):
     gw = DhanGateway(access_token="tok", client_id="cid", auto_refresh=False)
     health = gw.health()
@@ -34,7 +34,7 @@ def test_gateway_observability_methods(_store, _token):
 
 
 @patch("brokers_core.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
-@patch("inc_trade.infrastructure.storage.token_store.JsonTokenStateStore")
+@patch("brokers.infrastructure.storage.token_store.JsonTokenStateStore")
 def test_gateway_market_data_batch(_store, _token):
     gw = DhanGateway(access_token="tok", client_id="cid", auto_refresh=False)
     gw.market_data.ltp_batch = MagicMock(return_value={"RELIANCE": Decimal("100")})  # type: ignore[method-assign]
@@ -47,11 +47,11 @@ def test_gateway_market_data_batch(_store, _token):
 
 
 @patch("brokers_core.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
-@patch("inc_trade.infrastructure.storage.token_store.JsonTokenStateStore")
+@patch("brokers.infrastructure.storage.token_store.JsonTokenStateStore")
 def test_gateway_history_returns_dataframe(_store, _token):
     from datetime import datetime
 
-    from inc_trade.domain.entities import Candle
+    from brokers.domain.entities import Candle
 
     gw = DhanGateway(access_token="tok", client_id="cid", auto_refresh=False)
     candle = Candle(
@@ -77,7 +77,7 @@ def test_gateway_history_returns_dataframe(_store, _token):
 
 
 @patch("brokers_core.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
-@patch("inc_trade.infrastructure.storage.token_store.JsonTokenStateStore")
+@patch("brokers.infrastructure.storage.token_store.JsonTokenStateStore")
 def test_gateway_stream_subscribes(_store, _token):
     gw = DhanGateway(access_token="tok", client_id="cid", auto_refresh=False)
     gw.streaming.subscribe = MagicMock()  # type: ignore[method-assign]
@@ -96,7 +96,7 @@ def test_gateway_stream_subscribes(_store, _token):
 
 
 @patch("brokers_core.adapters.dhan.auth.DhanAuth.get_token", return_value="tok")
-@patch("inc_trade.infrastructure.storage.token_store.JsonTokenStateStore")
+@patch("brokers.infrastructure.storage.token_store.JsonTokenStateStore")
 def test_gateway_close_releases_admission_and_pool(_store, _token):
     gw = DhanGateway(access_token="tok", client_id="cid", auto_refresh=False)
     admission = MagicMock()

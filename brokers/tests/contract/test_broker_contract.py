@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from inc_trade.domain import (
+from brokers.domain import (
     Balance,
     MarketDepth,
     Order,
@@ -16,8 +16,8 @@ from inc_trade.domain import (
     Quote,
     Side,
 )
-from inc_trade.domain.enums import OrderStatus
-from inc_trade.ports import (
+from brokers.domain.enums import OrderStatus
+from brokers.ports import (
     InstrumentInfo,
 )
 
@@ -164,7 +164,7 @@ class _FakeBroker:
 
     @property
     def extensions(self):
-        from inc_trade.ports.extension_registry import DictExtensionRegistry
+        from brokers.ports.extension_registry import DictExtensionRegistry
 
         return DictExtensionRegistry()
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, make_dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -11,15 +11,54 @@ from uuid import uuid4
 
 @dataclass(frozen=True)
 class DomainEvent:
-    """Base class for all domain events."""
+    """Base class for all domain events.
+
+    Subclasses define typed fields. For dynamic event creation, use now() factory.
+    """
 
     event_id: str = field(default_factory=lambda: str(uuid4()))
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     source: str = ""
+    event_type: str = ""
 
-    @property
-    def event_type(self) -> str:
-        return type(self).__name__
+    @classmethod
+    def now(
+        cls,
+        event_type: str,
+        payload: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> DomainEvent:
+        """Create a dynamic event with current timestamp.
+
+        This creates a new dataclass subclass with the specified fields.
+
+        Args:
+            event_type: The event type string.
+            payload: Optional payload dict.
+            **kwargs: Additional fields for the event.
+
+        Returns:
+            A dynamically-created event instance.
+        """
+        fields_spec: list[tuple[str, type, field]] = [
+            ("event_id", str, field(default_factory=lambda: str(uuid4()))),
+            ("timestamp", datetime, field(default_factory=lambda: datetime.now(UTC))),
+            ("source", str, field(default="")),
+            ("event_type", str, field(default=event_type)),
+        ]
+        for key, value in (payload or {}).items():
+            fields_spec.append((key, type(value) | None, field(default=None)))
+        for key, value in kwargs.items():
+            if key not in ("event_id", "timestamp", "source", "event_type"):
+                fields_spec.append((key, type(value) | None, field(default=None)))
+
+        event_cls = make_dataclass(
+            event_type.replace(".", "_").replace(" ", "_") + "Event",
+            fields_spec,
+            bases=(DomainEvent,),
+            frozen=True,
+        )
+        return event_cls(event_type=event_type, **kwargs, **(payload or {}))
 
 
 # ── Event Type Constants (legacy string dispatch) ────────────────────────────

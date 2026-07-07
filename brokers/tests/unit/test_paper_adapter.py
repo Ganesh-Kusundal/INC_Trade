@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from inc_trade.domain import (
+from brokers.domain import (
     Side,
 )
 

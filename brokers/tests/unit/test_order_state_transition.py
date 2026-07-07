@@ -9,9 +9,9 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-from inc_trade.domain import OrderStateError
-from inc_trade.domain.entities import Order
-from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
+from brokers.domain import OrderStateError
+from brokers.domain.entities import Order
+from brokers.domain.enums import OrderStatus, OrderType, ProductType, Side, Validity
 
 
 def _order(**overrides: object) -> Order:

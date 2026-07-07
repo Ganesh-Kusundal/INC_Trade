@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 
-from inc_trade.infrastructure.cache.memory_cache import MemoryCache
+from brokers.infrastructure.cache.memory_cache import MemoryCache
 
 
 class TestMemoryCacheBasic:

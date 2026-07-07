@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from inc_trade.domain.enums import OrderStatus
-from inc_trade.domain.order_lifecycle import (
+from brokers.domain.enums import OrderStatus
+from brokers.domain.order_lifecycle import (
     ORDER_STATUS_TRANSITIONS,
     OrderStateError,
     is_valid_transition,

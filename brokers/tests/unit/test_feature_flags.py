@@ -3,7 +3,7 @@
 import concurrent.futures
 
 import pytest
-from inc_trade.config.feature_flags import FeatureFlags, is_enabled, set_flag
+from brokers.config.feature_flags import FeatureFlags, is_enabled, set_flag
 
 
 @pytest.fixture(autouse=True)

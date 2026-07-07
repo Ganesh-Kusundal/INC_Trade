@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import threading
 
-from inc_trade.infrastructure.seq_counter import SequenceCounter
+from brokers.infrastructure.seq_counter import SequenceCounter
 
 
 class TestSequenceCounter:
@@ -116,7 +116,7 @@ class TestTickSeqNoStamping:
     def test_quote_carries_seq_no(self) -> None:
         """Quote built by stream() callback carries the seq_no from the tick dict."""
 
-        from inc_trade.domain.entities import Quote
+        from brokers.domain.entities import Quote
 
         streaming = self._make_streaming()
 

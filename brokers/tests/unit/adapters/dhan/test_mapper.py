@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from inc_trade.domain.enums import (
+from brokers.domain.enums import (
     OrderStatus,
     OrderType,
     ProductType,

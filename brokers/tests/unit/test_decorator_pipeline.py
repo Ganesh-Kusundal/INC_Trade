@@ -17,20 +17,20 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
-from inc_trade.market.cache_decorator import CachedDecorator
-from inc_trade.market.decorators import (
+from brokers.market.cache_decorator import CachedDecorator
+from brokers.market.decorators import (
     InstrumentDecorator,
     with_cache,
     with_depth,
     with_logging,
 )
-from inc_trade.market.depth_decorators import (
+from brokers.market.depth_decorators import (
     Depth20Decorator,
     Depth30Decorator,
     Depth200Decorator,
 )
-from inc_trade.market.instrument import Instrument
-from inc_trade.market.log_decorator import LoggedDecorator
+from brokers.market.instrument import Instrument
+from brokers.market.log_decorator import LoggedDecorator
 
 # ── Fixtures ─────────────────────────────────────────────────────────────
 

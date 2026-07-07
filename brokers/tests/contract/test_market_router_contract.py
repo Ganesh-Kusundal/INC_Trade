@@ -11,12 +11,12 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-from inc_trade.domain.cache_policy import POLICY_DEPTH, POLICY_QUOTE
-from inc_trade.domain.entities import MarketDepth, Quote
-from inc_trade.infrastructure.cache.memory_cache import MemoryCache
-from inc_trade.market.market_router import MarketRouter
-from inc_trade.ports.cache_port import CachePort
-from inc_trade.ports.market_data import MarketDataPort
+from brokers.domain.cache_policy import POLICY_DEPTH, POLICY_QUOTE
+from brokers.domain.entities import MarketDepth, Quote
+from brokers.infrastructure.cache.memory_cache import MemoryCache
+from brokers.market.market_router import MarketRouter
+from brokers.ports.cache_port import CachePort
+from brokers.ports.market_data import MarketDataPort
 
 
 class _FakeMarketData(MarketDataPort):
@@ -106,7 +106,7 @@ class TestMarketRouter:
         # After invalidation, provider should be called again
         router.invalidate("RELIANCE", "NSE")
         # Check cache is cleared
-        from inc_trade.market.market_router import _QUOTE_CACHE_PREFIX
+        from brokers.market.market_router import _QUOTE_CACHE_PREFIX
 
         assert cache.get(f"{_QUOTE_CACHE_PREFIX}NSE:RELIANCE") is None
 
@@ -163,7 +163,7 @@ class TestMarketRouterBoundary:
     def test_market_router_does_not_import_adapters(self) -> None:
         from pathlib import Path
 
-        from inc_trade.market import market_router
+        from brokers.market import market_router
 
         src = Path(market_router.__file__).read_text()
         for forbidden in (
@@ -177,8 +177,8 @@ class TestMarketRouterBoundary:
     def test_market_router_uses_ports(self) -> None:
 
         # Verify it imports ports
-        from inc_trade.ports.cache_port import CachePort
-        from inc_trade.ports.market_data import MarketDataPort
+        from brokers.ports.cache_port import CachePort
+        from brokers.ports.market_data import MarketDataPort
 
         assert MarketDataPort is not None
         assert CachePort is not None

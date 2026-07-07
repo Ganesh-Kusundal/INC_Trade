@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from inc_trade.domain import OrderResponse, Side
-from inc_trade.ports.order_execution import OrderExecutionPort
+from brokers.domain import OrderResponse, Side
+from brokers.ports.order_execution import OrderExecutionPort
 
 
 class OrderContractTests:
@@ -24,7 +24,7 @@ class OrderContractTests:
         assert isinstance(resp, OrderResponse)
 
     def test_get_order(self, orders: OrderExecutionPort) -> None:
-        from inc_trade.domain import Order
+        from brokers.domain import Order
 
         order = orders.get_order("TEST_ORDER")
         assert order is None or isinstance(order, Order)

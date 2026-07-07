@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-from inc_trade.domain import Side
+from brokers.domain import Side
 
 from brokers.adapters.dhan.gateway import DhanGateway
 

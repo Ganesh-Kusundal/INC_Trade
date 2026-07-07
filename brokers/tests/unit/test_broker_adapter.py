@@ -17,16 +17,16 @@ from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import pytest
-from inc_trade.adapters.broker_adapter import BrokerAdapter
-from inc_trade.adapters.dhan import DhanAdapter
-from inc_trade.adapters.paper import PaperAdapter
-from inc_trade.adapters.upstox import UpstoxAdapter
-from inc_trade.domain.entities import MarketDepth, Quote
-from inc_trade.market.depth_decorators import (
+from brokers.adapters.broker_adapter import BrokerAdapter
+from brokers.adapters.dhan import DhanAdapter
+from brokers.adapters.paper import PaperAdapter
+from brokers.adapters.upstox import UpstoxAdapter
+from brokers.domain.entities import MarketDepth, Quote
+from brokers.market.depth_decorators import (
     Depth30Decorator,
     Depth200Decorator,
 )
-from inc_trade.ports.providers import (
+from brokers.ports.providers import (
     DepthProvider,
     HistoricalDataProvider,
     InstrumentDataProvider,
@@ -418,7 +418,7 @@ class TestAdapterInstrumentFactory:
         adapter.connect()
         inst = adapter.instrument("RELIANCE", "NSE")
 
-        from inc_trade.market.decorators import InstrumentDecorator
+        from brokers.market.decorators import InstrumentDecorator
 
         assert not isinstance(inst, InstrumentDecorator)
 
@@ -493,7 +493,7 @@ class TestDepthOverride:
             adapter.connect()
             inst = adapter.instrument("RELIANCE", "NSE", apply_depth=5)
 
-            from inc_trade.market.decorators import InstrumentDecorator
+            from brokers.market.decorators import InstrumentDecorator
 
             assert not isinstance(inst, InstrumentDecorator)
 
@@ -508,7 +508,7 @@ class TestDepthOverride:
             adapter.connect()
             inst = adapter.instrument("RELIANCE", "NSE", apply_depth=5)
 
-            from inc_trade.market.decorators import InstrumentDecorator
+            from brokers.market.decorators import InstrumentDecorator
 
             assert not isinstance(inst, InstrumentDecorator)
 
@@ -556,7 +556,7 @@ class TestEdgeCases:
         """PaperAdapter.get_candles should raise NotSupportedError."""
         import datetime
 
-        from inc_trade.domain.exceptions import NotSupportedError
+        from brokers.domain.exceptions import NotSupportedError
 
         adapter = PaperAdapter()
         adapter.connect()
@@ -577,7 +577,7 @@ class TestAdapterArchitecture:
     """Adapters should not violate architectural boundaries."""
 
     def test_adapter_imports_gateway_only_at_runtime(self) -> None:
-        """Importing inc_trade.adapters.dhan should NOT import the gateway
+        """Importing brokers.adapters.dhan should NOT import the gateway
         at module level. Gateway is imported lazily inside connect()."""
         import importlib
         import sys
@@ -589,12 +589,12 @@ class TestAdapterArchitecture:
             if "brokers.adapters.dhan" in mod or "brokers.adapters.dhan.gateway" in mod
         }
 
-        # Re-import inc_trade.adapters.dhan (remove from cache to force fresh)
+        # Re-import brokers.adapters.dhan (remove from cache to force fresh)
         for mod in list(sys.modules.keys()):
-            if mod.startswith("inc_trade.adapters.dhan"):
+            if mod.startswith("brokers.adapters.dhan"):
                 sys.modules.pop(mod, None)
 
-        importlib.import_module("inc_trade.adapters.dhan")
+        importlib.import_module("brokers.adapters.dhan")
 
         # No NEW broker gateway modules should have been loaded
         after = {
@@ -604,7 +604,7 @@ class TestAdapterArchitecture:
         }
         new_gateway_modules = after - before
         assert not new_gateway_modules, (
-            f"inc_trade.adapters.dhan eagerly loaded gateway modules: {new_gateway_modules}"
+            f"brokers.adapters.dhan eagerly loaded gateway modules: {new_gateway_modules}"
         )
 
 

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from inc_trade.domain.enums import OrderType, ProductType, Side
-from inc_trade.domain.exceptions import InstrumentNotFoundError
+from brokers.domain.enums import OrderType, ProductType, Side
+from brokers.domain.exceptions import InstrumentNotFoundError
 
 from brokers.adapters.dhan.identity import DhanInstrumentResolver
 from brokers.adapters.dhan.orders import DhanOrders

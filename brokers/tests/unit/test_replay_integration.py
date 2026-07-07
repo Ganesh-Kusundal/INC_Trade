@@ -12,9 +12,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
-from inc_trade.domain.entities import Candle
-from inc_trade.infrastructure.cache.memory_cache import MemoryCache
-from inc_trade.services.historical_router import HistoricalRouter
+from brokers.domain.entities import Candle
+from brokers.infrastructure.cache.memory_cache import MemoryCache
+from brokers.services.historical_router import HistoricalRouter
 
 from brokers.adapters.replay import ReplayEngine
 

@@ -41,7 +41,7 @@ class TestTotpBootstrap:
 
         from datetime import datetime, timedelta
 
-        from inc_trade.infrastructure.storage.token_store import TokenSource, TokenState
+        from brokers.infrastructure.storage.token_store import TokenSource, TokenState
         mock_store = MagicMock()
         mock_store.load.return_value = TokenState(
             access_token="persisted-token",
@@ -155,7 +155,7 @@ class TestTotpBootstrap:
         token_manager = UpstoxTokenManager(settings, state_store=MagicMock())
         from datetime import datetime, timedelta
 
-        from inc_trade.infrastructure.storage.token_store import TokenSource, TokenState
+        from brokers.infrastructure.storage.token_store import TokenSource, TokenState
         state = token_manager._from_persisted(
             TokenState(
                 access_token="still-valid-token",

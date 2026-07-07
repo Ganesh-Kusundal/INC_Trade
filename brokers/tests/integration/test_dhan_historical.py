@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from unittest.mock import Mock
 
-from inc_trade.domain.entities import Candle
+from brokers.domain.entities import Candle
 
 from brokers.adapters.dhan.historical import DhanHistorical
 

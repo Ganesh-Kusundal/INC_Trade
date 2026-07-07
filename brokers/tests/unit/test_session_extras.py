@@ -7,9 +7,9 @@ from unittest.mock import MagicMock
 
 class TestSessionExtras:
     def _make_session_with_market(self) -> object:
-        from inc_trade.market.context import MarketDataContext
-        from inc_trade.market.instrument_registry import InstrumentRegistry
-        from inc_trade.services.broker_session import BrokerSession
+        from brokers.market.context import MarketDataContext
+        from brokers.market.instrument_registry import InstrumentRegistry
+        from brokers.services.broker_session import BrokerSession
 
         registry = InstrumentRegistry()
         market = MarketDataContext(
@@ -22,7 +22,7 @@ class TestSessionExtras:
         session = self._make_session_with_market()
         scanner = session.scanner
         assert scanner is not None
-        from inc_trade.market.scanner import Scanner
+        from brokers.market.scanner import Scanner
 
         assert isinstance(scanner, Scanner)
 
@@ -40,21 +40,21 @@ class TestSessionExtras:
         session = self._make_session_with_market()
         dm = session.degraded_mode
         assert dm is not None
-        from inc_trade.market.degraded_mode import DegradedMode
+        from brokers.market.degraded_mode import DegradedMode
 
         assert isinstance(dm, DegradedMode)
         # Same instance on second call
         assert session.degraded_mode is dm
 
     def test_scanner_none_when_no_market(self) -> None:
-        from inc_trade.services.broker_session import BrokerSession
+        from brokers.services.broker_session import BrokerSession
 
         session = BrokerSession(broker_id="paper")
         assert session.scanner is None
 
     def test_replay_none_when_no_market_is_fine(self) -> None:
         """Replay works even without a market context (it's standalone)."""
-        from inc_trade.services.broker_session import BrokerSession
+        from brokers.services.broker_session import BrokerSession
 
         session = BrokerSession(broker_id="paper")
         # Replay has no dependency on market context — should work
@@ -62,7 +62,7 @@ class TestSessionExtras:
         assert replay is not None
 
     def test_degraded_mode_none_when_no_market(self) -> None:
-        from inc_trade.services.broker_session import BrokerSession
+        from brokers.services.broker_session import BrokerSession
 
         session = BrokerSession(broker_id="paper")
         assert session.degraded_mode is None
@@ -77,7 +77,7 @@ class TestSessionExtras:
         assert hasattr(analytics, "volume_profile")
 
     def test_analytics_works_without_market(self) -> None:
-        from inc_trade.services.broker_session import BrokerSession
+        from brokers.services.broker_session import BrokerSession
 
         session = BrokerSession(broker_id="paper")
         # Analytics has no dependency on market context
@@ -85,7 +85,7 @@ class TestSessionExtras:
         assert analytics is not None
 
     def test_analytics_exposes_order_flow_class(self) -> None:
-        from inc_trade.market.analytics import OrderFlowAnalyzer
+        from brokers.market.analytics import OrderFlowAnalyzer
 
         session = self._make_session_with_market()
         analytics = session.analytics
@@ -94,7 +94,7 @@ class TestSessionExtras:
         assert analytics.order_flow is OrderFlowAnalyzer
 
     def test_analytics_make_order_flow_analyzer_factory(self) -> None:
-        from inc_trade.market.analytics import OrderFlowAnalyzer
+        from brokers.market.analytics import OrderFlowAnalyzer
 
         session = self._make_session_with_market()
         analytics = session.analytics
@@ -107,7 +107,7 @@ class TestSessionExtras:
         assert of is not of_default
 
     def test_analytics_order_flow_works_without_market(self) -> None:
-        from inc_trade.services.broker_session import BrokerSession
+        from brokers.services.broker_session import BrokerSession
 
         session = BrokerSession(broker_id="paper")
         # No market context, but analytics still works.

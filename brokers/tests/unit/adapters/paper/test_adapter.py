@@ -225,14 +225,16 @@ class TestPaperAdapterStreaming:
         assert len(received) == 0
 
     def test_get_candles_returns_empty_list(self, adapter: PaperAdapter) -> None:
-        """get_candles() returns empty list (not supported)."""
+        """get_candles() raises NotSupportedError (not supported)."""
+        import pytest
         from datetime import datetime
+        from brokers.domain.exceptions import NotSupportedError
 
-        result = adapter.get_candles(
-            "RELIANCE",
-            "NSE",
-            datetime(2025, 1, 1),
-            datetime(2025, 1, 31),
-            "1D",
-        )
-        assert result == []
+        with pytest.raises(NotSupportedError):
+            adapter.get_candles(
+                "RELIANCE",
+                "NSE",
+                datetime(2025, 1, 1),
+                datetime(2025, 1, 31),
+                "1D",
+            )

@@ -47,7 +47,7 @@ class TestConnectExtras:
         try:
             # Register the instrument first so the scanner can find it
             broker.market.instrument("RELIANCE")
-            from inc_trade.market.scanner import PriceAbove
+            from brokers.market.scanner import PriceAbove
 
             result = broker.scanner.scan(PriceAbove(Decimal("0")))
             assert result.total_scanned >= 1
@@ -82,8 +82,8 @@ class TestConnectExtras:
             broker.close()
 
     def test_analytics_calculators_usable(self) -> None:
-        from inc_trade.domain.entities import Trade
-        from inc_trade.domain.enums import Side
+        from brokers.domain.entities import Trade
+        from brokers.domain.enums import Side
 
         import brokers
 

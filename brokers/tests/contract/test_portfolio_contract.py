@@ -5,8 +5,8 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-from inc_trade.domain import Balance, Holding, Position, Trade
-from inc_trade.ports import PortfolioPort
+from brokers.domain import Balance, Holding, Position, Trade
+from brokers.ports import PortfolioPort
 
 
 class _FakePortfolio:

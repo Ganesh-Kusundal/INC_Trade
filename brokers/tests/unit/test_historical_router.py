@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from inc_trade.domain.cache_policy import (
+from brokers.domain.cache_policy import (
     CachePolicy,
     policy_for_resolution,
 )
-from inc_trade.domain.entities import Candle
-from inc_trade.infrastructure.cache.memory_cache import MemoryCache
-from inc_trade.services.historical_router import HistoricalRouter
+from brokers.domain.entities import Candle
+from brokers.infrastructure.cache.memory_cache import MemoryCache
+from brokers.services.historical_router import HistoricalRouter
 
 
 def _make_candle(

@@ -11,8 +11,8 @@ from __future__ import annotations
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
-from inc_trade.domain import OrderRequest
-from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
+from brokers.domain import OrderRequest
+from brokers.domain.enums import OrderType, ProductType, Side, Validity
 
 from brokers.adapters.dhan.config import (
     ENDPOINTS,

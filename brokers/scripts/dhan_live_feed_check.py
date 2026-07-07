@@ -66,7 +66,7 @@ class CheckResult:
 
 
 def _load_gateway() -> DhanGateway:
-    from inc_trade.infrastructure.credentials import CredentialResolver
+    from brokers.infrastructure.credentials import CredentialResolver
 
     from brokers.adapters.dhan.gateway import DhanGateway
 

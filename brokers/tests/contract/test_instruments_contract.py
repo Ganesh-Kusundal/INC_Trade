@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from inc_trade.domain import InstrumentInfo
-from inc_trade.ports import InstrumentPort
+from brokers.domain import InstrumentInfo
+from brokers.ports import InstrumentPort
 
 
 class _FakeInstruments:

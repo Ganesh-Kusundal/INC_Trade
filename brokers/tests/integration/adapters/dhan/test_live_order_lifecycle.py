@@ -14,7 +14,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from inc_trade.domain.enums import OrderStatus, OrderType, ProductType, Side
+from brokers.domain.enums import OrderStatus, OrderType, ProductType, Side
 
 from brokers.adapters.dhan.gateway import DhanGateway
 from brokers.adapters.dhan.orders import DhanOrders

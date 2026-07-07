@@ -26,10 +26,10 @@ class TestStreamingEventBus:
 
     def test_subscribe_with_event_bus_publishes_events(self, adapter: PaperAdapter) -> None:
         """MarketDataQuery.subscribe() with event_publisher publishes QuoteTickEvent."""
-        from inc_trade.domain.events import QuoteTickEvent
-        from inc_trade.infrastructure.event_bus import EventBus
-        from inc_trade.market.instrument import Instrument
-        from inc_trade.market.query import MarketDataQuery
+        from brokers.domain.events import QuoteTickEvent
+        from brokers.infrastructure.event_bus import EventBus
+        from brokers.market.instrument import Instrument
+        from brokers.market.query import MarketDataQuery
 
         event_bus = EventBus()
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
@@ -67,8 +67,8 @@ class TestStreamingEventBus:
 
     def test_subscribe_without_event_bus_no_events(self, adapter: PaperAdapter) -> None:
         """MarketDataQuery.subscribe() without event_publisher publishes no events."""
-        from inc_trade.market.instrument import Instrument
-        from inc_trade.market.query import MarketDataQuery
+        from brokers.market.instrument import Instrument
+        from brokers.market.query import MarketDataQuery
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE")
         inst.with_providers(streaming_provider=adapter)
@@ -93,8 +93,8 @@ class TestStreamingEventBus:
 
     def test_broker_session_event_bus(self, adapter: PaperAdapter) -> None:
         """BrokerSession event bus is wired through to MarketDataQuery."""
-        from inc_trade.domain.events import QuoteTickEvent
-        from inc_trade.market.session import BrokerSession
+        from brokers.domain.events import QuoteTickEvent
+        from brokers.market.session import BrokerSession
 
         session = BrokerSession(adapter)
 
@@ -137,7 +137,7 @@ class TestStreamingEventBus:
         from datetime import UTC, datetime
         from decimal import Decimal
 
-        from inc_trade.domain.events import QuoteTickEvent
+        from brokers.domain.events import QuoteTickEvent
 
         event = QuoteTickEvent(
             composite_key="NSE:RELIANCE",

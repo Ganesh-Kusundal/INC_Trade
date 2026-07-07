@@ -12,10 +12,10 @@ from __future__ import annotations
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
-from inc_trade.domain import OrderRequest, OrderResponse
-from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
-from inc_trade.domain.validators.order_validator import validate_order
-from inc_trade.ports.instruments import InstrumentInfo
+from brokers.domain import OrderRequest, OrderResponse
+from brokers.domain.enums import OrderType, ProductType, Side, Validity
+from brokers.domain.validators.order_validator import validate_order
+from brokers.ports.instruments import InstrumentInfo
 
 from brokers.adapters.upstox.use_cases.place_order import PlaceOrderUseCase
 
@@ -268,7 +268,7 @@ class TestUpstoxOrdersDelegatesToUseCase:
     def test_invalid_request_returns_validation_failed(self) -> None:
         """An invalid request from the public UpstoxOrders.place_order
         must surface as ``OrderResponse.fail(..., error_code="VALIDATION_FAILED")``."""
-        from inc_trade.config.endpoints import Upstox
+        from brokers.config.endpoints import Upstox
 
         from brokers.adapters.upstox.orders import UpstoxOrders
 
@@ -293,7 +293,7 @@ class TestUpstoxOrdersDelegatesToUseCase:
         """The ``_guard_live_order`` analytics-only check must remain in
         UpstoxOrders (it's an auth concern, not a use-case concern) and
         must short-circuit before the use case is invoked."""
-        from inc_trade.config.endpoints import Upstox
+        from brokers.config.endpoints import Upstox
 
         from brokers.adapters.upstox.orders import UpstoxOrders
 
@@ -310,7 +310,7 @@ class TestUpstoxOrdersDelegatesToUseCase:
         """UpstoxOrders.place_order should construct a PlaceOrderUseCase
         and call its ``execute()`` with an ``OrderRequest`` built from
         the public args."""
-        from inc_trade.config.endpoints import Upstox
+        from brokers.config.endpoints import Upstox
 
         from brokers.adapters.upstox.orders import UpstoxOrders
 

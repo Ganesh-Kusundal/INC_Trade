@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from inc_trade.domain.enums import OrderType, ProductType, Side, Validity
+from brokers.domain.enums import OrderType, ProductType, Side, Validity
 
 from brokers.adapters.paper.gateway import PaperGateway
 
@@ -93,7 +93,7 @@ class TestGatewayCompleteness:
         start_time = end_time - timedelta(days=7)
 
         import pytest
-        from inc_trade.domain.exceptions import NotSupportedError
+        from brokers.domain.exceptions import NotSupportedError
 
         with pytest.raises(NotSupportedError):
             candles = gateway.historical.get_historical_candles(
@@ -161,7 +161,7 @@ class TestGatewayCompleteness:
         start_time = end_time - timedelta(days=1)
 
         import pytest
-        from inc_trade.domain.exceptions import NotSupportedError
+        from brokers.domain.exceptions import NotSupportedError
 
         with pytest.raises(NotSupportedError):
             candles = gateway.historical.get_historical_candles(

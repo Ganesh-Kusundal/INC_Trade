@@ -14,12 +14,12 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from inc_trade.extensions.registry import (
+from brokers.extensions.registry import (
     ExtensionDecoratorRegistry,
     get_default_registry,
     reset_default_registry,
 )
-from inc_trade.market.instrument import Instrument
+from brokers.market.instrument import Instrument
 
 # ── Fixtures ─────────────────────────────────────────────────────────────
 
@@ -274,7 +274,7 @@ class TestDefaultRegistry:
         object.__setattr__(inst, "_depth_provider", provider)
 
         result = reg.apply(inst, {"depth_200": 200})
-        from inc_trade.market.depth_decorators import Depth200Decorator
+        from brokers.market.depth_decorators import Depth200Decorator
 
         assert isinstance(result, Depth200Decorator)
 
@@ -284,7 +284,7 @@ class TestDefaultRegistry:
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE", lot_size=1)
         result = reg.apply(inst, {"cache": True})
-        from inc_trade.market.cache_decorator import CachedDecorator
+        from brokers.market.cache_decorator import CachedDecorator
 
         assert isinstance(result, CachedDecorator)
 
@@ -294,7 +294,7 @@ class TestDefaultRegistry:
 
         inst = Instrument(symbol="RELIANCE", exchange="NSE", lot_size=1)
         result = reg.apply(inst, {"logging": True})
-        from inc_trade.market.log_decorator import LoggedDecorator
+        from brokers.market.log_decorator import LoggedDecorator
 
         assert isinstance(result, LoggedDecorator)
 
@@ -305,7 +305,7 @@ class TestDefaultRegistry:
 class TestFactoryIntegration:
     def test_factory_with_extension_registry(self) -> None:
         """InstrumentFactory should apply decorators via extension registry."""
-        from inc_trade.market.factory import InstrumentFactory
+        from brokers.market.factory import InstrumentFactory
 
         reset_default_registry()
         reg = get_default_registry()
@@ -321,13 +321,13 @@ class TestFactoryIntegration:
             extension_registry=reg,
         )
 
-        from inc_trade.market.depth_decorators import Depth200Decorator
+        from brokers.market.depth_decorators import Depth200Decorator
 
         assert isinstance(inst, Depth200Decorator)
 
     def test_factory_apply_depth_still_works(self) -> None:
         """Legacy apply_depth parameter should still work without registry."""
-        from inc_trade.market.factory import InstrumentFactory
+        from brokers.market.factory import InstrumentFactory
 
         adapter = MagicMock()
         inst = InstrumentFactory.create(
@@ -338,13 +338,13 @@ class TestFactoryIntegration:
             apply_depth=200,
         )
 
-        from inc_trade.market.depth_decorators import Depth200Decorator
+        from brokers.market.depth_decorators import Depth200Decorator
 
         assert isinstance(inst, Depth200Decorator)
 
     def test_factory_registry_takes_precedence(self) -> None:
         """Extension registry should take precedence over apply_depth."""
-        from inc_trade.market.factory import InstrumentFactory
+        from brokers.market.factory import InstrumentFactory
 
         reset_default_registry()
         reg = get_default_registry()
@@ -363,6 +363,6 @@ class TestFactoryIntegration:
         )
 
         # Registry should apply depth_200 (from adapter.max_levels=200)
-        from inc_trade.market.depth_decorators import Depth200Decorator
+        from brokers.market.depth_decorators import Depth200Decorator
 
         assert isinstance(inst, Depth200Decorator)
