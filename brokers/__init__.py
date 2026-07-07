@@ -1,30 +1,140 @@
-"""TradeXV2 Brokers Package — broker-agnostic core.
+"""Broker SDK — public API.
 
-This package provides the canonical domain types and abstract interfaces
-used across all broker adapters. Broker-specific implementations (Dhan,
-Upstox, Paper) are in their own subpackages and should be imported directly:
+The central abstraction is Instrument, not the platform. Users interact with
+rich domain objects that delegate IO to an injected Provider.
 
-    from brokers.dhan.gateway import BrokerGateway
-    from brokers.upstox.gateway import UpstoxGateway
-    from brokers.paper import PaperGateway
+Usage::
 
-Import Direction Rule
----------------------
-    brokers.common → broker-agnostic core (this package)
-    brokers.dhan → Dhan-specific adapter
-    brokers.upstox → Upstox-specific adapter
-    brokers.paper → Paper/mock trading adapter
+    # Auto-login (recommended)
+    from brokers import Platform
+    platform = await Platform.connect("dhan")
+    reliance = platform.instrument("NSE:RELIANCE")
+    quote = await reliance.quote()
 
-Never import broker-specific types from ``brokers`` top-level. This
-prevents shotgun surgery when adding new brokers.
+    # Manual token
+    from brokers import Platform, Exchange
+    platform = Platform.dhan(client_id="123", access_token="tok")
+    reliance = platform.instrument("RELIANCE", Exchange.NSE)
+    response = await reliance.buy(quantity=10)
 """
 
-# Canonical interfaces (not broker-specific)
-from brokers.common.factory import BrokerProviderFactory
-from brokers.common.gateway import MarketDataGateway
+from brokers.platform import Platform
+
+# Deprecated alias — use Platform instead
+from brokers.broker import Broker  # noqa: F401
+from brokers.domain.account import Account, RiskDecision
+from brokers.domain.capabilities import Capability, ProviderCapabilities
+from brokers.domain.enums import (
+    AssetClass,
+    Exchange,
+    OptionType,
+    OrderStatus,
+    OrderType,
+    ProductType,
+    Side,
+    Validity,
+)
+from brokers.domain.exceptions import (
+    DomainError,
+    InstrumentNotFoundError,
+    NotSupportedError,
+    ProviderError,
+    RiskDeniedError,
+)
+from brokers.domain.historical import (
+    DateRange,
+    HistoricalBar,
+    HistoricalSeries,
+)
+from brokers.domain.instrument import Instrument, InstrumentIdentity
+from brokers.domain.option_chain import (
+    FutureChain,
+    FutureContract,
+    OptionChain,
+    OptionContract,
+)
+from brokers.domain.order import Order
+from brokers.domain.requests import ModifyOrderRequest, OrderRequest
+from brokers.domain.values import (
+    Balance,
+    DepthLevel,
+    Greeks,
+    Holding,
+    MarketDepth,
+    OrderResponse,
+    Position,
+    Quote,
+    Subscription,
+    Trade,
+)
+from brokers.provider.extensions import ExtensionAccess
+from brokers.provider.protocol import (
+    ExecutionProvider,
+    LifecycleProvider,
+    MarketDataProvider,
+    Provider,
+    StreamingProvider,
+)
+from brokers.provider.routing import RoutingStrategy
+from brokers.risk import RiskPolicy
 
 __all__ = [
-    "BrokerProviderFactory",
-    # Abstract interfaces
-    "MarketDataGateway",
+    # Public API entry point
+    "Platform",
+    "Broker",  # Deprecated alias
+    # Domain objects
+    "Account",
+    "Instrument",
+    "InstrumentIdentity",
+    "Order",
+    "OptionChain",
+    "OptionContract",
+    "FutureChain",
+    "FutureContract",
+    # Provider (interface-segregated)
+    "ExecutionProvider",
+    "LifecycleProvider",
+    "MarketDataProvider",
+    "Provider",
+    "StreamingProvider",
+    "ProviderCapabilities",
+    "Capability",
+    "RoutingStrategy",
+    "ExtensionAccess",
+    # Risk
+    "RiskPolicy",
+    "RiskDecision",
+    # Enums
+    "AssetClass",
+    "Exchange",
+    "OptionType",
+    "OrderStatus",
+    "OrderType",
+    "ProductType",
+    "Side",
+    "Validity",
+    # Value objects
+    "Balance",
+    "DepthLevel",
+    "Greeks",
+    "Holding",
+    "MarketDepth",
+    "OrderResponse",
+    "Position",
+    "Quote",
+    "Subscription",
+    "Trade",
+    # Requests
+    "OrderRequest",
+    "ModifyOrderRequest",
+    # Historical
+    "DateRange",
+    "HistoricalBar",
+    "HistoricalSeries",
+    # Exceptions
+    "DomainError",
+    "InstrumentNotFoundError",
+    "NotSupportedError",
+    "ProviderError",
+    "RiskDeniedError",
 ]

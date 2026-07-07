@@ -1,0 +1,32 @@
+# .pre-commit-config.yaml — git pre-commit hooks.
+#
+# Install:
+#   pip install pre-commit
+#   pre-commit install
+#
+# Then every `git commit` automatically runs `scripts/verify_cassettes.py`
+# (the YAML-aware secrets audit — single source of truth shared by both
+# `make verify-cassettes` and this hook) against any cassette file staged
+# in the commit. The audit cannot drift between manual invocation and the
+# on-commit gate because they invoke the same script.
+#
+# To bypass (e.g. for an emergency commit that includes a verified-clean
+# cassette), use `git commit --no-verify`.
+
+repos:
+  - repo: local
+    hooks:
+      - id: verify-cassettes
+        name: Verify VCR.py cassettes contain no secrets
+        description: >
+          Run scripts/verify_cassettes.py against staged cassette YAML files
+          to ensure no auth tokens, JWTs, or broker-specific credentials
+          accidentally leaked into recorded HTTP traffic.
+        entry: python scripts/verify_cassettes.py
+        language: system
+        files: ^brokers/tests/integration/cassettes/.*\.yaml$
+        # Refuse a commit when ANY cassette under that path has staged
+        # changes. The script itself exits 1 on leaks, and pre-commit
+        # treats exit-1 as a block by default.
+        pass_failing_files: false
+        stages: [pre-commit]

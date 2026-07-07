@@ -1,69 +1,78 @@
-"""Broker-agnostic core types and interfaces.
+"""brokers.common — shared infrastructure across all broker providers.
 
-This subpackage contains the canonical domain types, abstract interfaces,
-and shared utilities used by all broker adapters (Dhan, Upstox, Paper).
-
-Import Direction Rule
----------------------
-brokers.common → broker-agnostic core (NEVER imports broker-specific code)
-brokers.dhan → Dhan-specific adapter (imports from brokers.common)
-brokers.upstox → Upstox-specific adapter (imports from brokers.common)
-brokers.paper → Paper/mock trading adapter (imports from brokers.common)
+Public API:
+    - InstrumentResolver, InMemoryInstrumentResolver, ResolvedInstrument
+    - AuthManager, TokenState, TokenStateStore, TotpGenerator, TotpCooldownGuard
+    - CredentialResolver, DhanCredentials, UpstoxCredentials
+    - SharedInstrumentRegistry, ResolvedInstrumentInfo
+    - BaseReconciliation, ReconciliationDrift
+    - BaseMarketFeed, BaseOrderStream
+    - IdempotencyCacheProtocol, MemoryIdempotencyCache
 """
 
-from __future__ import annotations
-
-from brokers.common.factory import BrokerProviderFactory
-
-# Export common interfaces
-from brokers.common.gateway import MarketDataGateway
-
-# Export common types
-from domain import (
-    Balance,
-    DepthLevel,
-    Holding,
-    MarketDepth,
-    Order,
-    OrderResponse,
-    OrderStatus,
-    OrderType,
-    Position,
-    ProductType,
-    Quote,
-    Side,
-    Trade,
-    Validity,
+from brokers.common.instrument_resolver import (
+    InstrumentNotFoundError,
+    InstrumentResolver,
+    InMemoryInstrumentResolver,
+    ResolvedInstrument,
+)
+from brokers.common.auth.token_manager import (
+    AuthManager,
+    EnvTokenStateStore,
+    JsonTokenStateStore,
+    TokenSource,
+    TokenState,
+    TokenStateStore,
+    TotpCooldownGuard,
+    TotpGenerator,
+)
+from brokers.common.auth.credential_resolver import (
+    CredentialResolver,
+    DhanCredentials,
+    UpstoxCredentials,
+)
+from brokers.common.instrument_registry import SharedInstrumentRegistry, ResolvedInstrumentInfo
+from brokers.common.reconciliation import BaseReconciliation, ReconciliationDrift
+from brokers.common.streaming.base_market_feed import BaseMarketFeed
+from brokers.common.streaming.base_order_stream import BaseOrderStream
+from brokers.common.idempotency import (
+    IdempotencyCacheProtocol,
+    IdempotencyStats,
+    MemoryIdempotencyCache,
+    RedisIdempotencyCache,
 )
 
-# Export field mapping protocol and default implementation
-from domain.entities import FieldMapping
-from domain.field_mapping import DefaultFieldMapping
-
-# Backward-compatibility alias
-OrderSide = Side
-
 __all__ = [
-    # Domain types
-    "Balance",
-    "BrokerProviderFactory",
-    "DefaultFieldMapping",
-    "DepthLevel",
-    # Field mapping
-    "FieldMapping",
-    "Holding",
-    # Abstract interfaces
-    "MarketDataGateway",
-    "MarketDepth",
-    "Order",
-    "OrderResponse",
-    "OrderSide",  # Backward-compat alias
-    "OrderStatus",
-    "OrderType",
-    "Position",
-    "ProductType",
-    "Quote",
-    "Side",
-    "Trade",
-    "Validity",
+    # Instrument resolution
+    "InstrumentNotFoundError",
+    "InstrumentResolver",
+    "InMemoryInstrumentResolver",
+    "ResolvedInstrument",
+    # Auth
+    "AuthManager",
+    "EnvTokenStateStore",
+    "JsonTokenStateStore",
+    "TokenSource",
+    "TokenState",
+    "TokenStateStore",
+    "TotpCooldownGuard",
+    "TotpGenerator",
+    # Credentials
+    "CredentialResolver",
+    "DhanCredentials",
+    "UpstoxCredentials",
+    # Instrument registry
+    "SharedInstrumentRegistry",
+    "ResolvedInstrumentInfo",
+    # Reconciliation
+    "BaseReconciliation",
+    "ReconciliationDrift",
+    # Streaming bases
+    "BaseMarketFeed",
+    "BaseOrderStream",
+    # Idempotency
+    "IdempotencyCacheProtocol",
+    "IdempotencyStats",
+    "MemoryIdempotencyCache",
+    "RedisIdempotencyCache",
 ]

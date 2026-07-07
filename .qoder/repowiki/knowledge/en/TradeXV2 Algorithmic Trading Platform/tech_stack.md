@@ -1,4 +1,0 @@
-- **Core**: Python 3.10+ with `pydantic` for boundary validation and `pandas` for data manipulation.
-- **Async & Web**: `FastAPI` with `uvicorn` for the API server; `aiohttp` and `websockets` for broker connectivity.
-- **Storage**: DuckDB for analytical queries and cataloging; Parquet for time-series market data storage.
-- **CLI/TUI**: `Rich` and `Textual` for the diagnostic terminal and interactive dashboards.

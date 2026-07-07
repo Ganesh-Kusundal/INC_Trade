@@ -1,97 +1,178 @@
-"""Single Dhan TOTP token generation client."""
+"""Dhan TOTP client — performs TOTP-based login to obtain access tokens.
+
+Dhan's authentication flow:
+1. Generate a TOTP code from the shared secret
+2. POST to Dhan's token endpoint with clientId, pin, and totp
+3. Receive access_token + expires_in
+
+Usage::
+
+    from brokers.dhan.totp_client import DhanTotpClient
+    from brokers.common.auth.credential_resolver import CredentialResolver
+
+    creds = CredentialResolver.for_dhan()
+    client = DhanTotpClient()
+    token_state = client.login(creds.totp_secret, creds.pin, creds.client_id)
+    print(token_state.access_token)
+"""
 
 from __future__ import annotations
 
 import logging
-import os
-from typing import TYPE_CHECKING
+from typing import Any
 
-from brokers.common.auth.totp_cooldown import TotpCooldownGuard, TotpRateLimitError
+import requests
 
-if TYPE_CHECKING:
-    from brokers.dhan.settings import DhanConnectionSettings
+from brokers.common.auth.token_manager import (
+    TokenSource,
+    TokenState,
+    TotpCooldownGuard,
+    TotpGenerator,
+)
 
 logger = logging.getLogger(__name__)
 
 
+# ── Exceptions ─────────────────────────────────────────────────────────────
+
+
+class DhanTotpError(Exception):
+    """Base exception for Dhan TOTP errors."""
+
+
+class TotpRateLimitError(DhanTotpError):
+    """Raised when Dhan enforces a TOTP cooldown period."""
+
+
+# ── Dhan TOTP client ───────────────────────────────────────────────────────
+
+
 class DhanTotpClient:
-    """Generate Dhan access tokens via TOTP with shared rate-limit guard."""
+    """Dhan TOTP-based authentication client.
+
+    Performs the Dhan login flow:
+      POST https://api.dhan.co/v2/auth/token
+      Body: {"dhanClientId": "...", "pin": "...", "totp": "..."}
+
+    Returns a TokenState with the access token and expiry.
+    """
+
+    TOKEN_URL = "https://api.dhan.co/v2/auth/token"
 
     def __init__(
         self,
-        settings: DhanConnectionSettings | None = None,
+        *,
+        token_url: str | None = None,
         cooldown: TotpCooldownGuard | None = None,
+        timeout: float = 10.0,
     ) -> None:
-        self._settings = settings
-        self._cooldown = cooldown or TotpCooldownGuard.for_broker("dhan")
+        self._token_url = token_url or self.TOKEN_URL
+        self._timeout = timeout
+        self._cooldown = cooldown or TotpCooldownGuard(
+            cooldown_seconds=120,
+            persist_path="runtime/dhan-totp-cooldown.json",
+        )
 
-    def generate(self) -> str | None:
-        """Generate a fresh access token. Returns None on failure.
+    def login(
+        self,
+        totp_secret: str,
+        pin: str,
+        client_id: str,
+    ) -> TokenState:
+        """Perform TOTP login and return a TokenState.
 
-        Raises ``TotpRateLimitError`` when local or broker cooldown applies.
+        Args:
+            totp_secret: Base32-encoded TOTP shared secret.
+            pin: Dhan account PIN (4 or 6 digits).
+            client_id: Dhan client ID.
+
+        Returns:
+            TokenState with access_token, refresh_token (if any), and expiry.
+
+        Raises:
+            TotpRateLimitError: If Dhan enforces a cooldown period.
+            DhanTotpError: If login fails for any other reason.
         """
-        self._cooldown.check_allowed()
-
-        pin, totp_secret, token_url, client_id = self._resolve_credentials()
-        if not pin or not totp_secret:
-            return None
-
-        self._cooldown.record_attempt()
-        try:
-            import pyotp
-            import requests as _requests
-
-            totp_code = pyotp.TOTP(totp_secret).now()
-            payload = {"dhanClientId": client_id, "pin": pin, "totp": totp_code}
-            resp = _requests.post(token_url, data=payload, timeout=15)
-
-            try:
-                body = resp.json()
-            except Exception:
-                body = {}
-
-            message = body.get("message", "")
-            status = body.get("status", "")
-            if "once every 2 minutes" in message:
-                self._cooldown.record_rate_limited()
-                error_msg = f"Dhan token rate limit: {message}"
-                logger.warning(error_msg)
-                raise TotpRateLimitError(error_msg)
-
-            if status == "error":
-                logger.warning("TOTP token generation failed: %s", message or "unknown")
-                return None
-
-            if resp.status_code != 200:
-                logger.warning("TOTP token generation failed: HTTP %d", resp.status_code)
-                return None
-
-            data = body.get("data", body)
-            result: str = data.get("accessToken") or data.get("access_token") or ""
-            if result:
-                self._cooldown.record_success()
-                return result
-            return None
-        except TotpRateLimitError:
-            raise
-        except Exception as exc:
-            logger.warning("TOTP token generation failed: %s", exc)
-            return None
-
-    def _resolve_credentials(self) -> tuple[str | None, str | None, str, str]:
-        if self._settings and self._settings.has_totp:
-            return (
-                self._settings.pin,
-                self._settings.totp_secret,
-                self._settings.generate_token_url,
-                self._settings.client_id,
+        # Check cooldown
+        if not self._cooldown.can_generate():
+            remaining = self._cooldown.seconds_until_allowed()
+            raise TotpRateLimitError(
+                f"Dhan TOTP cooldown active. Wait {remaining:.0f}s before retrying."
             )
-        pin = _read_secret("DHAN_PIN", "DHAN_PIN_FILE")
-        totp_secret = _read_secret("DHAN_TOTP_SECRET", "DHAN_TOTP_SECRET_FILE")
-        from brokers.dhan.settings import _GENERATE_TOKEN_URL
 
-        client_id = os.environ.get("DHAN_CLIENT_ID", "")
-        return pin, totp_secret, _GENERATE_TOKEN_URL, client_id
+        # Generate TOTP code
+        totp_code = TotpGenerator.code_now(totp_secret)
+        logger.debug("dhan_totp_generated", extra={"client_id": client_id})
+
+        # Record attempt before the API call (so cooldown applies even on network errors)
+        self._cooldown.record_attempt()
+
+        # POST to token endpoint
+        payload = {
+            "dhanClientId": client_id,
+            "pin": pin,
+            "totp": totp_code,
+        }
+
+        try:
+            response = requests.post(
+                self._token_url,
+                json=payload,
+                timeout=self._timeout,
+                headers={"Content-Type": "application/json"},
+            )
+        except requests.RequestException as exc:
+            raise DhanTotpError(f"Dhan token request failed: {exc}") from exc
+
+        if response.status_code != 200:
+            # Check for rate limit in response body
+            body_text = response.text.lower()
+            if "once every 2 minutes" in body_text or "rate limit" in body_text:
+                raise TotpRateLimitError(
+                    f"Dhan rate-limited TOTP login: {response.text[:200]}"
+                )
+            raise DhanTotpError(
+                f"Dhan login failed (HTTP {response.status_code}): {response.text[:200]}"
+            )
+
+        data: dict[str, Any] = response.json()
+        access_token = str(data.get("access_token", data.get("accessToken", "")))
+        if not access_token:
+            raise DhanTotpError(f"Dhan login returned no access token: {data}")
+
+        expires_in = int(data.get("expires_in", data.get("expiresIn", 300)))
+        refresh_token = str(data.get("refresh_token", data.get("refreshToken", "")))
+
+        # Reset cooldown on success
+        self._cooldown.reset()
+
+        logger.info(
+            "dhan_login_success",
+            extra={
+                "client_id": client_id,
+                "expires_in": expires_in,
+            },
+        )
+
+        return TokenState.from_expiry_seconds(
+            access_token=access_token,
+            expires_in_seconds=expires_in,
+            refresh_token=refresh_token,
+            source=TokenSource.TOTP,
+            broker_id=client_id,
+        )
+
+    def refresh(
+        self,
+        totp_secret: str,
+        pin: str,
+        client_id: str,
+    ) -> TokenState:
+        """Refresh by performing a new TOTP login (Dhan doesn't support refresh tokens).
+
+        This is the same as ``login()`` — Dhan's TOTP flow always generates a fresh token.
+        """
+        return self.login(totp_secret, pin, client_id)
 
 
-from brokers.dhan.secret_utils import read_secret as _read_secret
+__all__ = ["DhanTotpClient", "DhanTotpError", "TotpRateLimitError"]

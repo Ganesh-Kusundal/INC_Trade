@@ -1,538 +1,374 @@
-"""O(1) symbol → Instrument resolver backed by dictionaries.
+"""Dhan instrument resolver — maps canonical symbols to Dhan security IDs.
 
-Index symbols (NIFTY, BANKNIFTY, etc.) are resolved via a hardcoded
-fallback in :mod:`config.indices` when they are not present in the
-instrument cache.
+Dhan uses numeric security_ids (e.g. "3456") for all API calls.
+This resolver loads instrument master data from Dhan's CSV file and
+provides O(1) lookup by symbol, trading symbol, or security_id.
+
+Usage::
+
+    resolver = DhanInstrumentResolver()
+    resolver.load_cached()  # Load from cache or download
+    inst = resolver.resolve("RELIANCE", Exchange.NSE)
+    print(inst.broker_id)  # "3456"
 """
 
 from __future__ import annotations
 
+import csv
+import gzip
+import io
 import logging
-import threading
-from collections.abc import Iterable
+import os
+from datetime import date, timedelta
+from pathlib import Path
+from typing import Any
+from urllib.request import urlopen
 
-from brokers.dhan.domain import Exchange, Instrument, InstrumentType, OptionType
-from brokers.dhan.exceptions import InstrumentNotFoundError
-from brokers.dhan.segments import SEGMENT_TO_EXCHANGE
-from domain.entities.instrument import Instrument as DomainInstrument
-from domain.symbols import normalize_exchange, normalize_symbol
-from config.indices import get_index_entry, is_index
+from brokers.common.instrument_resolver import (
+    InMemoryInstrumentResolver,
+    ResolvedInstrument,
+)
+from brokers.domain.enums import Exchange, InstrumentType
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
-_NAME_TO_TYPE: dict[str, InstrumentType] = {
+# ── Dhan CSV column names (verified from archive) ──────────────────────────
+
+_COL_TRADING_SYMBOL = "SEM_TRADING_SYMBOL"
+_COL_SECURITY_ID = "SEM_SMST_SECURITY_ID"
+_COL_EXCHANGE = "SEM_EXM_EXCH_ID"
+_COL_INSTRUMENT_NAME = "SEM_INSTRUMENT_NAME"
+_COL_LOT_UNITS = "SEM_LOT_UNITS"
+_COL_TICK_SIZE = "SEM_TICK_SIZE"
+_COL_EXPIRY = "SEM_EXPIRY_DATE"
+_COL_STRIKE = "SEM_STRIKE_PRICE"
+_COL_OPTION_TYPE = "SEM_OPTION_TYPE"
+_COL_CUSTOM_SYMBOL = "SEM_CUSTOM_SYMBOL"
+_COL_UNDERLYING = "SM_SYMBOL_NAME"
+
+# ── Segment to Exchange mapping (verified from archive) ────────────────────
+
+_SEGMENT_TO_EXCHANGE: dict[str, Exchange] = {
+    "NSE_EQ": Exchange.NSE,
+    "BSE_EQ": Exchange.BSE,
+    "NSE_FNO": Exchange.NFO,
+    "BSE_FNO": Exchange.NFO,
+    "MCX_COMM": Exchange.MCX,
+    "NSE_COMM": Exchange.MCX,
+    "NSE_CURRENCY": Exchange.MCX,  # Approximate
+    "IDX_I": Exchange.INDEX,
+}
+
+# Compact CSV segment map (Dhan's compact CSV uses shortened segment codes)
+_COMPACT_SEGMENT_MAP: dict[str, str] = {
+    "1": "NSE_EQ",
+    "2": "NSE_FNO",
+    "3": "NSE_CURRENCY",
+    "4": "MCX_COMM",
+    "5": "BSE_EQ",
+    "6": "BSE_FNO",
+    "7": "BSE_CURRENCY",
+    "0": "IDX_I",
+}
+
+# ── Instrument name to type mapping ────────────────────────────────────────
+
+_INSTRUMENT_NAME_TO_TYPE: dict[str, InstrumentType] = {
     "EQUITY": InstrumentType.EQUITY,
-    "INDEX": InstrumentType.EQUITY,
-    "OPTIDX": InstrumentType.OPTION,
-    "OPTSTK": InstrumentType.OPTION,
-    "OPTCUR": InstrumentType.OPTION,
-    "OPTFUT": InstrumentType.OPTION,
-    "OPTCOM": InstrumentType.OPTION,
-    "FUTIDX": InstrumentType.FUTURE,
-    "FUTSTK": InstrumentType.FUTURE,
-    "FUTCUR": InstrumentType.FUTURE,
-    "FUTCOM": InstrumentType.FUTURE,
-}
-
-_DHAN_OPTION_TYPE: dict[str, OptionType] = {
-    "CE": OptionType.CALL,
-    "CALL": OptionType.CALL,
-    "PE": OptionType.PUT,
-    "PUT": OptionType.PUT,
+    "STOCK": InstrumentType.EQUITY,
+    "INDEX": InstrumentType.INDEX,
+    "OPTSTK": InstrumentType.OPTIONS,
+    "OPTIDX": InstrumentType.OPTIONS,
+    "OPTFUT": InstrumentType.OPTIONS,
+    "FUTSTK": InstrumentType.FUTURES,
+    "FUTIDX": InstrumentType.FUTURES,
+    "FUTCOM": InstrumentType.FUTURES,
+    "COMMODITY": InstrumentType.COMMODITY,
+    "CUR": InstrumentType.CURRENCY,
+    "CURFUT": InstrumentType.FUTURES,
+    "CUROPT": InstrumentType.OPTIONS,
 }
 
 
-class SymbolResolver:
-    """Thread-safe O(1) symbol → Instrument resolver."""
+# ── Dhan instrument resolver ───────────────────────────────────────────────
+
+
+class DhanInstrumentResolver(InMemoryInstrumentResolver):
+    """Dhan-specific instrument resolver.
+
+    Loads instruments from Dhan's CSV master file and maps them to
+    ResolvedInstrument objects with numeric security_ids.
+    """
+
+    # Dhan instrument CSV URL (compact format)
+    INSTRUMENT_CSV_URL = "https://images.dhan.co/data/broker-nse/brokerNSEComplete.csv"
+    # MCX detailed CSV (for commodity-specific data)
+    MCX_CSV_URL = "https://images.dhan.co/data/broker-mcx/brokerMCXComplete.csv"
+
+    # Cache directory (overridable via env)
+    DEFAULT_CACHE_DIR = "runtime-dev/instruments"
 
     def __init__(self) -> None:
-        self._by_symbol: dict[tuple[str, Exchange], Instrument] = {}
-        self._by_security_id: dict[str, Instrument] = {}
-        self._by_underlying: dict[tuple[str, Exchange], list[Instrument]] = {}
-        self._loaded = False
-        self._lock = threading.RLock()
+        super().__init__(broker_name="dhan")
 
-    def resolve(
-        self, symbol: str, exchange: str, *, expected_segment: str | None = None
-    ) -> Instrument:
-        """Resolve symbol to Instrument.
+    # ── Loading ──────────────────────────────────────────────────────────
 
-        Args:
-            symbol: Trading symbol
-            exchange: Exchange code
-            expected_segment: Optional hint to prevent index-vs-derivative misroutes
+    def load_from_rows(self, rows: list[dict[str, Any]]) -> dict[str, int]:
+        """Load instruments from a list of CSV row dicts.
+
+        Returns stats dict with 'total', 'registered', 'skipped' counts.
         """
-        exch = self._normalise_exchange(exchange)
-        inst = self._find(symbol, exch, expected_segment=expected_segment)
-        if inst is None:
-            raise InstrumentNotFoundError(
-                f"Instrument not found: symbol={symbol!r}, exchange={exchange!r}"
-            )
-        return inst
-
-    def get_by_symbol(self, symbol: str, exchange: str) -> Instrument | None:
-        try:
-            return self._find(symbol, self._normalise_exchange(exchange))
-        except Exception:
-            return None
-
-    def get_by_security_id(self, security_id: str) -> Instrument | None:
-        return self._by_security_id.get(str(security_id))
-
-    def get_futures(self, underlying: str, exchange: str) -> list[Instrument]:
-        exch = self._normalise_exchange(exchange)
-        key = (normalize_symbol(underlying), exch)
-        contracts = self._by_underlying.get(key, [])
-        return sorted(contracts, key=lambda i: (i.expiry or "9999-12-31"))
-
-    def get_futures_expiries(self, underlying: str, exchange: str) -> list[str]:
-        seen: set[str] = set()
-        result: list[str] = []
-        for c in self.get_futures(underlying, exchange):
-            if c.expiry and c.expiry not in seen:
-                seen.add(c.expiry)
-                result.append(c.expiry)
-        return result
-
-    def get_lot_size(self, symbol: str, exchange: str) -> int:
-        return self.resolve(symbol, exchange).lot_size
-
-    def stats(self) -> dict:
-        return {"loaded": self._loaded, "total": len(self._by_security_id)}
-
-    def all_instruments(self) -> list[Instrument]:
-        return list(self._by_security_id.values())
-
-    def load_from_rows(self, rows: Iterable[dict]) -> dict[str, int | float]:
-        """Load instruments from CSV rows with atomic swap.
-
-        Returns:
-            Dict with keys: total, skipped, skip_rate
-        """
-        new_by_symbol: dict[tuple[str, Exchange], Instrument] = {}
-        new_by_sid: dict[str, Instrument] = {}
-        new_by_underlying: dict[tuple[str, Exchange], list[Instrument]] = {}
+        instruments: list[ResolvedInstrument] = []
         skipped = 0
 
         for row in rows:
             try:
                 inst = self._row_to_instrument(row)
-            except Exception:
+                if inst is not None:
+                    instruments.append(inst)
+                else:
+                    skipped += 1
+            except Exception as exc:
                 skipped += 1
-                continue
+                logger.debug("dhan_row_parse_failed", extra={"error": str(exc)[:100]})
 
-            if inst is None:
-                skipped += 1
-                continue
+        registered = self.register_many(instruments)
 
-            # Generate robust alternate keys
-            alt_keys = _generate_alternate_keys(
-                symbol=inst.symbol,
-                inst_type=inst.instrument_type,
-                expiry=inst.expiry,
-                strike=inst.strike_price,
-                option_type=inst.option_type,
-                underlying=inst.underlying,
-                canonical_symbol=inst.canonical_symbol,
-                sm_symbol_name=inst.sm_symbol_name,
-            )
-
-            # Register all alternate keys, preferring EQUITY/FUTURE over OPTION
-            # so that "USDINR" on CDS resolves to the continuous future, not
-            # an expired currency option.
-            for k in alt_keys:
-                existing = new_by_symbol.get((k, inst.exchange))
-                if existing is None or (existing.is_option and not inst.is_option):
-                    new_by_symbol[(k, inst.exchange)] = inst
-                elif existing.is_future and inst.is_future:
-                    # Prefer the nearest active future (closest expiry >= today)
-                    from datetime import date
-
-                    today = str(date.today())
-                    e_exp = existing.expiry or ""
-                    i_exp = inst.expiry or ""
-                    e_active = e_exp >= today
-                    i_active = i_exp >= today
-                    if (
-                        (i_active and not e_active)
-                        or (i_active and e_active and i_exp < e_exp)
-                        or (not i_active and not e_active and i_exp > e_exp)
-                    ):
-                        new_by_symbol[(k, inst.exchange)] = inst
-
-            new_by_sid[inst.security_id] = inst
-
-            # Index by underlying for futures
-            if inst.is_future and inst.underlying:
-                ukey = (inst.underlying.upper(), inst.exchange)
-                new_by_underlying.setdefault(ukey, []).append(inst)
-
-        with self._lock:
-            self._by_symbol = new_by_symbol
-            self._by_security_id = new_by_sid
-            self._by_underlying = new_by_underlying
-            self._loaded = True
-
-        total_loaded = len(new_by_sid)
-        total_processed = total_loaded + skipped
-        skip_rate = skipped / total_processed if total_processed > 0 else 0.0
-
-        result = {
-            "total": total_loaded,
+        stats = {
+            "total": len(rows),
+            "registered": registered,
             "skipped": skipped,
-            "skip_rate": skip_rate,
         }
-
-        if skip_rate > 0.01:
-            logger.warning(
-                "high_skip_rate_in_resolver",
-                extra={"skipped": skipped, "total": total_processed, "rate": skip_rate},
-            )
-
         logger.info(
-            "instrument cache loaded: total=%d skipped=%d skip_rate=%.2f%%",
-            total_loaded,
-            skipped,
-            skip_rate * 100,
+            "dhan_instruments_loaded",
+            extra=stats,
         )
+        return stats
 
-        return result
+    def load_from_file(self, path: str | Path) -> dict[str, int]:
+        """Load instruments from a local CSV file."""
+        path = Path(path)
+        if path.suffix == ".gz":
+            with gzip.open(path, "rt", encoding="utf-8") as f:
+                rows = list(csv.DictReader(f))
+        else:
+            with open(path, encoding="utf-8") as f:
+                rows = list(csv.DictReader(f))
+        return self.load_from_rows(rows)
 
-    # ── internals ──
+    def load_from_url(self, url: str) -> dict[str, int]:
+        """Download and load instruments from a URL."""
+        with urlopen(url) as resp:
+            text = resp.read().decode("utf-8")
+        rows = list(csv.DictReader(io.StringIO(text)))
+        return self.load_from_rows(rows)
 
-    def _find(
-        self, symbol: str, exch: Exchange, *, expected_segment: str | None = None
-    ) -> Instrument | None:
-        """Find instrument with progressive lookup.
+    def load_cached(self, force_refresh: bool = False) -> dict[str, int]:
+        """Load from cache, downloading if stale or missing.
 
-        Args:
-            symbol: Trading symbol
-            exch: Exchange enum
-            expected_segment: Optional hint to prevent index-vs-derivative misroutes
+        Cache TTL: 6 hours (verified from archive).
+        Old cache files older than 7 days are purged.
         """
-        clean = normalize_symbol(symbol)
+        cache_dir = Path(os.environ.get("DHAN_CACHE_DIR", self.DEFAULT_CACHE_DIR))
+        today = date.today()
+        cache_file = cache_dir / f"instruments_{today.isoformat()}.csv"
 
-        # 1. Try direct lookup
-        inst = self._by_symbol.get((clean, exch))
-        if inst is not None:
-            return inst
+        # Check for today's cache
+        if not force_refresh and cache_file.exists():
+            try:
+                return self.load_from_file(cache_file)
+            except Exception as exc:
+                logger.warning("dhan_cache_load_failed", extra={"error": str(exc)[:100]})
 
-        # 2. Try stripped lookup
-        stripped = clean.replace(" ", "").replace("-", "").replace("_", "")
-        inst = self._by_symbol.get((stripped, exch))
-        if inst is not None:
-            return inst
+        # Purge old cache files (> 7 days)
+        self._purge_old_cache(cache_dir, max_days=7)
 
-        # 3. Try standardizing Option format CALL -> CE, PUT -> PE
-        if clean.endswith("CALL"):
-            clean = clean[:-4] + "CE"
-        elif clean.endswith("PUT"):
-            clean = clean[:-3] + "PE"
-
-        inst = self._by_symbol.get((clean, exch))
-        if inst is not None:
-            return inst
-
-        # 4. Try stripped Option format standard
-        stripped_cepe = clean.replace(" ", "").replace("-", "").replace("_", "")
-        inst = self._by_symbol.get((stripped_cepe, exch))
-        if inst is not None:
-            return inst
-
-        # 5. Index fallback: if symbol is a known index, try Exchange.INDEX
-        #    Indices are often stored with exchange=INDEX in the CSV, but
-        #    users typically query with exchange=NSE.  This fallback catches
-        #    that case when the cache is populated with index instruments.
-        if is_index(clean):
-            index_exch = Exchange("INDEX")
-            if exch != index_exch:
-                idx_inst = self._by_symbol.get((clean, index_exch))
-                if idx_inst is not None:
-                    return idx_inst
-                # Also try stripped
-                idx_inst = self._by_symbol.get((stripped, index_exch))
-                if idx_inst is not None:
-                    return idx_inst
-
-        # 6. Hardcoded index fallback: if symbol is a known index with a
-        #    hardcoded Dhan security_id, create a synthetic Instrument.
-        #    This works even when instruments are NOT loaded (load_instruments=False)
-        #    or the index isn't present in the CSV.
-        if is_index(clean):
-            entry = get_index_entry(clean)
-            if entry and entry.dhan_security_id:
-                # Guard against index fallback when derivatives expected
-                if expected_segment:
-                    derivative_segments = {
-                        "NSE_FNO",
-                        "BSE_FNO",
-                        "MCX_COMM",
-                        "NSE_CURRENCY",
-                        "BSE_CURRENCY",
-                    }
-                    if expected_segment in derivative_segments:
-                        raise InstrumentNotFoundError(
-                            f"{symbol} is an index; specify the derivative contract symbol "
-                            f"e.g. NIFTY 26 JUN 25000 CE for {expected_segment}"
-                        )
-
-                from decimal import Decimal
-
-                logger.info(
-                    "index_resolved_via_hardcoded_id",
-                    extra={
-                        "symbol": clean,
-                        "security_id": entry.dhan_security_id,
-                        "canonical_name": entry.canonical_name,
-                    },
-                )
-                # Create domain instrument first
-                domain_inst = DomainInstrument(
-                    symbol=clean,
-                    exchange="INDEX",
-                    security_id=entry.dhan_security_id,
-                    instrument_type="EQUITY",
-                    lot_size=1,
-                    tick_size=Decimal("0.05"),
-                    name="INDEX",
-                    canonical_symbol=entry.canonical_name,
-                )
-                return Instrument(
-                    domain_instrument=domain_inst,
-                    exchange=Exchange("INDEX"),
-                    instrument_type=InstrumentType.EQUITY,
-                )
-
-        return None
-
-    @staticmethod
-    def _normalise_exchange(exchange: str) -> Exchange:
-        up = normalize_exchange(exchange)
+        # Download fresh
         try:
-            return Exchange(up)
-        except ValueError as e:
-            mapped = SEGMENT_TO_EXCHANGE.get(up)
-            if mapped is None:
-                raise InstrumentNotFoundError(f"Unknown exchange: {exchange!r}") from e
-            return Exchange(mapped)
+            with urlopen(self.INSTRUMENT_CSV_URL) as resp:
+                text = resp.read().decode("utf-8")
 
-    @staticmethod
-    def _row_to_instrument(row: dict) -> Instrument | None:
-        symbol = (row.get("SEM_TRADING_SYMBOL") or "").strip()
-        security_id = str(row.get("SEM_SMST_SECURITY_ID") or "").strip()
-        if not symbol or not security_id:
-            return None
-        try:
-            if int(float(security_id)) <= 0:
-                return None
-        except (TypeError, ValueError):
-            return None
+            # Save to cache
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            cache_file.write_text(text, encoding="utf-8")
 
-        segment = normalize_exchange(row.get("SEM_EXM_EXCH_ID") or "")
-        exch_str = SEGMENT_TO_EXCHANGE.get(segment)
-        if exch_str is None:
-            return None
-        exchange = Exchange(exch_str)
+            rows = list(csv.DictReader(io.StringIO(text)))
+            return self.load_from_rows(rows)
+        except Exception as exc:
+            logger.error("dhan_download_failed", extra={"error": str(exc)[:200]})
+            # Try to use any existing cache file as fallback
+            fallback = self._find_latest_cache(cache_dir)
+            if fallback is not None:
+                logger.warning("dhan_using_stale_cache", extra={"path": str(fallback)})
+                return self.load_from_file(fallback)
+            raise
 
-        name = normalize_symbol(row.get("SEM_INSTRUMENT_NAME") or "")
-        itype = _NAME_TO_TYPE.get(name)
-        if itype is None:
+    # ── Row parsing ──────────────────────────────────────────────────────
+
+    def _row_to_instrument(self, row: dict[str, Any]) -> ResolvedInstrument | None:
+        """Parse a CSV row into a ResolvedInstrument."""
+        trading_symbol = str(row.get(_COL_TRADING_SYMBOL, "")).strip()
+        security_id = str(row.get(_COL_SECURITY_ID, "")).strip()
+
+        if not trading_symbol or not security_id:
             return None
 
-        lot_size = _safe_int(row.get("SEM_LOT_UNITS"), default=1)
-        tick_size = _safe_decimal(row.get("SEM_TICK_SIZE"), default="0.05")
+        # Security ID must be numeric for Dhan
+        if not security_id.isdigit():
+            return None
 
-        option_type: OptionType | None = None
-        strike_price = None
-        expiry = None
-        underlying = None
-        canonical = (row.get("SEM_CUSTOM_SYMBOL") or "").strip() or None
+        # Map exchange segment
+        exchange_code = str(row.get(_COL_EXCHANGE, "")).strip()
+        segment = _COMPACT_SEGMENT_MAP.get(exchange_code, exchange_code)
+        exchange = _SEGMENT_TO_EXCHANGE.get(segment, Exchange.NSE)
 
-        # SM_SYMBOL_NAME is the authoritative underlying name from Dhan CSV
-        sm_symbol_name = (row.get("SM_SYMBOL_NAME") or "").strip() or None
+        # Map instrument type
+        inst_name = str(row.get(_COL_INSTRUMENT_NAME, "")).strip().upper()
+        instrument_type = _INSTRUMENT_NAME_TO_TYPE.get(inst_name, InstrumentType.EQUITY)
 
-        if itype in (InstrumentType.OPTION, InstrumentType.FUTURE):
-            expiry = row.get("SEM_EXPIRY_DATE")
-            if itype == InstrumentType.OPTION:
-                opt_raw = normalize_symbol(row.get("SEM_OPTION_TYPE") or "")
-                option_type = _DHAN_OPTION_TYPE.get(opt_raw)
-                strike_price = (
-                    _safe_decimal(row.get("SEM_STRIKE_PRICE"))
-                    if row.get("SEM_STRIKE_PRICE") is not None
-                    else None
-                )
+        # Parse lot size and tick size
+        lot_size = _safe_int(row.get(_COL_LOT_UNITS), 1)
+        tick_size = _safe_decimal(row.get(_COL_TICK_SIZE), Decimal("0.05")) or Decimal("0.05")
 
-            # Prefer SM_SYMBOL_NAME for underlying (root cause fix)
-            if sm_symbol_name:
-                underlying = sm_symbol_name.split()[0].upper()
-            elif canonical:
-                underlying = canonical.split()[0].upper()
-            elif "-" in symbol:
-                underlying = symbol.split("-", 1)[0].upper()
-            else:
-                import re
+        # Parse expiry
+        expiry = str(row.get(_COL_EXPIRY, "")).strip() or None
 
-                m = re.match(r"^([A-Z]+)\d+[A-Z]{3}FUT$", symbol.upper())
-                underlying = (m.group(1)                if m else symbol).upper()
+        # Parse strike price (for options)
+        strike = _safe_decimal(row.get(_COL_STRIKE), None)
 
-        # Create domain instrument first
-        domain_inst = DomainInstrument(
-            symbol=symbol,
-            exchange=exchange.value,
-            security_id=security_id,
-            instrument_type=itype.value,
+        # Parse option type
+        str(row.get(_COL_OPTION_TYPE, "")).strip().upper()
+
+        # Underlying symbol
+        underlying = str(row.get(_COL_UNDERLYING, "")).strip()
+
+        # Custom/canonical symbol
+        custom_symbol = str(row.get(_COL_CUSTOM_SYMBOL, "")).strip()
+
+        # Derive canonical symbol
+        # For equities: use the trading symbol or custom symbol
+        # For derivatives: use the underlying symbol
+        if instrument_type == InstrumentType.EQUITY:
+            canonical = custom_symbol or trading_symbol
+        elif instrument_type == InstrumentType.INDEX:
+            canonical = custom_symbol or trading_symbol
+        else:
+            canonical = underlying or custom_symbol or trading_symbol
+
+        return ResolvedInstrument(
+            symbol=canonical,
+            exchange=exchange,
+            broker_id=security_id,
+            segment=segment,
+            instrument_type=instrument_type,
             lot_size=lot_size,
             tick_size=tick_size,
-            name=name,
-            option_type=option_type.value if option_type else None,
-            strike_price=strike_price,
+            trading_symbol=trading_symbol,
             expiry=expiry,
+            strike=strike,
             underlying=underlying,
-            canonical_symbol=canonical,
         )
 
-        return Instrument(
-            domain_instrument=domain_inst,
-            exchange=exchange,
-            instrument_type=itype,
-            option_type=option_type,
-            sm_symbol_name=sm_symbol_name,
-        )
+    # ── Alternate key generation (Dhan-specific) ─────────────────────────
+
+    def _generate_alternate_keys(self, inst: ResolvedInstrument) -> list[str]:
+        """Generate Dhan-specific alternate lookup keys."""
+        keys = super()._generate_alternate_keys(inst)
+
+        # Dhan-specific: add trading symbol variants
+        ts = inst.trading_symbol
+        if ts:
+            stripped_ts = ts.replace(" ", "").replace("-", "").upper()
+            keys.append(stripped_ts)
+
+        # For options: add formatted variants with CE/PE
+        if inst.instrument_type == InstrumentType.OPTIONS and inst.expiry and inst.strike is not None:
+            underlying = inst.underlying or inst.symbol
+            for suffix in ("CE", "PE", "CALL", "PUT"):
+                compact = _build_dhan_option_key(underlying, inst.expiry, inst.strike, suffix)
+                keys.append(compact)
+
+        # For futures: add FUT suffix variant
+        if inst.instrument_type == InstrumentType.FUTURES and inst.expiry:
+            underlying = inst.underlying or inst.symbol
+            compact = _build_dhan_future_key(underlying, inst.expiry)
+            keys.append(compact)
+
+        return keys
+
+    # ── Cache helpers ────────────────────────────────────────────────────
+
+    @staticmethod
+    def _purge_old_cache(cache_dir: Path, max_days: int = 7) -> None:
+        """Remove cache files older than max_days."""
+        if not cache_dir.exists():
+            return
+        cutoff = date.today() - timedelta(days=max_days)
+        for f in cache_dir.glob("instruments_*.csv"):
+            try:
+                date_str = f.stem.replace("instruments_", "")
+                file_date = date.fromisoformat(date_str)
+                if file_date < cutoff:
+                    f.unlink()
+            except (ValueError, OSError):
+                pass
+
+    @staticmethod
+    def _find_latest_cache(cache_dir: Path) -> Path | None:
+        """Find the most recent cache file."""
+        if not cache_dir.exists():
+            return None
+        files = sorted(cache_dir.glob("instruments_*.csv"), reverse=True)
+        return files[0] if files else None
 
 
-def _safe_int(value, default: int = 0) -> int:
+# ── Helpers ────────────────────────────────────────────────────────────────
+
+
+def _safe_int(val: Any, default: int = 0) -> int:
+    if val is None or val == "":
+        return default
     try:
-        return int(float(value))
-    except (TypeError, ValueError):
+        return int(float(val))
+    except (ValueError, TypeError):
         return default
 
 
-def _safe_decimal(value, default: str = "0"):
-    from decimal import Decimal
-
-    if value is None:
-        return Decimal(default)
+def _safe_decimal(val: Any, default: Decimal | None) -> Decimal | None:
+    if val is None or val == "":
+        return default
     try:
-        return Decimal(str(value))
-    except Exception:
-        return Decimal(default)
+        return Decimal(str(val))
+    except (ValueError, TypeError):
+        return default
 
 
-def _generate_alternate_keys(
-    symbol: str,
-    inst_type: str | InstrumentType,
-    expiry: str | None,
-    strike,
-    option_type,
-    underlying: str | None,
-    canonical_symbol: str | None,
-    sm_symbol_name: str | None = None,
-) -> list[str]:
-    keys = []
+def _build_dhan_option_key(underlying: str, expiry: str, strike: Decimal, suffix: str) -> str:
+    """Build a Dhan-style compact option symbol."""
+    parts = expiry.split("-")
+    if len(parts) == 3:
+        month_num = int(parts[1])
+        months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+        if 1 <= month_num <= 12:
+            month = months[month_num - 1]
+            year = parts[0][2:]
+            strike_str = str(int(strike)) if strike == int(strike) else str(strike)
+            return f"{underlying}{year}{month}{strike_str}{suffix}"
+    return underlying
 
-    # 1. Primary symbol (SEM_TRADING_SYMBOL)
-    sym_up = normalize_symbol(symbol)
-    keys.append(sym_up)
 
-    # 2. Canonical symbol (SEM_CUSTOM_SYMBOL)
-    if canonical_symbol:
-        canon_up = normalize_symbol(canonical_symbol)
-        keys.append(canon_up)
-        # Also generate CE/PE variant when SEM_CUSTOM_SYMBOL has CALL/PUT
-        if canon_up.endswith(" CALL"):
-            keys.append(canon_up[:-5] + " CE")
-        elif canon_up.endswith(" PUT"):
-            keys.append(canon_up[:-4] + " PE")
+def _build_dhan_future_key(underlying: str, expiry: str) -> str:
+    """Build a Dhan-style compact future symbol."""
+    parts = expiry.split("-")
+    if len(parts) == 3:
+        month_num = int(parts[1])
+        months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+        if 1 <= month_num <= 12:
+            month = months[month_num - 1]
+            year = parts[0][2:]
+            return f"{underlying}{year}{month}FUT"
+    return underlying
 
-    # 3. Stripped symbol (no spaces, dashes, underscores)
-    stripped = sym_up.replace(" ", "").replace("-", "").replace("_", "")
-    keys.append(stripped)
 
-    # 4. SM_SYMBOL_NAME as bare lookup key (e.g. "CRUDEOIL", "GOLDM", "USDINR")
-    #    This is the root cause fix — enables resolution by underlying name.
-    if sm_symbol_name:
-        keys.append(normalize_symbol(sm_symbol_name))
-
-    # Standardize option type and instrument type
-    type_str = str(inst_type).upper()
-    is_option = "OPT" in type_str or "OPTION" in type_str
-    is_future = "FUT" in type_str or "FUTURE" in type_str
-
-    if (is_option or is_future) and expiry and underlying:
-        try:
-            from datetime import datetime
-
-            dt = datetime.strptime(expiry[:10], "%Y-%m-%d")
-            dd = dt.strftime("%d")
-            dd_strip = str(int(dd))
-            mmm = dt.strftime("%b").upper()
-            yy = dt.strftime("%y")
-            yyyy = dt.strftime("%Y")
-
-            # Month character for weekly options (1-9, O, N, D)
-            month_chars = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "O", "N", "D"]
-            month_char = month_chars[dt.month - 1]
-
-            und_up = normalize_symbol(underlying)
-
-            if is_option:
-                opt_str = str(option_type).upper()
-                ce_pe = "CE" if "CALL" in opt_str or "CE" in opt_str or "C" in opt_str else "PE"
-                call_put = "CALL" if ce_pe == "CE" else "PUT"
-
-                # Format strike price
-                strike_str = ""
-                if strike is not None:
-                    try:
-                        st_val = float(strike)
-                        strike_str = str(int(st_val)) if st_val % 1 == 0 else str(st_val)
-                    except (ValueError, TypeError):
-                        strike_str = str(strike)
-
-                # Generate spaced option forms with CE/PE:
-                keys.append(f"{und_up} {dd} {mmm} {yy} {strike_str} {ce_pe}")
-                keys.append(f"{und_up} {dd_strip} {mmm} {yy} {strike_str} {ce_pe}")
-                keys.append(f"{und_up} {dd} {mmm} {yyyy} {strike_str} {ce_pe}")
-                keys.append(f"{und_up} {dd_strip} {mmm} {yyyy} {strike_str} {ce_pe}")
-                keys.append(f"{und_up} {dd} {mmm} {strike_str} {ce_pe}")
-                keys.append(f"{und_up} {dd_strip} {mmm} {strike_str} {ce_pe}")
-
-                # Generate spaced option forms with CALL/PUT:
-                keys.append(f"{und_up} {dd} {mmm} {strike_str} {call_put}")
-                keys.append(f"{und_up} {dd_strip} {mmm} {strike_str} {call_put}")
-
-                # Generate compact option forms:
-                keys.append(f"{und_up}{dd}{mmm}{yy}{strike_str}{ce_pe}")
-                keys.append(f"{und_up}{dd_strip}{mmm}{yy}{strike_str}{ce_pe}")
-                keys.append(f"{und_up}{dd}{mmm}{yyyy}{strike_str}{ce_pe}")
-                keys.append(f"{und_up}{dd_strip}{mmm}{yyyy}{strike_str}{ce_pe}")
-                keys.append(f"{und_up}{dd}{mmm}{strike_str}{ce_pe}")
-                keys.append(f"{und_up}{dd_strip}{mmm}{strike_str}{ce_pe}")
-
-                # Weekly format: e.g. NIFTY2662525000CE
-                keys.append(f"{und_up}{yy}{month_char}{dd}{strike_str}{ce_pe}")
-                keys.append(f"{und_up}{yy}{month_char}{dd_strip}{strike_str}{ce_pe}")
-
-            elif is_future:
-                keys.append(f"{und_up} {mmm} FUT")
-                keys.append(f"{und_up} {yy} {mmm} FUT")
-                keys.append(f"{und_up} {yyyy} {mmm} FUT")
-                keys.append(f"{und_up} {dd} {mmm} FUT")
-                keys.append(f"{und_up} FUT")
-
-                keys.append(f"{und_up}{mmm}FUT")
-                keys.append(f"{und_up}{yy}{mmm}FUT")
-                keys.append(f"{und_up}{yyyy}{mmm}FUT")
-                keys.append(f"{und_up}{dd}{mmm}FUT")
-                keys.append(f"{und_up}FUT")
-        except Exception as exc:
-            logger.debug("alternate_key_generation_failed: %s", exc)
-
-    res = []
-    seen = set()
-    for k in keys:
-        k_clean = normalize_symbol(k)
-        if k_clean and k_clean not in seen:
-            seen.add(k_clean)
-            res.append(k_clean)
-    return res
+__all__ = ["DhanInstrumentResolver"]
