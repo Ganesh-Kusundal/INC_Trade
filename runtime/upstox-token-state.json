@@ -1,0 +1,8 @@
+{
+  "access_token": "eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiI2VkFaR1ciLCJqdGkiOiI2YTQ5YzYxZWEwYWZhMDU1MjRkNDQzZDkiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaXNQbHVzUGxhbiI6dHJ1ZSwiaWF0IjoxNzgzMjE5NzQyLCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3ODMyODg4MDB9.6BWZB2zGtc85qJQPA1YNofw8zFq6QLAgKfutpYrD-kc",
+  "refresh_token": null,
+  "issued_at": "2026-07-05T02:49:03.898000+00:00",
+  "expires_at": "2026-07-05T22:00:00+00:00",
+  "source": "OAUTH",
+  "_CLOCK_SKEW_SECONDS": 30.0
+}
